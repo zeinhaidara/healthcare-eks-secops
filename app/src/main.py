@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import json
 import logging
@@ -8,11 +9,12 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import load_settings
+from .config import Settings, fetch_api_key, load_settings
 from .models import Patient, PatientCreate
 from .store import DynamoStore, MemoryStore, seed_if_empty
 
@@ -42,20 +44,35 @@ def setup_logging() -> None:
     log.propagate = False
 
 
+async def load_api_key(app: FastAPI, settings: Settings) -> None:
+    """Fetch the key, retrying with backoff. The pod stays not-ready until it succeeds."""
+    delay = 1
+    while True:
+        try:
+            app.state.api_key = await asyncio.to_thread(fetch_api_key, settings)
+        except (BotoCoreError, ClientError, KeyError) as exc:  # log the type only, never the secret
+            log.warning("api key fetch failed", extra={"fields": {"error": type(exc).__name__}})
+        if app.state.api_key or not settings.api_key_secret_name:
+            return
+        await asyncio.sleep(delay)
+        delay = min(delay * 2, 30)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
     settings = load_settings()
-    app.state.api_key = settings.api_key
-    app.state.ready = False
+    app.state.api_key = settings.api_key  # set only for local/tests; AWS fetches below
     if settings.dynamodb_table:
         store = DynamoStore.from_env(settings.dynamodb_table, settings.aws_region)
     else:
         store = MemoryStore()
     seed_if_empty(store, settings.seed_file)
     app.state.store = store
-    app.state.ready = bool(settings.api_key)
+    task = None if app.state.api_key else asyncio.create_task(load_api_key(app, settings))
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title="healthcare-api", lifespan=lifespan, docs_url=None, redoc_url=None)
@@ -114,7 +131,7 @@ def health() -> dict:
 
 @app.get("/ready")
 def ready(request: Request, response: Response) -> dict:
-    if not request.app.state.ready:
+    if not request.app.state.api_key:
         response.status_code = 503
         return {"status": "not ready"}
     return {"status": "ready"}

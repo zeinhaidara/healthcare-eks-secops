@@ -10,8 +10,8 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 | Role | Used by | Access |
 |---|---|---|
-| plan | `pr-checks.yml` plan step | read-only |
-| apply | `terraform.yml` (environment `infra`) | write, scoped to project resources |
+| plan | `terraform-plan.yml` | read-only on state |
+| apply | `terraform-apply.yml` (environment `infra`) | write, scoped to project resources |
 | ecr-push | `app-release.yml` push job | push to the project ECR repo |
 | deploy-dev | `app-release.yml` dev deploy | namespace-scoped EKS access |
 | deploy-prod | `app-release.yml` prod deploy | namespace-scoped EKS access |
@@ -21,7 +21,13 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 ## Set manually after Terraform apply
 
-- The API key value in Secrets Manager (set in the console; Terraform creates only the empty secret).
+- The API key value in Secrets Manager. Terraform creates only the empty, KMS-encrypted secret so the key never enters Terraform state.
+  1. Generate a random value (password manager or `openssl rand -base64 32`).
+  2. In the console (us-east-2), open the secret, choose Retrieve secret value, then Edit.
+  3. Use the Plaintext tab, paste the value, and save.
+  4. Keep a copy in your password manager for testing `/patients`.
+- The app reads the secret itself at startup through its IRSA role. Until the value is set, the pod stays not-ready (`/ready` returns 503) by design.
+- To rotate: repeat the steps above, then restart the pods.
 
 ## Rules
 

@@ -16,7 +16,7 @@ DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/C
 |---|---|---|---|
 | GET | `/` | none | Frontend |
 | GET | `/health` | none | Liveness |
-| GET | `/ready` | none | Readiness (200 once `API_KEY` is loaded) |
+| GET | `/ready` | none | Readiness (200 once the API key is loaded) |
 | GET | `/metrics` | none | Prometheus text format |
 | GET | `/patients` | `x-api-key` | List patients |
 | GET | `/patients/{id}` | `x-api-key` | One patient |
@@ -29,7 +29,8 @@ Logs are JSON on stdout (request ID, method, path, status, latency). Patient fie
 
 | Env var | Default | Notes |
 |---|---|---|
-| `API_KEY` | none | From Secrets Manager via External Secrets in AWS |
+| `API_KEY_SECRET_NAME` | none | Secrets Manager secret holding the key (plaintext). The app fetches it at startup through its IRSA role and stays not-ready until it succeeds |
+| `API_KEY` | none | Local run and unit test fallback only |
 | `DYNAMODB_TABLE` | empty | Empty means in-memory store seeded from `app/data/patients.json` |
 | `AWS_REGION` | `us-east-2` | |
 
