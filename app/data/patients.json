@@ -1,0 +1,242 @@
+[
+  {
+    "patient_id": "P001",
+    "name": "Rosa Haddad",
+    "age": 78,
+    "condition": "COPD",
+    "date_of_birth": "1948-08-27",
+    "admission_date": "2026-02-18"
+  },
+  {
+    "patient_id": "P002",
+    "name": "Brian Larsen",
+    "age": 77,
+    "condition": "Anxiety Disorder",
+    "date_of_birth": "1949-07-06",
+    "admission_date": "2026-01-09"
+  },
+  {
+    "patient_id": "P003",
+    "name": "Hiro Adeyemi",
+    "age": 51,
+    "condition": "Anxiety Disorder",
+    "date_of_birth": "1975-02-09",
+    "admission_date": "2026-09-08"
+  },
+  {
+    "patient_id": "P004",
+    "name": "Carla Nguyen",
+    "age": 66,
+    "condition": "Anxiety Disorder",
+    "date_of_birth": "1960-11-19",
+    "admission_date": "2026-02-16"
+  },
+  {
+    "patient_id": "P005",
+    "name": "Quinn Rossi",
+    "age": 44,
+    "condition": "Chronic Kidney Disease",
+    "date_of_birth": "1982-06-17",
+    "admission_date": "2026-07-28"
+  },
+  {
+    "patient_id": "P006",
+    "name": "Maya Rossi",
+    "age": 48,
+    "condition": "Osteoarthritis",
+    "date_of_birth": "1978-06-27",
+    "admission_date": "2026-04-10"
+  },
+  {
+    "patient_id": "P007",
+    "name": "Samir Haddad",
+    "age": 26,
+    "condition": "Hypothyroidism",
+    "date_of_birth": "2000-02-21",
+    "admission_date": "2026-02-15"
+  },
+  {
+    "patient_id": "P008",
+    "name": "Pedro Haddad",
+    "age": 38,
+    "condition": "Hypothyroidism",
+    "date_of_birth": "1988-06-18",
+    "admission_date": "2026-08-22"
+  },
+  {
+    "patient_id": "P009",
+    "name": "Imani Kim",
+    "age": 28,
+    "condition": "Atrial Fibrillation",
+    "date_of_birth": "1998-09-24",
+    "admission_date": "2026-09-08"
+  },
+  {
+    "patient_id": "P010",
+    "name": "Hiro Kim",
+    "age": 36,
+    "condition": "Atrial Fibrillation",
+    "date_of_birth": "1990-07-05",
+    "admission_date": "2026-01-03"
+  },
+  {
+    "patient_id": "P011",
+    "name": "Quinn Nguyen",
+    "age": 88,
+    "condition": "Osteoarthritis",
+    "date_of_birth": "1938-08-21",
+    "admission_date": "2026-04-23"
+  },
+  {
+    "patient_id": "P012",
+    "name": "Alice Petrov",
+    "age": 47,
+    "condition": "Migraine",
+    "date_of_birth": "1979-03-14",
+    "admission_date": "2026-09-14"
+  },
+  {
+    "patient_id": "P013",
+    "name": "Elena Adeyemi",
+    "age": 75,
+    "condition": "Hypothyroidism",
+    "date_of_birth": "1951-03-11",
+    "admission_date": "2026-07-10"
+  },
+  {
+    "patient_id": "P014",
+    "name": "Quinn Adeyemi",
+    "age": 69,
+    "condition": "Atrial Fibrillation",
+    "date_of_birth": "1957-08-28",
+    "admission_date": "2026-05-06"
+  },
+  {
+    "patient_id": "P015",
+    "name": "Carla Silva",
+    "age": 73,
+    "condition": "COPD",
+    "date_of_birth": "1953-06-01",
+    "admission_date": "2026-07-08"
+  },
+  {
+    "patient_id": "P016",
+    "name": "Imani Singh",
+    "age": 21,
+    "condition": "Hypothyroidism",
+    "date_of_birth": "2005-08-18",
+    "admission_date": "2026-07-02"
+  },
+  {
+    "patient_id": "P017",
+    "name": "Rosa Haddad",
+    "age": 51,
+    "condition": "Asthma",
+    "date_of_birth": "1975-07-01",
+    "admission_date": "2026-06-18"
+  },
+  {
+    "patient_id": "P018",
+    "name": "Hiro Johnson",
+    "age": 30,
+    "condition": "Hyperlipidemia",
+    "date_of_birth": "1996-02-23",
+    "admission_date": "2026-08-09"
+  },
+  {
+    "patient_id": "P019",
+    "name": "Brian Rossi",
+    "age": 23,
+    "condition": "Hypothyroidism",
+    "date_of_birth": "2003-10-23",
+    "admission_date": "2026-09-02"
+  },
+  {
+    "patient_id": "P020",
+    "name": "Quinn Okafor",
+    "age": 29,
+    "condition": "Type 2 Diabetes",
+    "date_of_birth": "1997-11-21",
+    "admission_date": "2026-03-04"
+  },
+  {
+    "patient_id": "P021",
+    "name": "Rosa Haddad",
+    "age": 65,
+    "condition": "Hypertension",
+    "date_of_birth": "1961-06-12",
+    "admission_date": "2026-04-08"
+  },
+  {
+    "patient_id": "P022",
+    "name": "Hiro Haddad",
+    "age": 78,
+    "condition": "Type 2 Diabetes",
+    "date_of_birth": "1948-12-14",
+    "admission_date": "2026-01-13"
+  },
+  {
+    "patient_id": "P023",
+    "name": "Elena Cohen",
+    "age": 27,
+    "condition": "Chronic Kidney Disease",
+    "date_of_birth": "1999-01-21",
+    "admission_date": "2026-06-20"
+  },
+  {
+    "patient_id": "P024",
+    "name": "Rosa Cohen",
+    "age": 24,
+    "condition": "Osteoarthritis",
+    "date_of_birth": "2002-01-05",
+    "admission_date": "2026-08-14"
+  },
+  {
+    "patient_id": "P025",
+    "name": "Olga Tanaka",
+    "age": 36,
+    "condition": "Anxiety Disorder",
+    "date_of_birth": "1990-12-11",
+    "admission_date": "2026-06-08"
+  },
+  {
+    "patient_id": "P026",
+    "name": "Elena Adeyemi",
+    "age": 18,
+    "condition": "Hypertension",
+    "date_of_birth": "2008-03-14",
+    "admission_date": "2026-03-24"
+  },
+  {
+    "patient_id": "P027",
+    "name": "Elena Singh",
+    "age": 49,
+    "condition": "Pneumonia",
+    "date_of_birth": "1977-09-20",
+    "admission_date": "2026-05-24"
+  },
+  {
+    "patient_id": "P028",
+    "name": "Rosa Johnson",
+    "age": 76,
+    "condition": "Type 2 Diabetes",
+    "date_of_birth": "1950-10-21",
+    "admission_date": "2026-04-18"
+  },
+  {
+    "patient_id": "P029",
+    "name": "Nikhil Kim",
+    "age": 74,
+    "condition": "Pneumonia",
+    "date_of_birth": "1952-06-01",
+    "admission_date": "2026-03-08"
+  },
+  {
+    "patient_id": "P030",
+    "name": "Samir Okafor",
+    "age": 64,
+    "condition": "Chronic Kidney Disease",
+    "date_of_birth": "1962-10-15",
+    "admission_date": "2026-03-25"
+  }
+]

@@ -1,0 +1,31 @@
+# Local instructions and plans (never pushed)
+.instructions/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+
+# Secrets and env
+.env
+.env.*
+*.pem
+*.key
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+*.tfvars
+!example.tfvars
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

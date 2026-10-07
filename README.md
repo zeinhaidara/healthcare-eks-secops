@@ -1,2 +1,56 @@
 # healthcare-eks-secops
-DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/Checkov/Prowler gates, GuardDuty/Inspector/Security Hub, CloudWatch observability, and incident and cost runbooks. Synthetic data only.
+
+DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/Checkov/Prowler gates, GuardDuty/Inspector/Security Hub, CloudWatch observability, and incident and cost runbooks. Synthetic data only. Controls are HIPAA-aligned, not HIPAA-compliant.
+
+## Architecture (3-tier)
+
+| Tier | What | Where |
+|---|---|---|
+| Frontend | Static single page (HTML/CSS/JS, strict CSP, no inline scripts) | `app/static/` |
+| Backend | FastAPI service on port 8080 | `app/src/` |
+| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | Terraform, Phase 2 |
+
+## Endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/` | none | Frontend |
+| GET | `/health` | none | Liveness |
+| GET | `/ready` | none | Readiness (200 once `API_KEY` is loaded) |
+| GET | `/metrics` | none | Prometheus text format |
+| GET | `/patients` | `x-api-key` | List patients |
+| GET | `/patients/{id}` | `x-api-key` | One patient |
+| POST | `/patients` | `x-api-key` | Add a patient |
+| DELETE | `/patients/{id}` | `x-api-key` | Delete a patient |
+
+Logs are JSON on stdout (request ID, method, path, status, latency). Patient fields are never logged.
+
+## Configuration
+
+| Env var | Default | Notes |
+|---|---|---|
+| `API_KEY` | none | From Secrets Manager via External Secrets in AWS |
+| `DYNAMODB_TABLE` | empty | Empty means in-memory store seeded from `app/data/patients.json` |
+| `AWS_REGION` | `us-east-2` | |
+
+## Run locally
+
+```sh
+docker build -t healthcare-api app/
+docker run --rm -p 8080:8080 --read-only --tmpfs /tmp -e API_KEY=test-key healthcare-api
+```
+
+Open http://localhost:8080 and enter `test-key`.
+
+## Test and lint
+
+```sh
+cd app
+pip install -r requirements-dev.txt
+pytest
+ruff check . && ruff format --check .
+```
+
+## Docs
+
+- [Bootstrap (manual one-time setup)](docs/bootstrap.md)
