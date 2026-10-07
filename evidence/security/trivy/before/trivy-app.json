@@ -1,0 +1,79 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.75.0"
+  },
+  "ReportID": "01a11828-9834-77cb-b282-1e059f630459",
+  "CreatedAt": "2026-10-07T20:57:56.020513673Z",
+  "ArtifactName": "app",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "requirements.txt",
+      "Class": "lang-pkgs",
+      "Type": "pip",
+      "Packages": [
+        {
+          "Name": "boto3",
+          "Identifier": {
+            "PURL": "pkg:pypi/boto3@1.43.108",
+            "UID": "71d9938d11fa807d"
+          },
+          "Version": "1.43.108",
+          "Locations": [
+            {
+              "StartLine": 4,
+              "EndLine": 4
+            }
+          ],
+          "AnalyzedBy": "pip"
+        },
+        {
+          "Name": "fastapi",
+          "Identifier": {
+            "PURL": "pkg:pypi/fastapi@0.142.2",
+            "UID": "a2dbd65dd17c7b3c"
+          },
+          "Version": "0.142.2",
+          "Locations": [
+            {
+              "StartLine": 1,
+              "EndLine": 1
+            }
+          ],
+          "AnalyzedBy": "pip"
+        },
+        {
+          "Name": "pydantic",
+          "Identifier": {
+            "PURL": "pkg:pypi/pydantic@2.13.5",
+            "UID": "87e5045096611d72"
+          },
+          "Version": "2.13.5",
+          "Locations": [
+            {
+              "StartLine": 3,
+              "EndLine": 3
+            }
+          ],
+          "AnalyzedBy": "pip"
+        },
+        {
+          "Name": "uvicorn",
+          "Identifier": {
+            "PURL": "pkg:pypi/uvicorn@0.54.0",
+            "UID": "35175efdd7d4baf3"
+          },
+          "Version": "0.54.0",
+          "Locations": [
+            {
+              "StartLine": 2,
+              "EndLine": 2
+            }
+          ],
+          "AnalyzedBy": "pip"
+        }
+      ]
+    }
+  ]
+}

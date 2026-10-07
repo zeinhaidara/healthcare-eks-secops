@@ -52,6 +52,26 @@ pytest
 ruff check . && ruff format --check .
 ```
 
+## Branch flow and CI
+
+`feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit, no squash) -> `app-release.yml` deploys with approvals. `dev` never deploys.
+
+Two independent, AWS-free pipelines run on PRs to `main` or `dev` and on pushes to `dev`. Mark these job names as required checks on `main`:
+
+| Workflow | Required checks |
+|---|---|
+| `app-ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov` |
+| `terraform-ci.yml` | `tf-validate`, `tf-checkov` |
+
+Terraform plan and apply are manual only (`terraform-apply.yml`, Phase 2).
+
+## Budget
+
+$75 per month with alerts at 50%, 80% and 100% of actual spend and a 100% forecast alert. Destroy the stack after every session. Details: [docs/cost/budget.md](docs/cost/budget.md).
+
 ## Docs
 
 - [Bootstrap (manual one-time setup)](docs/bootstrap.md)
+- [Security controls, PR gate to approval gate](docs/security/controls.md)
+- [Improvement log](docs/security/improvement-log.md), [exceptions](docs/security/exceptions-register.md), [triage](docs/security/triage-process.md)
+- [Budget](docs/cost/budget.md)
