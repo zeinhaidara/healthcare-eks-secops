@@ -12,9 +12,9 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 |---|---|---|
 | plan | `terraform-apply.yml` job `tf-plan` | read-only on resources, lock file only on state (`docs/bootstrap-policies/plan-policy.json`) |
 | apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources (`docs/bootstrap-policies/apply-policy.json`) |
-| ecr-push | `app-release.yml` push job | push to the project ECR repo |
-| deploy-dev | `app-release.yml` dev deploy | namespace-scoped EKS access |
-| deploy-prod | `app-release.yml` prod deploy | namespace-scoped EKS access |
+| ecr-push | `cd.yml` job `push` | push to the project ECR repo |
+| deploy-dev | `cd.yml` job `deploy-dev` | namespace-scoped EKS access |
+| deploy-prod | `cd.yml` job `deploy-prod` | namespace-scoped EKS access |
 
 - GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`, each requiring approval and limited to `main`. `infra` and `infra-destroy` each hold `AWS_ROLE_ARN` (the apply role). The apply role's trust policy must allow the `environment:infra` and `environment:infra-destroy` subjects.
 - IAM policies for the CI roles are in `docs/bootstrap-policies/` and are applied by hand, never by Terraform.

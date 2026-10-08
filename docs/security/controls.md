@@ -19,11 +19,14 @@ Two independent pipelines. Neither depends on the other, and neither can reach A
 
 | Check (job name) | Workflow | Gate |
 |---|---|---|
-| `app-test-lint` | `app-ci.yml` | pytest, ruff check, ruff format |
-| `app-trivy` | `app-ci.yml` | Trivy dependencies and secrets, fail on HIGH or CRITICAL |
-| `app-checkov` | `app-ci.yml` | Checkov on the Dockerfile and GitHub workflows |
-| `tf-validate` | `terraform-ci.yml` | `fmt -check`, `init -backend=false`, `validate` |
-| `tf-checkov` | `terraform-ci.yml` | Checkov on `terraform/` |
+| `app-test-lint` | `ci.yml` | pytest, ruff check, ruff format |
+| `app-trivy` | `ci.yml` | Trivy dependencies and secrets, fail on HIGH or CRITICAL |
+| `app-checkov` | `ci.yml` | Checkov on the Dockerfile and GitHub workflows |
+| `tf-validate` | `ci.yml` | `fmt -check`, `init -backend=false`, `validate` |
+| `tf-checkov` | `ci.yml` |
+| `app-build`, `app-image-scan` | `ci.yml` | Local docker build and Trivy image scan, nothing pushed |
+| `codeql` | `ci.yml` | CodeQL for Python and Actions, fails on security-severity 7.0 or more |
+| `sonar` | `ci.yml` | SonarCloud quality gate | Checkov on `terraform/` |
 
 Supporting rules:
 - Default token is `contents: read`. Actions pinned by commit SHA. Trivy, Checkov, Terraform, ruff and Python packages pinned. Base image pinned by digest.
@@ -35,7 +38,7 @@ Supporting rules:
 
 | Control | Status | What it does |
 |---|---|---|
-| `app-release.yml` on push to `main` (path filtered) | Planned, Phase 4 | Builds the image tagged with the commit SHA. |
+| `cd.yml` on push to `main` (path filtered) | Planned, Phase 4 | Builds the image tagged with the commit SHA. |
 | Image scan before push | Planned, Phase 4 | Trivy image scan, fail on HIGH or CRITICAL, before anything reaches ECR. |
 | ECR hardening | Live (Terraform, not yet applied) | Immutable tags, scan on push, KMS encryption, lifecycle policy. |
 | Deploy with `--atomic --wait` | Planned, Phase 4 | Failed deploys roll back automatically. Same SHA goes to dev, then prod. |
@@ -52,9 +55,9 @@ No long-lived AWS keys anywhere. GitHub OIDC only, one role per purpose, created
 |---|---|---|---|
 | plan | `tf-plan` job | read-only on resources; state lock file only | `docs/bootstrap-policies/plan-policy.json`; trust: `pull_request` and `ref:refs/heads/main` |
 | apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources and the `cloudbatch818-zein-hcsecops-logs-*` bucket pattern | `docs/bootstrap-policies/apply-policy.json` |
-| ecr-push | `app-release.yml` push job (no environment) | push to the project ECR repo only | To fill from console |
-| deploy-dev | `app-release.yml` dev deploy | EKS access entry, `AmazonEKSEditPolicy`, dev namespace only | To fill from console |
-| deploy-prod | `app-release.yml` prod deploy | EKS access entry, `AmazonEKSEditPolicy`, prod namespace only | To fill from console |
+| ecr-push | `cd.yml` job `push` (no environment) | push to the project ECR repo only | To fill from console |
+| deploy-dev | `cd.yml` job `deploy-dev` | EKS access entry, `AmazonEKSEditPolicy`, dev namespace only | To fill from console |
+| deploy-prod | `cd.yml` job `deploy-prod` | EKS access entry, `AmazonEKSEditPolicy`, prod namespace only | To fill from console |
 
 Runtime roles (Terraform, Phase 3):
 
