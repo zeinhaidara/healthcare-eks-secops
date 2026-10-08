@@ -1,13 +1,7 @@
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 locals {
   account_id = data.aws_caller_identity.current.account_id
-  region     = data.aws_region.current.region
-  eni_arn    = "arn:aws:ec2:${local.region}:${local.account_id}:network-interface/*"
-  subnet_arns = [
-    for s in var.subnet_ids : "arn:aws:ec2:${local.region}:${local.account_id}:subnet/${s}"
-  ]
 }
 
 data "archive_file" "code" {
@@ -85,36 +79,22 @@ data "aws_iam_policy_document" "permissions" {
     resources = [aws_sqs_queue.dlq.arn]
   }
 
-  # ENI permissions AWS requires for a VPC-attached Lambda (same actions as the AWS managed policy
-  # AWSLambdaVPCAccessExecutionRole). Lambda validates them when the function is created or updated.
-  # Create is limited to this function's subnets and security group by resource ARN.
+  # VPC-attached Lambda: the exact EC2 actions of the AWS managed policy
+  # AWSLambdaVPCAccessExecutionRole (plus DescribeSecurityGroups and DescribeVpcs), on "*".
+  # Lambda checks these permissions when the function is created, before any network interface
+  # exists, so ARN- or condition-scoped grants fail that check ("does not have permissions to call
+  # DeleteNetworkInterface on EC2"). No other ec2: action is granted. Accepted exception: EXC-009.
   statement {
-    sid       = "EniCreate"
-    actions   = ["ec2:CreateNetworkInterface"]
-    resources = concat([local.eni_arn, aws_security_group.this.arn], local.subnet_arns)
-  }
-
-  # Delete/Assign/Unassign act only on network interfaces. Lambda checks Delete without subnet
-  # context, so an ec2:Subnet condition makes the check fail ("does not have permissions to call
-  # DeleteNetworkInterface"). Scoped to network interfaces in this account and region, no condition.
-  statement {
-    sid = "EniManage"
+    sid = "VpcLambdaNetworkInterfaces"
     actions = [
-      "ec2:DeleteNetworkInterface",
-      "ec2:AssignPrivateIpAddresses",
-      "ec2:UnassignPrivateIpAddresses",
-    ]
-    resources = [local.eni_arn]
-  }
-
-  # Describe actions do not support resource-level permissions.
-  statement {
-    sid = "EniDescribe"
-    actions = [
+      "ec2:CreateNetworkInterface",
       "ec2:DescribeNetworkInterfaces",
+      "ec2:DeleteNetworkInterface",
       "ec2:DescribeSubnets",
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeVpcs",
+      "ec2:AssignPrivateIpAddresses",
+      "ec2:UnassignPrivateIpAddresses",
     ]
     resources = ["*"]
   }
