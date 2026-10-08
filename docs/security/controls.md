@@ -40,7 +40,8 @@ Supporting rules:
 | ECR hardening | Live (Terraform, not yet applied) | Immutable tags, scan on push, KMS encryption, lifecycle policy. |
 | Deploy with `--atomic --wait` | Planned, Phase 4 | Failed deploys roll back automatically. Same SHA goes to dev, then prod. |
 | GitHub Environments `infra`, `dev`, `prod` | Manual | Each requires approval and deploys from `main` only. |
-| Terraform plan, apply, destroy | Live | `terraform-apply.yml`, `workflow_dispatch` only. The `tf-plan` job and the separate `tf-apply` job each need `infra` approval, so the plan is read before apply. Apply runs the saved plan file. Destroy needs typed `DESTROY`. Only one run at a time (concurrency group). |
+| Terraform plan, apply | Live | `terraform-apply.yml`, `workflow_dispatch` with no inputs. `tf-plan` runs under the read-only plan role with no environment; `tf-apply` needs `infra` approval, runs under the apply role, and applies the exact plan file from `tf-plan`. One run at a time (concurrency group). |
+| Terraform destroy | Live | `terraform-destroy.yml`, no inputs, environment `infra-destroy` (separate approval), apply role. |
 | Rollback | Planned, Phase 4 | `helm rollback`, `scripts/rollback.sh`, `docs/runbooks/rollback.md`. |
 
 ## 4. Identity and least privilege
@@ -49,8 +50,8 @@ No long-lived AWS keys anywhere. GitHub OIDC only, one role per purpose, created
 
 | Role | Used by | Intended access | Policy detail |
 |---|---|---|---|
-| plan | Not used yet (see open item below) | read-only | To fill from console |
-| apply | `terraform-apply.yml`, environment `infra` | write, scoped to project resources and the `cloudbatch818-zein-hcsecops-logs-*` bucket pattern | To fill from console |
+| plan | `tf-plan` job | read-only on resources; state lock file only | `docs/bootstrap-policies/plan-policy.json`; trust: `pull_request` and `ref:refs/heads/main` |
+| apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources and the `cloudbatch818-zein-hcsecops-logs-*` bucket pattern | `docs/bootstrap-policies/apply-policy.json` |
 | ecr-push | `app-release.yml` push job (no environment) | push to the project ECR repo only | To fill from console |
 | deploy-dev | `app-release.yml` dev deploy | EKS access entry, `AmazonEKSEditPolicy`, dev namespace only | To fill from console |
 | deploy-prod | `app-release.yml` prod deploy | EKS access entry, `AmazonEKSEditPolicy`, prod namespace only | To fill from console |
@@ -64,7 +65,7 @@ Runtime roles (Terraform, Phase 3):
 
 Rules: no `"Action": "*"` or `"Resource": "*"` unless justified in a code comment and approved. The apply role is cluster creator and therefore cluster admin; this is an accepted risk to be recorded in `exceptions-register.md` when EKS lands.
 
-Open item: the plan role trusts `sub` = `:pull_request`, which a `workflow_dispatch` run does not present, so `terraform-apply.yml` currently plans under the apply role (behind the `infra` approval). Decide whether to keep that or re-trust the plan role. Review results go in `rbac-review.md`.
+Note: the plan role trusts `pull_request` and `ref:refs/heads/main`, so a manual `tf-plan` run works only when dispatched from `main`. Review results go in `rbac-review.md`.
 
 ## 5. Data protection
 

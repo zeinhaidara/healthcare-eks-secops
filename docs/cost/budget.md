@@ -17,6 +17,6 @@ Rough on-demand estimates, not checked against current pricing. Replace with mea
 | **Total** | **about $230 to $300** | **about $35 to $60** |
 
 ## Rules
-- Destroy after every working session (`terraform-apply.yml`, `action=destroy`).
+- Destroy after every working session (`terraform-destroy.yml`, behind the `infra-destroy` approval).
 - A forgotten cluster costs roughly $8 to $10 a day; the 80% alert is the signal to check.
 - Re-check this table at the end of Phase 5 (security services) and update the budget if needed.

@@ -1,0 +1,139 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformState",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>",
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>/*"
+      ]
+    },
+    {
+      "Sid": "RegionalServices",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*",
+        "eks:*",
+        "ecr:*",
+        "kms:*",
+        "logs:*",
+        "cloudwatch:*",
+        "elasticloadbalancing:*",
+        "autoscaling:*",
+        "sns:*",
+        "events:*",
+        "guardduty:*",
+        "inspector2:*",
+        "securityhub:*",
+        "config:*",
+        "cloudtrail:*",
+        "wafv2:*",
+        "acm:*"
+      ],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-2" } }
+    },
+    {
+      "Sid": "SecretsProjectOnly",
+      "Effect": "Allow",
+      "Action": "secretsmanager:*",
+      "Resource": "arn:aws:secretsmanager:us-east-2:<ACCOUNT_ID>:secret:cloudbatch818-zein-hcsecops-*"
+    },
+    {
+      "Sid": "S3LogBucketsOnly",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-logs-*",
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-logs-*/*"
+      ]
+    },
+    {
+      "Sid": "SsmPublicEksParametersOnly",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter*",
+      "Resource": "arn:aws:ssm:us-east-2::parameter/aws/service/eks/*"
+    },
+    {
+      "Sid": "DynamoDbPatientsTable",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": "arn:aws:dynamodb:us-east-2:<ACCOUNT_ID>:table/cloudbatch818-zein-hcsecops-patients"
+    },
+    {
+      "Sid": "LambdaProjectFunctions",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": "arn:aws:lambda:us-east-2:<ACCOUNT_ID>:function:cloudbatch818-zein-hcsecops-*"
+    },
+    {
+      "Sid": "SqsProjectQueues",
+      "Effect": "Allow",
+      "Action": "sqs:*",
+      "Resource": "arn:aws:sqs:us-east-2:<ACCOUNT_ID>:cloudbatch818-zein-hcsecops-*"
+    },
+    {
+      "Sid": "BudgetsProjectBudget",
+      "Effect": "Allow",
+      "Action": "budgets:*",
+      "Resource": "arn:aws:budgets::<ACCOUNT_ID>:budget/cloudbatch818-zein-hcsecops-*"
+    },
+    {
+      "Sid": "IamProjectOnly",
+      "Effect": "Allow",
+      "Action": "iam:*",
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/cloudbatch818-zein-hcsecops-*",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/cloudbatch818-zein-hcsecops-*",
+        "arn:aws:iam::<ACCOUNT_ID>:instance-profile/cloudbatch818-zein-hcsecops-*",
+        "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/*"
+      ]
+    },
+    {
+      "Sid": "IamRead",
+      "Effect": "Allow",
+      "Action": ["iam:Get*", "iam:List*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceLinkedRoles",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "eks.amazonaws.com",
+            "eks-nodegroup.amazonaws.com",
+            "autoscaling.amazonaws.com",
+            "elasticloadbalancing.amazonaws.com",
+            "guardduty.amazonaws.com",
+            "inspector2.amazonaws.com",
+            "securityhub.amazonaws.com",
+            "config.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "Route53",
+      "Effect": "Allow",
+      "Action": "route53:*",
+      "Resource": ["arn:aws:route53:::hostedzone/Z0900957ARJDK4SXKDV0", "arn:aws:route53:::change/*"]
+    },
+    {
+      "Sid": "Route53Read",
+      "Effect": "Allow",
+      "Action": ["route53:ListHostedZones", "route53:ListHostedZonesByName", "route53:GetChange"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ProtectCiRoles",
+      "Effect": "Deny",
+      "Action": "iam:*",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/cloudbatch818-zein-hcsecops-gha-*"
+    }
+  ]
+}

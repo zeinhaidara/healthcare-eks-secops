@@ -1,19 +1,9 @@
 name: terraform-apply
 
-# Manual only. The only workflow that gives Terraform AWS access.
-# plan job: approval, then plan. apply job: second approval, after you have read the plan.
+# Manual only, no inputs. Read the plan in tf-plan, then approve tf-apply (environment infra).
+# tf-apply applies the exact plan file produced by tf-plan.
 on:
   workflow_dispatch:
-    inputs:
-      action:
-        description: Terraform action
-        type: choice
-        options: [plan, apply, destroy]
-        default: plan
-      confirm:
-        description: Type DESTROY to confirm (destroy only)
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -26,6 +16,8 @@ env:
   TF_VERSION: 1.16.5
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
   TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
   TF_VAR_owner: ${{ vars.OWNER }}
@@ -38,20 +30,14 @@ jobs:
   plan:
     name: tf-plan
     runs-on: ubuntu-latest
-    environment: infra
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Require typed confirmation for destroy
-        if: inputs.action == 'destroy' && inputs.confirm != 'DESTROY'
-        run: |
-          echo "Destroy needs confirm=DESTROY"
-          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
@@ -61,8 +47,8 @@ jobs:
         working-directory: terraform
         run: |
           terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="region=${{ vars.AWS_REGION }}"
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}"
       - run: terraform fmt -check -recursive
         working-directory: terraform
       - run: terraform validate
@@ -70,11 +56,7 @@ jobs:
       - name: plan
         working-directory: terraform
         run: |
-          if [ "${{ inputs.action }}" = "destroy" ]; then
-            terraform plan -destroy -out=tfplan
-          else
-            terraform plan -out=tfplan
-          fi
+          terraform plan -out=tfplan
           terraform show -no-color tfplan > plan.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -87,7 +69,6 @@ jobs:
   apply:
     name: tf-apply
     needs: plan
-    if: inputs.action != 'plan'
     runs-on: ubuntu-latest
     environment: infra
     permissions:
@@ -111,8 +92,8 @@ jobs:
         working-directory: terraform
         run: |
           terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="region=${{ vars.AWS_REGION }}"
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}"
       - name: apply the reviewed plan
         working-directory: terraform
         run: terraform apply tfplan

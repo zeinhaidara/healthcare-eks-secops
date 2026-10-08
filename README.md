@@ -63,11 +63,11 @@ Two independent, AWS-free pipelines run on PRs to `main` or `dev` and on pushes 
 | `app-ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov` |
 | `terraform-ci.yml` | `tf-validate`, `tf-checkov` |
 
-Terraform plan, apply and destroy are manual only: run `terraform-apply.yml` from the Actions tab. The `tf-plan` job and the `tf-apply` job each need approval on the `infra` environment.
+Terraform is manual only and takes no inputs. Run `terraform-apply.yml` from the Actions tab: `tf-plan` runs first (read-only plan role), you read the plan, then approve `tf-apply` (environment `infra`). `terraform-destroy.yml` runs behind its own `infra-destroy` approval.
 
 ## Terraform layout
 
-`terraform/` is one stack and one state file. Each concern is a module under `terraform/modules/` (`network`, `kms`, `ecr`, `secrets`, `dynamodb`, `budget`) with its own `variables.tf` and `outputs.tf`. Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`.
+`terraform/` is one stack and one state file. Each concern is a module under `terraform/modules/` (`network`, `kms`, `ecr`, `secrets`, `secret-rotation`, `dynamodb`, `budget`) with its own `variables.tf` and `outputs.tf`. Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`.
 
 ## Budget
 
@@ -79,3 +79,4 @@ $75 per month with alerts at 50%, 80% and 100% of actual spend and a 100% foreca
 - [Security controls, PR gate to approval gate](docs/security/controls.md)
 - [Improvement log](docs/security/improvement-log.md), [exceptions](docs/security/exceptions-register.md), [triage](docs/security/triage-process.md)
 - [Budget](docs/cost/budget.md)
+- [CI role policies](docs/bootstrap-policies/README.md), [API key rotation runbook](docs/runbooks/rotation.md)
