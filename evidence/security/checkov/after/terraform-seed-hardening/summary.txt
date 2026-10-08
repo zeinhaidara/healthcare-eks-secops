@@ -1,0 +1,6 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/terraform-seed-hardening
+Date: 2026-10-08
+Scope: terraform/ including terraform/cluster-addons/
+terraform: passed=239 failed=0 skipped=8 resources=60
+Before (after/terraform-eks-seed): passed=239 failed=0 skipped=8

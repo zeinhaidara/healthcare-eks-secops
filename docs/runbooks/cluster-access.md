@@ -57,3 +57,5 @@ The table is seeded by Terraform (30 synthetic records); the app never writes. A
 ```sh
 aws dynamodb scan --table-name cloudbatch818-zein-hcsecops-patients --select COUNT --query Count   # expect 30
 ```
+
+Before the second plan after seeding, the plan role must have `RefreshSeededPatientItems` (`dynamodb:GetItem` on the patients table) attached, from `docs/bootstrap-policies/plan-policy.json`. An `AccessDenied` on `dynamodb:GetItem` during refresh in `tf-plan` means that policy statement is missing, not that the table is broken.

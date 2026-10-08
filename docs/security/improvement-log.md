@@ -268,3 +268,23 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/checkov/after/terraform-eks-seed/`
 - Outcome: accepted risk (EXC-007)
 - Control area: network segmentation
+
+### SEC-025: Seeded patient values hidden in plan and apply output
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review after SEC-023. The repo is public, so CI logs and the `plan.txt` artifact are readable by anyone; `terraform plan` printed each seeded item's full JSON.
+- Risk: patient-shaped data in public logs. Synthetic today, but the same pipeline would leak real records.
+- Before: plan output showed every attribute of each `aws_dynamodb_table_item`.
+- Fix: the item body is wrapped in `sensitive()`, so plan and apply output and `plan.txt` show `(sensitive value)`. The key stays visible in the address (`seed["P001"]`). No output, log line or artifact carries the body. Verified with `terraform console` (no AWS) that `nonsensitive(item)` equals the previous plain JSON for all 30 items, so the value sent to DynamoDB, and the second-apply diff, are unchanged. Commit 7644331.
+- After: next `tf-plan` log shows `(sensitive value)` for `item`.
+- Outcome: resolved for logs and artifacts. Residual: values remain in Terraform state (EXC-008).
+- Control area: data protection
+
+### SEC-026: Patients table classified, with a guard on the classification
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review after SEC-023.
+- Risk: nothing marked the table as holding synthetic data, and nothing stopped it being treated as real data storage.
+- Before: no classification tag.
+- Fix: tag `DataClassification = synthetic` on the patients table only, from module variable `data_classification` (default `synthetic`, validation allows only `synthetic` or `phi`). `phi` is not set anywhere and must not be until the Phase 7 items are closed (KMS state, EXC-008; plan-role item read, EXC-004). Commit 4ea491c.
+- After: tag visible on the table after apply.
+- Outcome: resolved. State encryption accepted as EXC-008.
+- Control area: data protection, asset classification
