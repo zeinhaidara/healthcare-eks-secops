@@ -36,6 +36,8 @@ resource "aws_iam_role_policy_attachment" "cluster" {
 }
 
 resource "aws_eks_cluster" "this" {
+  # checkov:skip=CKV_AWS_39:D1 public endpoint needed by GitHub-hosted runners; access by IAM access entries only. owner Moulaye, expires 2027-04-08. EXC-005
+  # checkov:skip=CKV_AWS_38:D1 runner IPs cannot be listed within the EKS CIDR limit; IAM access entries only. owner Moulaye, expires 2027-04-08. EXC-005
   name                      = var.name
   version                   = var.kubernetes_version
   role_arn                  = aws_iam_role.cluster.arn

@@ -1,0 +1,110 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformStateRead",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>",
+        "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>/*"
+      ]
+    },
+    {
+      "Sid": "TerraformStateLockOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>/main/terraform.tfstate.tflock"
+    },
+    {
+      "Sid": "ReadRegionalServices",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "eks:Describe*",
+        "eks:List*",
+        "ecr:Describe*",
+        "ecr:Get*",
+        "ecr:List*",
+        "kms:Describe*",
+        "kms:Get*",
+        "kms:List*",
+        "logs:Describe*",
+        "logs:List*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "elasticloadbalancing:Describe*",
+        "autoscaling:Describe*",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetResourcePolicy",
+        "secretsmanager:ListSecrets",
+        "sns:Get*",
+        "sns:List*",
+        "events:Describe*",
+        "events:List*",
+        "guardduty:Get*",
+        "guardduty:List*",
+        "guardduty:Describe*",
+        "inspector2:Get*",
+        "inspector2:List*",
+        "inspector2:Describe*",
+        "securityhub:Get*",
+        "securityhub:Describe*",
+        "securityhub:List*",
+        "config:Describe*",
+        "config:Get*",
+        "config:List*",
+        "cloudtrail:Describe*",
+        "cloudtrail:Get*",
+        "cloudtrail:List*",
+        "wafv2:Get*",
+        "wafv2:List*",
+        "wafv2:Describe*",
+        "acm:Describe*",
+        "acm:Get*",
+        "acm:List*",
+        "dynamodb:Describe*",
+        "dynamodb:List*",
+        "lambda:Get*",
+        "lambda:List*",
+        "sqs:Get*",
+        "sqs:List*",
+        "xray:Get*",
+        "xray:List*",
+        "s3:GetBucket*",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:ListAllMyBuckets",
+        "ssm:DescribeParameters",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "ReadGlobalServices",
+      "Effect": "Allow",
+      "Action": [
+        "iam:Get*",
+        "iam:List*",
+        "route53:Get*",
+        "route53:List*",
+        "budgets:View*",
+        "budgets:Describe*",
+        "budgets:ListTagsForResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

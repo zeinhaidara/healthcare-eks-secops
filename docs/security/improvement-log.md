@@ -198,3 +198,43 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: verified by the next `tf-apply` (Lambda creation). Checkov on `terraform/` in `evidence/security/checkov/after/terraform-eks/`.
 - Outcome: fixed in code; confirmation pending the next apply
 - Control area: least privilege, secrets management
+
+### SEC-018: EKS cluster endpoint (accepted risk, D1)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: Checkov 3.3.26, `CKV_AWS_38` and `CKV_AWS_39` on `module.eks.aws_eks_cluster.this` (confirmed in the baseline run)
+- Risk: the Kubernetes API is reachable from the internet. Authentication is still required.
+- Before: `evidence/security/checkov/before/terraform-eks/` (4 failed: these two plus SEC-021)
+- Fix: none possible with GitHub-hosted runners. Inline skips with reason, owner and expiry; EXC-005 lists the compensating controls.
+- After: `evidence/security/checkov/after/terraform-eks/`
+- Outcome: accepted risk (EXC-005, expires 2027-04-08)
+- Control area: access control
+
+### SEC-019: Apply role is cluster admin (accepted risk, D2a)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design decision, not a scanner finding
+- Risk: the apply role can do anything in the cluster.
+- Before: no cluster
+- Fix: `bootstrap_cluster_creator_admin_permissions = false`, so admin exists only as an explicit access entry for the apply role, which is used only behind the `infra` and `infra-destroy` approvals. Deploy roles get `AmazonEKSEditPolicy` scoped to one namespace each. The plan role gets no cluster access; in-cluster resources live in a second root planned by the apply role (D2b).
+- After: `terraform/main.tf` (`access_entries`), `terraform/cluster-addons/`
+- Outcome: accepted risk (EXC-006, expires 2027-04-08)
+- Control area: access control, least privilege
+
+### SEC-020: Plan role could not read budget tags
+- Date / PR: 2026-10-08 / feature/eks-fargate (policy applied by hand by Moulaye)
+- Source: `tf-plan` failure: `AccessDeniedException ... not authorized to perform: budgets:ListTagsForResource on resource: ...budget/cloudbatch818-zein-hcsecops-monthly`
+- Risk: the read-only plan could not complete, blocking every apply.
+- Before: plan policy allowed `budgets:View*` and `budgets:Describe*` only
+- Fix: `budgets:ListTagsForResource` added to the plan role (live), mirrored in `docs/bootstrap-policies/plan-policy.json`. Still read-only.
+- After: next `tf-plan` run
+- Outcome: resolved
+- Control area: least privilege, change control
+
+### SEC-021: Network isolation for Fargate pods (security groups for pods)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review. AWS docs: VPC CNI network policies apply to EC2 Linux nodes only, not Fargate (https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html). Security groups for Pods apply to EC2 nodes "and Fargate" (https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html; https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group).
+- Risk: a Kubernetes NetworkPolicy would be accepted but not enforced on Fargate pods.
+- Before: design relied on a default-deny NetworkPolicy.
+- Fix: per-namespace pod security groups in `module.eks` (app port from the VPC only, HTTPS and DNS out), to be attached with a `SecurityGroupPolicy` in the Phase 4 chart alongside the cluster security group. NetworkPolicy manifests stay for intent. `vpc-cni` and `kube-proxy` are not installed (`bootstrap_self_managed_addons = false`). Checkov flags the groups as unattached (`CKV2_AWS_5`) because the attachment happens in Kubernetes; that skip is pending owner approval.
+- After: enforcement is not yet verified; verify after Phase 4 by checking that a pod's ENI carries the pod security group.
+- Outcome: in progress (pending CKV2_AWS_5 decision and Phase 4)
+- Control area: network segmentation
