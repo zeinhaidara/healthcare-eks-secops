@@ -25,6 +25,9 @@ env:
   TF_VAR_vpc_cidr: ${{ vars.VPC_CIDR }}
   TF_VAR_ecr_repository: ${{ vars.ECR_REPOSITORY }}
   TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+  TF_VAR_cluster_version: ${{ vars.CLUSTER_VERSION }}
+  TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+  TF_VAR_route53_zone_id: ${{ vars.ROUTE53_ZONE_ID }}
 
 jobs:
   plan:

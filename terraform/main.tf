@@ -3,7 +3,7 @@ module "kms" {
 
   name = "${var.name_prefix}-main"
   # CloudWatch Logs groups this key may encrypt.
-  log_group_prefixes = ["/${var.name_prefix}", "/aws/lambda/${var.name_prefix}"]
+  log_group_prefixes = ["/${var.name_prefix}", "/aws/lambda/${var.name_prefix}", "/aws/eks/${var.cluster_name}"]
 }
 
 module "network" {
@@ -56,4 +56,56 @@ module "secret_rotation" {
   vpc_id             = module.network.vpc_id
   subnet_ids         = module.network.private_subnet_ids
   log_retention_days = var.log_retention_days
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  # CI roles are created by hand (docs/bootstrap.md); only their names are known here.
+  ci_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name_prefix}-gha"
+  deploy_namespaces = {
+    dev  = var.app_namespaces[0]
+    prod = var.app_namespaces[1]
+  }
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  name               = var.cluster_name
+  kubernetes_version = var.cluster_version
+  role_prefix        = var.name_prefix
+  vpc_id             = module.network.vpc_id
+  vpc_cidr           = module.network.vpc_cidr
+  subnet_ids         = module.network.private_subnet_ids
+  kms_key_arn        = module.kms.key_arn
+  log_retention_days = var.log_retention_days
+  fargate_namespaces = concat(["kube-system"], var.app_namespaces)
+  app_namespaces     = var.app_namespaces
+  coredns_version    = var.coredns_version
+
+  access_entries = merge(
+    {
+      for env, ns in local.deploy_namespaces : "deploy-${env}" => {
+        principal_arn = "${local.ci_role_arn}-deploy-${env}"
+        policy        = "AmazonEKSEditPolicy"
+        namespaces    = [ns]
+      }
+    },
+    {
+      # D2a: the apply role is cluster admin, used only behind the infra approval (EXC row).
+      apply = {
+        principal_arn = "${local.ci_role_arn}-apply"
+        policy        = "AmazonEKSClusterAdminPolicy"
+        namespaces    = []
+      }
+    },
+  )
+}
+
+module "acm" {
+  source = "./modules/acm"
+
+  domain_name = "*.${var.domain_name}"
+  zone_id     = var.route53_zone_id
 }
