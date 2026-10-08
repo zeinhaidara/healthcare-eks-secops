@@ -1,0 +1,8 @@
+Tool: Trivy v0.75.0 (aquasec/trivy:0.75.0)
+Command: trivy fs --config security/trivy/trivy.yaml --format json --output evidence/security/trivy/before/trivy-app.json app
+Date: 2026-10-07
+Scope: app/ (requirements.txt)
+Severity gate: HIGH,CRITICAL (unfixed ignored)
+Vulnerabilities: 0
+Secrets: 0
+Result: no findings; recorded as baseline

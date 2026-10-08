@@ -1,0 +1,7 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/app.yaml --output json --output sarif --output-file-path evidence/security/checkov/before
+Date: 2026-10-07
+Scope: app/ Dockerfile, .github/workflows
+dockerfile: passed=48 failed=0 skipped=0
+github_actions: passed=116 failed=0 skipped=0
+Result: no failed checks; recorded as baseline

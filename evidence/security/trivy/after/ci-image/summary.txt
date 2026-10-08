@@ -1,0 +1,3 @@
+Source: artifact trivy-image-report from CI run 37797586192 (PR #4, head 8c47d54), unedited
+Tool: Trivy v0.75.0 via aquasecurity/trivy-action v0.36.0, inputs severity HIGH,CRITICAL and ignore-unfixed true
+Target: image.tar built by app-build. Findings: 0. Job app-image-scan: passed

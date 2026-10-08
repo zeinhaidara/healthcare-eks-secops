@@ -1,0 +1,5 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/terraform-final
+Date: 2026-10-08
+Scope: terraform/ (all modules)
+terraform: passed=112 failed=0 skipped=4

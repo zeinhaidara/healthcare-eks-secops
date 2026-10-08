@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patient Registry</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span>Patient Registry <small>synthetic data</small></div>
+    <form id="key-form" class="key">
+      <input id="key" type="password" placeholder="API key" autocomplete="off" required>
+      <button type="submit">Connect</button>
+    </form>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Add patient</h2>
+      <form id="add-form" class="grid">
+        <label>Name<input name="name" maxlength="100" required></label>
+        <label>Age<input name="age" type="number" min="0" max="120" required></label>
+        <label>Condition<input name="condition" maxlength="100" required></label>
+        <label>Date of birth<input name="date_of_birth" type="date" required></label>
+        <label>Admission date<input name="admission_date" type="date" required></label>
+        <button type="submit" class="primary">Add</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="bar">
+        <h2>Patients <span id="count" class="pill">0</span></h2>
+        <input id="search" type="search" placeholder="Search name or condition">
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Condition</th><th>DOB</th><th>Admitted</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="muted" hidden>No patients to show.</p>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

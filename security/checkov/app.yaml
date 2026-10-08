@@ -1,0 +1,9 @@
+# Checkov config for the application pipeline (Dockerfile and GitHub workflows).
+directory:
+  - app
+  - .github/workflows
+framework:
+  - dockerfile
+  - github_actions
+compact: true
+quiet: true

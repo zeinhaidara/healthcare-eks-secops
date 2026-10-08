@@ -1,0 +1,9 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/terraform-hardening
+Date: 2026-10-08
+Scope: terraform/ (all modules, incl. secret-rotation)
+terraform: passed=112 failed=4 skipped=0
+  FAILED CKV_AWS_109 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_356 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_111 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_272 module.secret_rotation.aws_lambda_function.this

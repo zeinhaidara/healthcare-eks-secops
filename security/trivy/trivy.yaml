@@ -1,0 +1,12 @@
+# Shared by CI (ci.yml) and CD (cd.yml) and evidence runs so before/after use the same settings.
+# trivy-action overrides this file with its own defaults, so ci.yml and cd.yml repeat
+# severity, ignore-unfixed and exit-code as action inputs. Change them together.
+# Tool version is pinned in the workflow and in docs/security/improvement-log.md.
+severity:
+  - HIGH
+  - CRITICAL
+scanners:
+  - vuln
+  - secret
+ignore-unfixed: true
+exit-code: 1

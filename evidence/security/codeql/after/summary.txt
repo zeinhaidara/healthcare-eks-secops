@@ -1,0 +1,4 @@
+files: actions.sarif, python.sarif
+findings: 0
+scope: same as before/
+source: CI run 37797586192 (PR #4, head 8c47d54); no findings, so no fix was needed and the after run equals the baseline

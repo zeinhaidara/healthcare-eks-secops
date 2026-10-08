@@ -1,0 +1,168 @@
+name: cd
+
+# Build, scan, push and deploy. Runs only after a merge to main that changes app/ or helm/.
+# All AWS access for the app lives here. Not a required check, so the paths filter is fine.
+# Dev deploys first; prod deploys the same SHA after its own environment approval.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "helm/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: healthcare-api
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Building and scanning need no AWS access, so this job holds no credentials.
+      - name: Build image
+        run: |
+          docker build -t "${IMAGE_NAME}:${GITHUB_SHA}" app
+          docker save "${IMAGE_NAME}:${GITHUB_SHA}" | gzip > image.tar.gz
+          gunzip -c image.tar.gz > image.tar
+      - name: Trivy image scan (blocks the push on HIGH or CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.75.0
+          scan-type: image
+          input: image.tar
+          trivy-config: security/trivy/trivy.yaml
+          # The action exports its own defaults (all severities, ignore-unfixed false) that override
+          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          severity: HIGH,CRITICAL
+          ignore-unfixed: "true"
+          exit-code: "1"
+          format: json
+          output: trivy-image.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: trivy-image-report
+          path: trivy-image.json
+          retention-days: 90
+      # The exact image that passed the scan is the one pushed.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-image
+          path: image.tar.gz
+          retention-days: 1
+
+  push:
+    name: push
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-image
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+      # Tags are immutable, so a tag is never reused. A re-run of this job finds the tag and skips.
+      - name: Push image by commit SHA
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+               --image-ids imageTag="$GITHUB_SHA" >/dev/null 2>&1; then
+            echo "Tag $GITHUB_SHA already in ECR, not pushing again"
+            exit 0
+          fi
+          gunzip -c image.tar.gz | docker load
+          docker tag "${IMAGE_NAME}:${GITHUB_SHA}" "${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          docker push "${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
+  deploy-dev:
+    name: deploy-dev
+    needs: push
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+      K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+      REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+      DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.0
+      - name: Check the pushed image exists (no rebuild)
+        run: aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" >/dev/null
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+      - name: Deploy
+        run: |
+          helm upgrade --install healthcare-api helm/healthcare-api \
+            --namespace "$K8S_NAMESPACE" \
+            --values "helm/healthcare-api/values-${ENVIRONMENT}.yaml" \
+            --set image.repository="${REGISTRY}/${ECR_REPOSITORY}" \
+            --set image.tag="$GITHUB_SHA" \
+            --atomic --wait --timeout 5m
+      - name: Smoke test
+        run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"
+
+  deploy-prod:
+    name: deploy-prod
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+      K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+      REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+      DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.0
+      - name: Check the pushed image exists (no rebuild)
+        run: aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" >/dev/null
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+      - name: Deploy the same SHA that dev ran
+        run: |
+          helm upgrade --install healthcare-api helm/healthcare-api \
+            --namespace "$K8S_NAMESPACE" \
+            --values "helm/healthcare-api/values-${ENVIRONMENT}.yaml" \
+            --set image.repository="${REGISTRY}/${ECR_REPOSITORY}" \
+            --set image.tag="$GITHUB_SHA" \
+            --atomic --wait --timeout 5m
+      - name: Smoke test
+        run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"
