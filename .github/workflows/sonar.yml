@@ -1,13 +1,11 @@
 name: sonar
 
 # SonarCloud scan. The quality gate fails the job. No paths filter so the required check always reports.
-# workflow_dispatch (no inputs) exists only so a baseline can be produced from a branch.
 on:
   pull_request:
     branches: [main, dev]
   push:
     branches: [dev]
-  workflow_dispatch:
 
 permissions:
   contents: read

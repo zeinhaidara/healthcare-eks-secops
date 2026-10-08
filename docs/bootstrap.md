@@ -31,6 +31,16 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 - Rotation is automatic every 30 days (Lambda `cloudbatch818-zein-hcsecops-rotate-api-key`). After any rotation, restart the pods; see `docs/runbooks/rotation.md`.
 - Destroying the stack deletes the secret immediately (recovery window 0), so set a new value after every apply.
 
+## Code scanning and quality (CodeQL, SonarCloud)
+
+- CodeQL needs no secrets. The repo is public, so code scanning upload to the Security tab works without extra licensing.
+- SonarCloud, set by hand:
+  - secret `SONAR_TOKEN` (repo secret)
+  - variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION` (repo variables)
+  - Without them the `sonar` job fails on purpose with a message naming what is missing.
+- `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
+- Merge method: merge commits only (no squash, no rebase).
+
 ## Rules
 
 - No long-lived AWS keys anywhere.
