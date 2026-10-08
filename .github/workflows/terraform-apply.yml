@@ -58,12 +58,18 @@ jobs:
         run: |
           terraform plan -out=tfplan
           terraform show -no-color tfplan > plan.txt
+          # The archive_file data source builds the Lambda zip during plan. tf-apply runs on a different
+          # runner where that file would not exist, so record its hash and ship the exact zip with the plan.
+          find modules -path '*/build/*.zip' -print0 | xargs -0 -r sha256sum > zips.sha256
+          test -s zips.sha256
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tfplan
           path: |
             terraform/tfplan
             terraform/plan.txt
+            terraform/zips.sha256
+            terraform/modules/*/build/*.zip
           retention-days: 7
 
   apply:
@@ -88,6 +94,12 @@ jobs:
         with:
           name: tfplan
           path: terraform
+      # tf-apply applies the exact Lambda zip that tf-plan built; fail if it is missing or changed.
+      - name: verify Lambda package
+        working-directory: terraform
+        run: |
+          test -s zips.sha256
+          sha256sum -c zips.sha256
       - name: init
         working-directory: terraform
         run: |

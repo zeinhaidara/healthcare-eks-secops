@@ -1,0 +1,6 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/app.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/fix-lambda-package/workflows
+Date: 2026-10-08
+dockerfile: passed=48 failed=0 skipped=0
+github_actions: passed=456 failed=0 skipped=0
+Before (evidence/security/checkov/after/terraform-final and the PR #4 CI run): terraform 112 passed, 0 failed, 4 skipped; no new skips added
