@@ -238,3 +238,33 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: enforcement is not yet verified; verify after Phase 4 by checking that a pod's ENI carries the pod security group.
 - Outcome: in progress (pending CKV2_AWS_5 decision and Phase 4)
 - Control area: network segmentation
+
+### SEC-022: Read-only application (write routes removed)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review. The app role is read-only (`GetItem`, `Query`, `Scan`), but the app had `POST` and `DELETE /patients` and seeded an empty table at startup, so the first deploy would have failed on `PutItem`.
+- Risk: write routes on patient data widen the attack surface and need write IAM; a startup seed needs write IAM too.
+- Before: `POST`, `DELETE /patients`, `seed_if_empty` at startup, write methods on the DynamoDB store.
+- Fix: routes and write methods removed (`POST`/`DELETE` now return 405), no startup seed, frontend read-only. Local runs and tests load the in-memory store from `app/data/patients.json`. Commit 195fb12.
+- After: 16 tests pass, coverage 98% (was 97%); container check: 30 patients, POST 405, DELETE 405.
+- Outcome: resolved
+- Control area: least privilege, data protection
+
+### SEC-023: Patients table seeded by Terraform
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: follows SEC-022.
+- Risk: without a seed the read-only app would serve an empty table.
+- Before: the app seeded the table at startup.
+- Fix: `aws_dynamodb_table_item` for each record in `app/data/patients.json` (30 synthetic items, keyed by `patient_id`, typed `S` and `N`), in the existing KMS-encrypted table with point-in-time recovery. No output exposes item values. Plan role gains `dynamodb:GetItem` on that table only, so refreshes work (file change, Moulaye attaches). Commit 6dbb742.
+- After: verified by the next apply; a second apply must show no change for the items.
+- Outcome: resolved in code; confirmation pending apply
+- Control area: data protection, change control
+
+### SEC-024: CKV2_AWS_5 on pod security groups (accepted, EXC-007)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: Checkov 3.3.26 `CKV2_AWS_5` on `module.eks.aws_security_group.pods` (both namespaces)
+- Risk: none by itself; Checkov cannot see the Kubernetes `SecurityGroupPolicy` that attaches the groups.
+- Before: `evidence/security/checkov/after/terraform-eks/` (2 failed)
+- Fix: inline skip on that resource only, owner Moulaye, expiry 2027-04-08, EXC-007. Phase 4 must verify the attachment or remove the skip.
+- After: `evidence/security/checkov/after/terraform-eks-seed/`
+- Outcome: accepted risk (EXC-007)
+- Control area: network segmentation

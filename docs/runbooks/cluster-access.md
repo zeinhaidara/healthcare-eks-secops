@@ -49,3 +49,11 @@ aws eks list-associated-access-policies --cluster-name "$CLUSTER_NAME" \
 ```
 
 Repeat for deploy-prod with the namespaces swapped.
+
+## 6. Patients table is seeded
+
+The table is seeded by Terraform (30 synthetic records); the app never writes. An empty table after apply is a failure: rerun `terraform-apply` and check the `aws_dynamodb_table_item` resources in the plan.
+
+```sh
+aws dynamodb scan --table-name cloudbatch818-zein-hcsecops-patients --select COUNT --query Count   # expect 30
+```

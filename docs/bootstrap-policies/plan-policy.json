@@ -105,6 +105,12 @@
         "budgets:ListTagsForResource"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "RefreshSeededPatientItems",
+      "Effect": "Allow",
+      "Action": "dynamodb:GetItem",
+      "Resource": "arn:aws:dynamodb:us-east-2:<ACCOUNT_ID>:table/cloudbatch818-zein-hcsecops-patients"
     }
   ]
 }

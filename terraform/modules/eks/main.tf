@@ -160,6 +160,7 @@ resource "aws_iam_openid_connect_provider" "this" {
 # SecurityGroupPolicy in each namespace (Phase 4 chart), together with the cluster security group.
 
 resource "aws_security_group" "pods" {
+  # checkov:skip=CKV2_AWS_5:Attached by SecurityGroupPolicy in Phase 4, which Checkov cannot evaluate; Phase 4 must verify attachment or remove this skip. owner Moulaye, expires 2027-04-08. EXC-007
   for_each = toset(var.app_namespaces)
 
   name        = "${var.role_prefix}-pods-${each.key}"
