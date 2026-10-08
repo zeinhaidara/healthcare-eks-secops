@@ -1,4 +1,4 @@
-# Shared by CI (app-ci.yml) and evidence runs so before/after use the same settings.
+# Shared by CI (ci.yml) and CD (cd.yml) and evidence runs so before/after use the same settings.
 # Tool version is pinned in the workflow and in docs/security/improvement-log.md.
 severity:
   - HIGH

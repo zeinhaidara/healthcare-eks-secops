@@ -88,3 +88,53 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/checkov/after/terraform-final/`
 - Outcome: accepted risk (EXC-002, expires 2027-04-08)
 - Control area: vulnerability management, change control
+
+### SEC-007: CodeQL added to CI
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: CodeQL (`github/codeql-action` v4.38.3, query suite security-extended), languages python and actions
+- Risk: Checkov, Trivy and ruff do not do semantic analysis of Python code or workflow injection paths.
+- Before: `evidence/security/codeql/before/` (PENDING: first run on the PR; baseline saved before any fix)
+- Fix: `.github/workflows/ci.yml` (job `codeql`, no paths filter, no AWS access) and `security/codeql/sarif_gate.py`, which fails the job on security-severity 7.0 or more. Terraform is not supported by CodeQL; Checkov covers it. GHAS status: the repo is public, so code scanning upload to the Security tab is available at no cost.
+- After: `evidence/security/codeql/after/` (PENDING)
+- Outcome: pending baseline
+- Control area: vulnerability management, secure SDLC
+
+### SEC-008: SonarCloud added to CI
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud via `SonarSource/sonarqube-scan-action` v8.3.0, quality gate wait enabled
+- Risk: no static analysis for bugs, code smells and security hotspots across app and Terraform code.
+- Before: `evidence/security/sonar/before/` (PENDING: needs `SONAR_TOKEN`, `SONAR_PROJECT_KEY`, `SONAR_ORGANIZATION` to be set)
+- Fix: `.github/workflows/ci.yml` (job `sonar`), `sonar-project.properties`. The job fails with a clear message if any setting is missing, and fails when the quality gate fails. Coverage is not reported: `pytest-cov` is not a dependency yet.
+- After: `evidence/security/sonar/after/` (PENDING)
+- Outcome: pending baseline
+- Control area: vulnerability management, secure SDLC
+
+### SEC-009: Required approvals set to 0 on `main`
+- Date / PR: 2026-10-08 / ruleset change made by the owner by hand
+- Source: process control, not a scanner finding
+- Risk: a single maintainer cannot approve their own PR, so a required approval would block every merge. With 0 approvals no second person reviews a change.
+- Before: ruleset required one approval (blocked all merges by the sole maintainer)
+- Fix: approvals set to 0. Compensating controls: required status checks, block force push, restrict deletions, approval-gated deploys. Register: EXC-003.
+- After: ruleset settings recorded in `docs/bootstrap.md`
+- Outcome: accepted risk (EXC-003, expires 2027-04-08)
+- Control area: change control, access control
+
+### SEC-010: Code scanning removed as a ruleset requirement
+- Date / PR: 2026-10-08 / ruleset change made by the owner by hand
+- Source: process control
+- Risk: the ruleset "code scanning results" requirement duplicates, and can disagree with, the CI gate.
+- Before: ruleset required code scanning results
+- Fix: removed. CodeQL is enforced by the required `codeql` status check, whose job fails on high or critical findings (`security/codeql/sarif_gate.py`).
+- After: ruleset settings recorded in `docs/bootstrap.md`
+- Outcome: resolved
+- Control area: change control
+
+### SEC-011: CI and CD restructured into ci.yml and cd.yml
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: design review (separation of duties), not a scanner finding
+- Risk: checks and deploys were spread over several files, and the release path did not scan the exact image it pushed. Mixing checks and deploys in one file makes it hard to show that checks cannot reach AWS.
+- Before: `app-ci.yml`, `terraform-ci.yml`, `codeql.yml`, `sonar.yml` (checks) and no release workflow yet
+- Fix: `ci.yml` holds every check with no AWS access (jobs `app-test-lint`, `app-trivy`, `app-build`, `app-image-scan`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`). `cd.yml` builds, scans the image, pushes by commit SHA and deploys dev then prod, and is the only app workflow with AWS credentials. The pushed image is the exact tar that passed the scan. `terraform-apply.yml` and `terraform-destroy.yml` stay separate (different environments and approvals). Old files deleted.
+- After: required check names are unchanged: `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar` (new, also available: `app-build`, `app-image-scan`). Checkov and actionlint results recorded in the PR.
+- Outcome: resolved. Accepted trust-policy risk recorded as EXC-004.
+- Control area: change control, least privilege, supply chain

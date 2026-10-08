@@ -54,14 +54,15 @@ ruff check . && ruff format --check .
 
 ## Branch flow and CI
 
-`feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit, no squash) -> `app-release.yml` deploys with approvals. `dev` never deploys.
+`feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit, no squash) -> `cd.yml` deploys with approvals. `dev` never deploys.
 
-Two independent, AWS-free pipelines run on PRs to `main` or `dev` and on pushes to `dev`. Mark these job names as required checks on `main`:
+`ci.yml` runs every check, with no AWS access, on PRs to `main` or `dev` and on pushes to `dev`. `cd.yml` (push to `main` only) and the `terraform-*` workflows hold all AWS credentials. Mark these job names as required checks on `main`:
 
-| Workflow | Required checks |
+| Workflow | Required checks (job names) |
 |---|---|
-| `app-ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov` |
-| `terraform-ci.yml` | `tf-validate`, `tf-checkov` |
+| `ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar` |
+
+`ci.yml` also runs `app-build` and `app-image-scan` (local build and Trivy image scan, no push); add them as required checks if you want.
 
 Terraform is manual only and takes no inputs. Run `terraform-apply.yml` from the Actions tab: `tf-plan` runs first (read-only plan role), you read the plan, then approve `tf-apply` (environment `infra`). `terraform-destroy.yml` runs behind its own `infra-destroy` approval.
 

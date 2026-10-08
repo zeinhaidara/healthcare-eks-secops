@@ -12,9 +12,9 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 |---|---|---|
 | plan | `terraform-apply.yml` job `tf-plan` | read-only on resources, lock file only on state (`docs/bootstrap-policies/plan-policy.json`) |
 | apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources (`docs/bootstrap-policies/apply-policy.json`) |
-| ecr-push | `app-release.yml` push job | push to the project ECR repo |
-| deploy-dev | `app-release.yml` dev deploy | namespace-scoped EKS access |
-| deploy-prod | `app-release.yml` prod deploy | namespace-scoped EKS access |
+| ecr-push | `cd.yml` job `push` | push to the project ECR repo |
+| deploy-dev | `cd.yml` job `deploy-dev` | namespace-scoped EKS access |
+| deploy-prod | `cd.yml` job `deploy-prod` | namespace-scoped EKS access |
 
 - GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`, each requiring approval and limited to `main`. `infra` and `infra-destroy` each hold `AWS_ROLE_ARN` (the apply role). The apply role's trust policy must allow the `environment:infra` and `environment:infra-destroy` subjects.
 - IAM policies for the CI roles are in `docs/bootstrap-policies/` and are applied by hand, never by Terraform.
@@ -30,6 +30,16 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 - The app reads the secret itself at startup through its IRSA role. Until the value is set, the pod stays not-ready (`/ready` returns 503) by design.
 - Rotation is automatic every 30 days (Lambda `cloudbatch818-zein-hcsecops-rotate-api-key`). After any rotation, restart the pods; see `docs/runbooks/rotation.md`.
 - Destroying the stack deletes the secret immediately (recovery window 0), so set a new value after every apply.
+
+## Code scanning and quality (CodeQL, SonarCloud)
+
+- CodeQL needs no secrets. The repo is public, so code scanning upload to the Security tab works without extra licensing.
+- SonarCloud, set by hand:
+  - secret `SONAR_TOKEN` (repo secret)
+  - variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION` (repo variables)
+  - Without them the `sonar` job fails on purpose with a message naming what is missing.
+- `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
+- Merge method: merge commits only (no squash, no rebase).
 
 ## Rules
 
