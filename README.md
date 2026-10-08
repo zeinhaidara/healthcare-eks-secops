@@ -8,7 +8,7 @@ DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/C
 |---|---|---|
 | Frontend | Static single page (HTML/CSS/JS, strict CSP, no inline scripts) | `app/static/` |
 | Backend | FastAPI service on port 8080 | `app/src/` |
-| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | Terraform, Phase 2 |
+| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | `terraform/modules/dynamodb` |
 
 ## Endpoints
 
@@ -63,7 +63,11 @@ Two independent, AWS-free pipelines run on PRs to `main` or `dev` and on pushes 
 | `app-ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov` |
 | `terraform-ci.yml` | `tf-validate`, `tf-checkov` |
 
-Terraform plan and apply are manual only (`terraform-apply.yml`, Phase 2).
+Terraform plan, apply and destroy are manual only: run `terraform-apply.yml` from the Actions tab. The `tf-plan` job and the `tf-apply` job each need approval on the `infra` environment.
+
+## Terraform layout
+
+`terraform/` is one stack and one state file. Each concern is a module under `terraform/modules/` (`network`, `kms`, `ecr`, `secrets`, `dynamodb`, `budget`) with its own `variables.tf` and `outputs.tf`. Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`.
 
 ## Budget
 

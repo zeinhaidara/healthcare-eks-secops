@@ -28,3 +28,24 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: not applicable
 - Outcome: resolved (nothing to fix)
 - Control area: vulnerability management
+
+### SEC-001: Pin availability zones explicitly (CKV_AWS_394)
+- Date / PR: 2026-10-08 / feature/ci-evidence
+- Source: Checkov 3.3.26, CKV_AWS_394, module.network aws_availability_zones data source
+- Risk: a data source that discovers zones can change its result set between runs, so subnets could be planned into different AZs without a code change.
+- Before: `evidence/security/checkov/before/terraform/` (command in `summary.txt`)
+- Fix: removed the data source; the root passes explicit AZ names built from the region and `az_suffixes` (default a, b). Files: `terraform/main.tf`, `terraform/variables.tf`, `terraform/modules/network/*`
+- After: `evidence/security/checkov/after/terraform/`, same command and version
+- Outcome: resolved
+- Control area: change control, availability
+
+## Open findings awaiting owner decision (no suppression added without approval)
+
+Baseline: 6 failed, after SEC-001: 5 failed. See `evidence/security/checkov/after/terraform/summary.txt`.
+
+| Rule | Resource | Note |
+|---|---|---|
+| CKV_AWS_109, CKV_AWS_356, CKV_AWS_111 | KMS key policy | The account-root statement with `kms:*` is required in every KMS key policy; `*` as resource means this key only. Proposed: skip with reason. |
+| CKV_AWS_338 | VPC flow log group | Rule wants 1 year retention; design fixes 30 days (cost). Proposed: skip with reason, or raise retention. |
+| CKV2_AWS_57 | API key secret | Rotation needs a rotation Lambda; the key is set by hand. Proposed: skip with reason, rotate manually. |
+| CKV_GHA_7 | `terraform-apply.yml` | Rule forbids `workflow_dispatch` inputs; the design needs `action` and `confirm`. Proposed: skip with reason. |
