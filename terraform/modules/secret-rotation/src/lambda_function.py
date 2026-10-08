@@ -8,12 +8,18 @@ import logging
 import secrets
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-client = boto3.client("secretsmanager")
+# Explicit timeouts so a stuck network call cannot hang the invocation (Lambda timeout is 30 s).
+# Worst case per call: 2 attempts x (3 s connect + 5 s read) = 16 s.
+client = boto3.client(
+    "secretsmanager",
+    config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}),
+)
 
 
 def lambda_handler(event, context):

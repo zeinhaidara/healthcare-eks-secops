@@ -148,3 +148,13 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/trivy/after/image/` (same Trivy version, same environment the action exports). 0 fixable findings, exit 0.
 - Outcome: resolved. Residual: unfixed upstream HIGH CVEs in the base image stay visible in each report; Dependabot bumps the pinned base image when a patched build exists.
 - Control area: vulnerability management
+
+### SEC-013: Explicit timeouts on the rotation Lambda's Secrets Manager client
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud, reliability rating C on new code (quality gate condition), issue at `terraform/modules/secret-rotation/src/lambda_function.py:16` "Set an explicit timeout for this network call to prevent hanging executions in Lambda functions"
+- Risk: a hung network call to Secrets Manager would hold the invocation until the Lambda timeout and could leave a rotation half done.
+- Before: `evidence/security/sonar/before/` (check run summary and annotation from the SonarCloud GitHub check on `dd1188e`, PR #2, unedited)
+- Fix: `boto3.client("secretsmanager", config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}))`. Commit: see git log (`fix: set explicit timeouts on rotation Lambda client`).
+- After: pending the next SonarCloud analysis on a PR (`evidence/security/sonar/after/`)
+- Outcome: fixed in code; verification pending the next Sonar run
+- Control area: reliability, secrets management
