@@ -85,28 +85,37 @@ data "aws_iam_policy_document" "permissions" {
     resources = [aws_sqs_queue.dlq.arn]
   }
 
-  # Required for a VPC-attached function. Create/Delete are limited to this function's subnets.
+  # ENI permissions AWS requires for a VPC-attached Lambda (same actions as the AWS managed policy
+  # AWSLambdaVPCAccessExecutionRole). Lambda validates them when the function is created or updated.
+  # Create is limited to this function's subnets and security group by resource ARN.
   statement {
     sid       = "EniCreate"
     actions   = ["ec2:CreateNetworkInterface"]
     resources = concat([local.eni_arn, aws_security_group.this.arn], local.subnet_arns)
   }
 
+  # Delete/Assign/Unassign act only on network interfaces. Lambda checks Delete without subnet
+  # context, so an ec2:Subnet condition makes the check fail ("does not have permissions to call
+  # DeleteNetworkInterface"). Scoped to network interfaces in this account and region, no condition.
   statement {
-    sid       = "EniDelete"
-    actions   = ["ec2:DeleteNetworkInterface"]
+    sid = "EniManage"
+    actions = [
+      "ec2:DeleteNetworkInterface",
+      "ec2:AssignPrivateIpAddresses",
+      "ec2:UnassignPrivateIpAddresses",
+    ]
     resources = [local.eni_arn]
-    condition {
-      test     = "ArnEquals"
-      variable = "ec2:Subnet"
-      values   = local.subnet_arns
-    }
   }
 
   # Describe actions do not support resource-level permissions.
   statement {
-    sid       = "EniDescribe"
-    actions   = ["ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"]
+    sid = "EniDescribe"
+    actions = [
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeVpcs",
+    ]
     resources = ["*"]
   }
 

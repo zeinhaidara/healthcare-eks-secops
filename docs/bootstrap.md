@@ -42,6 +42,14 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 - `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
 - Merge method: merge commits only (no squash, no rebase).
 
+## Phase 3 (EKS) manual steps
+
+1. Attach the updated `docs/bootstrap-policies/apply-policy.json` to the apply role (adds the `eks-fargate.amazonaws.com` service-linked role) before the first Phase 3 apply.
+2. Keep `docs/bootstrap-policies/plan-policy.json` in sync with the live plan role (it includes `budgets:ListTagsForResource`).
+3. Run `terraform-apply`: read the plan in `tf-plan`, approve `tf-apply` (environment `infra`).
+4. After `tf-apply`, read the add-ons plan in `addons-plan`, then approve `addons-apply` (second `infra` approval).
+5. Check the cluster with `docs/runbooks/cluster-access.md`.
+
 ## Rules
 
 - No long-lived AWS keys anywhere.

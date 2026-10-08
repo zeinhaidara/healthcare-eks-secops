@@ -172,6 +172,8 @@ jobs:
       - run: terraform fmt -check -recursive terraform
       - run: terraform -chdir=terraform init -backend=false -input=false
       - run: terraform -chdir=terraform validate
+      - run: terraform -chdir=terraform/cluster-addons init -backend=false -input=false
+      - run: terraform -chdir=terraform/cluster-addons validate
 
   tf-checkov:
     name: tf-checkov

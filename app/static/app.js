@@ -10,14 +10,13 @@ function toast(msg, kind) {
   setTimeout(() => (t.className = ""), 2500);
 }
 
-async function api(path, options = {}) {
+async function api(path) {
   const res = await fetch(path, {
-    ...options,
-    headers: { "x-api-key": getKey(), "content-type": "application/json" },
+    headers: { "x-api-key": getKey() },
   });
   if (res.status === 403) throw new Error("Invalid or missing API key");
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  return res.status === 204 ? null : res.json();
+  return res.json();
 }
 
 function render() {
@@ -32,11 +31,6 @@ function render() {
     for (const v of [p.patient_id, p.name, p.age, p.condition, p.date_of_birth, p.admission_date]) {
       tr.insertCell().textContent = v;
     }
-    const btn = document.createElement("button");
-    btn.className = "danger";
-    btn.textContent = "Delete";
-    btn.onclick = () => remove(p.patient_id);
-    tr.insertCell().append(btn);
   }
 }
 
@@ -50,35 +44,11 @@ async function load() {
   }
 }
 
-async function remove(id) {
-  try {
-    await api(`/patients/${encodeURIComponent(id)}`, { method: "DELETE" });
-    toast("Patient deleted", "ok");
-    await load();
-  } catch (e) {
-    toast(e.message, "err");
-  }
-}
-
 $("key-form").onsubmit = (e) => {
   e.preventDefault();
   sessionStorage.setItem("apiKey", $("key").value);
   $("key").value = "";
   load();
-};
-
-$("add-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const body = Object.fromEntries(new FormData(e.target));
-  body.age = Number(body.age);
-  try {
-    await api("/patients", { method: "POST", body: JSON.stringify(body) });
-    e.target.reset();
-    toast("Patient added", "ok");
-    await load();
-  } catch (err) {
-    toast(err.message, "err");
-  }
 };
 
 $("search").oninput = render;

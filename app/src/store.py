@@ -1,4 +1,7 @@
-"""Patient storage: DynamoDB in AWS, in-memory for local dev and tests."""
+"""Read-only patient storage: DynamoDB in AWS, in-memory for local dev and tests.
+
+The app never writes. In AWS the table is seeded by Terraform (terraform/modules/dynamodb).
+"""
 
 import json
 from pathlib import Path
@@ -12,13 +15,17 @@ from .models import Patient
 class Store(Protocol):
     def list(self) -> list[Patient]: ...
     def get(self, patient_id: str) -> Patient | None: ...
-    def put(self, patient: Patient) -> None: ...
-    def delete(self, patient_id: str) -> bool: ...
 
 
 class MemoryStore:
-    def __init__(self) -> None:
-        self._items: dict[str, Patient] = {}
+    """Local dev and tests only, loaded from the same JSON file Terraform seeds the table with."""
+
+    def __init__(self, patients: list[Patient]) -> None:
+        self._items = {p.patient_id: p for p in patients}
+
+    @classmethod
+    def from_file(cls, path: str) -> "MemoryStore":
+        return cls([Patient(**item) for item in json.loads(Path(path).read_text())])
 
     def list(self) -> list[Patient]:
         return sorted(self._items.values(), key=lambda p: p.patient_id)
@@ -26,15 +33,9 @@ class MemoryStore:
     def get(self, patient_id: str) -> Patient | None:
         return self._items.get(patient_id)
 
-    def put(self, patient: Patient) -> None:
-        self._items[patient.patient_id] = patient
-
-    def delete(self, patient_id: str) -> bool:
-        return self._items.pop(patient_id, None) is not None
-
 
 class DynamoStore:
-    """Credentials come from the pod's IAM role (IRSA); nothing is configured here."""
+    """Credentials come from the pod's IAM role (IRSA): GetItem, Query and Scan only."""
 
     def __init__(self, table) -> None:
         self._table = table
@@ -56,17 +57,3 @@ class DynamoStore:
     def get(self, patient_id: str) -> Patient | None:
         item = self._table.get_item(Key={"patient_id": patient_id}).get("Item")
         return Patient(**item) if item else None
-
-    def put(self, patient: Patient) -> None:
-        self._table.put_item(Item=patient.model_dump(mode="json"))
-
-    def delete(self, patient_id: str) -> bool:
-        resp = self._table.delete_item(Key={"patient_id": patient_id}, ReturnValues="ALL_OLD")
-        return "Attributes" in resp
-
-
-def seed_if_empty(store: Store, seed_file: str) -> None:
-    if store.list():
-        return
-    for item in json.loads(Path(seed_file).read_text()):
-        store.put(Patient(**item))

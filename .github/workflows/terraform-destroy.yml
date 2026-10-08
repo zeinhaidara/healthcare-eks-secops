@@ -24,6 +24,9 @@ env:
   TF_VAR_vpc_cidr: ${{ vars.VPC_CIDR }}
   TF_VAR_ecr_repository: ${{ vars.ECR_REPOSITORY }}
   TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+  TF_VAR_cluster_version: ${{ vars.CLUSTER_VERSION }}
+  TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+  TF_VAR_route53_zone_id: ${{ vars.ROUTE53_ZONE_ID }}
 
 jobs:
   destroy:
@@ -43,6 +46,19 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
+      # Remove namespaces and the Load Balancer Controller before the cluster. Skipped when the
+      # cluster is already gone (nothing in it to remove).
+      - name: destroy cluster add-ons first
+        working-directory: terraform/cluster-addons
+        run: |
+          if aws eks describe-cluster --name "$TF_VAR_cluster_name" >/dev/null 2>&1; then
+            terraform init \
+              -backend-config="bucket=${TF_STATE_BUCKET}" \
+              -backend-config="region=${AWS_REGION}"
+            terraform destroy -auto-approve
+          else
+            echo "Cluster not found; no add-ons to destroy"
+          fi
       - name: init
         working-directory: terraform
         run: |

@@ -4,7 +4,7 @@ IAM policies for the CI roles. They are applied by hand and are not managed by T
 
 | File | Role | Status |
 |---|---|---|
-| `plan-policy.json` | `...-gha-plan` | Maintained by the owner. Not yet in this branch; add it here when ready. |
+| `plan-policy.json` | `...-gha-plan` | Copy of the live policy (2026-10-08), read-only. |
 | `apply-policy.json` | `...-gha-apply` | This directory. Replaces the policy currently attached. |
 
 ## Applying
@@ -43,3 +43,26 @@ Action wildcards on `Resource: "*"` (limited to us-east-2 by condition). Owner f
 | IamRead | `iam:Get*`, `iam:List*` on `*` | Provider reads | Keep, read-only |
 | ServiceLinkedRoles | `iam:CreateServiceLinkedRole` on `*` | Conditioned on a fixed service list | Prune the list after Phase 5 |
 | Route53Read | list and get on `*` | Zone lookup | Keep, read-only |
+
+## Phase 3 (EKS on Fargate) review
+
+Every new call was checked against both files. Result:
+
+| File | Change | Reason |
+|---|---|---|
+| `apply-policy.json` | Added `eks-fargate.amazonaws.com` to `ServiceLinkedRoles` | Creating the first Fargate profile creates the service-linked role `AWSServiceRoleForAmazonEKSForFargate`. |
+| `apply-policy.json` | No other change | EKS cluster, Fargate profiles, add-on and access entries: `eks:*` (region-scoped). Cluster, Fargate, IRSA and controller roles: `IamProjectOnly` (all are named `cloudbatch818-zein-hcsecops-*`). OIDC provider: `oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/*`. ACM: `acm:*`. Validation records: `Route53` on zone `Z0900957ARJDK4SXKDV0`. Pod security groups: `ec2:*`. EKS secrets and log encryption: `kms:*`. The cluster-addons Helm and Kubernetes calls go to the Kubernetes API; on AWS they need only `eks:DescribeCluster`. |
+| `plan-policy.json` | Added `budgets:ListTagsForResource` (already applied live) | The provider reads budget tags on every refresh; the plan failed without it (SEC-020). |
+| `plan-policy.json` | No other change | The root plan reads EKS (`eks:Describe*`, `eks:List*`), ACM, IAM OIDC (`iam:Get*`), Route 53 and Lambda, all already allowed. The plan role gets no cluster access (D2b). |
+
+## Load Balancer Controller policy wildcards (D4)
+
+`terraform/policies/aws-load-balancer-controller-v3.6.0.json` is the upstream policy, attached to the controller's IRSA role unmodified. It has 16 statements; 10 use `Resource: "*"`, mostly guarded by `aws:ResourceTag/elbv2.k8s.aws/cluster` or `aws:RequestTag` conditions. Checkov does not evaluate it (the policy is read with `file()`), so it is reviewed here instead. Owner: Moulaye. Phase 7 task: scope the unconditioned `Describe*`, `ec2:CreateSecurityGroup`, `elasticloadbalancing:Create*` and WAF/Shield statements to this cluster's tags and the project VPC, and re-check on each controller upgrade.
+
+## Terraform seeding of the patients table
+
+| File | Change | Reason |
+|---|---|---|
+| `plan-policy.json` | New statement `RefreshSeededPatientItems`: `dynamodb:GetItem` on the patients table ARN only | Once the 30 seed items are in state, every `tf-plan` refreshes each `aws_dynamodb_table_item` with `GetItem`. Without it the plan fails with AccessDenied. Still read-only. The plan role trusts `pull_request` (EXC-004), so a PR job could read these synthetic records. |
+| `apply-policy.json` | No change | `dynamodb:*` on the patients table already covers `PutItem`, `GetItem` and `DeleteItem`. |
+| App IRSA role | No change | `GetItem`, `Query`, `Scan` only; no write action. |

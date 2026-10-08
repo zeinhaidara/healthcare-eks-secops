@@ -107,6 +107,7 @@
           "iam:AWSServiceName": [
             "eks.amazonaws.com",
             "eks-nodegroup.amazonaws.com",
+            "eks-fargate.amazonaws.com",
             "autoscaling.amazonaws.com",
             "elasticloadbalancing.amazonaws.com",
             "guardduty.amazonaws.com",
