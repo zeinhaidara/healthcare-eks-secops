@@ -30,9 +30,12 @@ resource "aws_dynamodb_table_item" "seed" {
 
   table_name = aws_dynamodb_table.this.name
   hash_key   = aws_dynamodb_table.this.hash_key
-  item = jsonencode({
+  # The record body is marked sensitive so plan/apply output and plan.txt show "(sensitive value)".
+  # The key stays visible in the resource address: seed["P001"]. sensitive() only marks the value
+  # inside Terraform; the JSON sent to DynamoDB is unchanged.
+  item = sensitive(jsonencode({
     for k, v in each.value : k => contains(var.number_attributes, k) ? { N = tostring(v) } : { S = tostring(v) }
-  })
+  }))
 
   lifecycle {
     ignore_changes = []
