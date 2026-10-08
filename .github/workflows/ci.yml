@@ -44,6 +44,11 @@ jobs:
           scan-type: fs
           scan-ref: app
           trivy-config: security/trivy/trivy.yaml
+          # The action exports its own defaults (all severities, ignore-unfixed false) that override
+          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          severity: HIGH,CRITICAL
+          ignore-unfixed: "true"
+          exit-code: "1"
           format: json
           output: trivy-app.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -87,6 +92,11 @@ jobs:
           scan-type: image
           input: image.tar
           trivy-config: security/trivy/trivy.yaml
+          # The action exports its own defaults (all severities, ignore-unfixed false) that override
+          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          severity: HIGH,CRITICAL
+          ignore-unfixed: "true"
+          exit-code: "1"
           format: json
           output: trivy-image.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

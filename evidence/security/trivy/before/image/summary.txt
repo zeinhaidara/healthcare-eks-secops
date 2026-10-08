@@ -1,0 +1,10 @@
+Source: CI run 37794096795 (attempt 1 and 2), job app-image-scan, artifact trivy-image-report, unedited
+Tool: Trivy v0.75.0 via aquasecurity/trivy-action v0.36.0
+Target: image.tar (python:3.12-slim digest-pinned base, Debian 13.7), built from app/Dockerfile
+Effective settings: severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL and ignore-unfixed false
+  (action defaults overrode security/trivy/trivy.yaml)
+Findings: 44 total, 44 HIGH or CRITICAL, 0 CRITICAL
+HIGH or CRITICAL with a fix available: 0
+Unique CVEs: 8: CVE-2025-69720, CVE-2026-16742, CVE-2026-54369, CVE-2026-76642, CVE-2026-78408, CVE-2026-78409, CVE-2026-78410, CVE-2026-9538
+Python packages: 0 vulnerabilities
+Result: exit code 1 (job failed)

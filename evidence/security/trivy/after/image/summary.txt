@@ -1,0 +1,9 @@
+Tool: Trivy v0.75.0 (aquasec/trivy:0.75.0)
+Command: trivy image --format json --output evidence/security/trivy/after/image/trivy-image.json
+  with the environment trivy-action exports after the fix: TRIVY_INPUT=image.tar TRIVY_SEVERITY=HIGH,CRITICAL
+  TRIVY_IGNORE_UNFIXED=true TRIVY_EXIT_CODE=1 TRIVY_CONFIG=security/trivy/trivy.yaml
+Date: 2026-10-08
+Target: image built from app/Dockerfile (same pinned base digest as before/)
+Findings (HIGH or CRITICAL with a fix available): 0
+Result: exit code 0
+Note: the 44 unfixed HIGH findings in before/ still exist upstream and remain visible in the raw CI report; they are not fixable by us.
