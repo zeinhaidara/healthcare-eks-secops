@@ -57,3 +57,11 @@ output "pod_security_group_ids" {
 output "certificate_arn" {
   value = module.acm.certificate_arn
 }
+
+output "app_role_arns" {
+  value = { for env, m in module.irsa_app : env => m.role_arn }
+}
+
+output "lb_controller_role_arn" {
+  value = module.irsa_lb_controller.role_arn
+}

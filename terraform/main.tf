@@ -109,3 +109,49 @@ module "acm" {
   domain_name = "*.${var.domain_name}"
   zone_id     = var.route53_zone_id
 }
+
+# App pods: read patients, read the API key, decrypt with the project key. Nothing else.
+data "aws_iam_policy_document" "app" {
+  statement {
+    sid       = "ReadPatientsTable"
+    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
+    resources = [module.dynamodb.table_arn]
+  }
+
+  statement {
+    sid       = "ReadApiKey"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [module.secrets.secret_arn]
+  }
+
+  statement {
+    sid       = "DecryptWithProjectKey"
+    actions   = ["kms:Decrypt"]
+    resources = [module.kms.key_arn]
+  }
+}
+
+module "irsa_app" {
+  source   = "./modules/irsa"
+  for_each = local.deploy_namespaces
+
+  name              = "${var.name_prefix}-app-${each.key}"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer       = module.eks.oidc_issuer
+  namespace         = each.value
+  service_account   = "healthcare-api"
+  policy_json       = data.aws_iam_policy_document.app.json
+}
+
+# Upstream policy for the controller version in cluster-addons (D4), unmodified apart from
+# whitespace. Its wildcards are listed in docs/bootstrap-policies/README.md for Phase 7.
+module "irsa_lb_controller" {
+  source = "./modules/irsa"
+
+  name              = "${var.name_prefix}-lb-controller"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer       = module.eks.oidc_issuer
+  namespace         = "kube-system"
+  service_account   = "aws-load-balancer-controller"
+  policy_json       = jsonencode(jsondecode(file("${path.module}/policies/aws-load-balancer-controller-v3.6.0.json")))
+}
