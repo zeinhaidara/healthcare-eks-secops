@@ -288,3 +288,23 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: tag visible on the table after apply.
 - Outcome: resolved. State encryption accepted as EXC-008.
 - Control area: data protection, asset classification
+
+### SEC-027: Rotation Lambda ENI actions granted on "*" (supersedes SEC-017)
+- Date / PR: 2026-10-08 / feature/fix-lambda-eni-role
+- Source: `tf-apply` on main after the Phase 3 merge failed only on `module.secret_rotation.aws_lambda_function.this`: `InvalidParameterValueException: The provided execution role does not have permissions to call DeleteNetworkInterface on EC2`. Classification: defect in our IAM policy.
+- Risk: the rotation Lambda could not be created, so the API key had no automatic rotation.
+- Before: SEC-017 scoped the ENI actions to network-interface, subnet and security-group ARNs. That scoping was wrong: Lambda checks the execution role when the function is created, before any network interface exists, so resource-scoped grants fail the check.
+- Fix: one statement with the EC2 actions of the AWS managed policy `AWSLambdaVPCAccessExecutionRole` (`CreateNetworkInterface`, `DescribeNetworkInterfaces`, `DeleteNetworkInterface`, `DescribeSubnets`, `AssignPrivateIpAddresses`, `UnassignPrivateIpAddresses`) plus `DescribeSecurityGroups` and `DescribeVpcs`, on `*`. `CreateNetworkInterface` is on `*` too, because a scoped Create could not be shown to pass the same check. No other `ec2:` action, no `ec2:*`. Log, DLQ, Secrets Manager and KMS statements unchanged. Commit 189a58a.
+- After: Checkov flags `CKV_AWS_356` and `CKV_AWS_111` on this policy; the skip and EXC-009 await owner approval. Lambda creation is confirmed by the next `tf-apply`.
+- Outcome: fixed in code; supersedes SEC-017. Exception pending approval.
+- Control area: access control, least privilege
+
+### SEC-028: Scoped Checkov skips for the Lambda ENI statement (EXC-009)
+- Date / PR: 2026-10-08 / feature/fix-lambda-eni-role (PR #12)
+- Source: Checkov 3.3.26 in CI runs 37819426414 (job 113456328707) and 37819393361 (job 113456223946): `CKV_AWS_111` and `CKV_AWS_356` on `module.secret_rotation.aws_iam_policy_document.permissions`, `/modules/secret-rotation/main.tf:52-107` (called from `/main.tf:50-59`), caused by the `VpcLambdaNetworkInterfaces` statement from SEC-027.
+- Risk: the rotation role can create, delete and describe network interfaces account-wide. Required by Lambda's create-time check (`AWSLambdaVPCAccessExecutionRole`).
+- Before: CI 237 passed, 2 failed, 8 skipped.
+- Fix: Checkov skips are per resource, and lines 52-107 were the whole permissions document (Secrets Manager, KMS, logs, DLQ, X-Ray). To keep the skips on the ENI statement only, it moved to its own document `vpc_eni` and inline policy `vpc-network-interfaces` on the same role; the Lambda `depends_on` includes it so the permission exists before the create-time check. Inline skips for `CKV_AWS_111` and `CKV_AWS_356` on `vpc_eni` only, reason per EXC-009. No directory- or file-level skip.
+- After: `evidence/security/checkov/after/fix-lambda-eni-role/`: 250 passed, 0 failed, 10 skipped. The permissions document passes both checks without a skip.
+- Outcome: accepted risk (EXC-009, expires 2027-04-08)
+- Control area: access control, least privilege
