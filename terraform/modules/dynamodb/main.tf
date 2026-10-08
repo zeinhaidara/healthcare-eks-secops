@@ -16,6 +16,10 @@ resource "aws_dynamodb_table" "this" {
   point_in_time_recovery {
     enabled = true
   }
+
+  tags = {
+    DataClassification = var.data_classification
+  }
 }
 
 # Seed data (synthetic) comes from the same file the app uses for local runs, so the table and
