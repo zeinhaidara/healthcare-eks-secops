@@ -178,3 +178,13 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: the PR gate still enforces (PR #4 run returned "Quality Gate passed" with wait=true). Push runs only upload the analysis.
 - Outcome: resolved for PR gating; push-branch gating is a plan limitation, not a suppression, so there is no exceptions-register row.
 - Control area: vulnerability management, change control
+
+### SEC-016: Lambda package missing at tf-apply (plan and apply on separate runners)
+- Date / PR: 2026-10-08 / feature/fix-lambda-package
+- Source: `tf-apply` failure `reading ZIP file (modules/secret-rotation/build/cloudbatch818-zein-hcsecops-rotate-api-key.zip): ... no such file or directory`. Classification: defect in our workflow, not a scanner finding.
+- Risk: the Lambda zip is built by the `archive_file` data source during plan. `tf-plan` and `tf-apply` run on different runners, so the zip did not exist at apply and a partial apply left the stack half created. Rebuilding the zip separately at apply would also risk deploying bytes that differ from the reviewed plan.
+- Before: failed run log (partial apply: network, KMS, ECR, DynamoDB, secret, budget, flow logs, rotation role, DLQ, security group and log group created; Lambda not created). Checkov on `terraform/` and the workflows was 112 passed, 0 failed, 4 skipped before the change.
+- Fix: `terraform-apply.yml` `tf-plan` records `zips.sha256` for every `modules/*/build/*.zip` and uploads the exact zips with the plan; `tf-apply` downloads them to the same paths and verifies the checksums before `terraform apply tfplan`. The module is unchanged, so `source_code_hash` (output of `archive_file`) still changes the plan when the Lambda code changes. Commit: see git log (`ci: ship the Lambda zip with the plan artifact`).
+- After: `evidence/security/checkov/after/fix-lambda-package/` (same command and version, no new skips); actionlint exit 0.
+- Outcome: resolved
+- Control area: change control, build integrity
