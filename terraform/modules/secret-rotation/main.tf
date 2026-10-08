@@ -79,11 +79,22 @@ data "aws_iam_policy_document" "permissions" {
     resources = [aws_sqs_queue.dlq.arn]
   }
 
-  # VPC-attached Lambda: the exact EC2 actions of the AWS managed policy
-  # AWSLambdaVPCAccessExecutionRole (plus DescribeSecurityGroups and DescribeVpcs), on "*".
-  # Lambda checks these permissions when the function is created, before any network interface
-  # exists, so ARN- or condition-scoped grants fail that check ("does not have permissions to call
-  # DeleteNetworkInterface on EC2"). No other ec2: action is granted. Accepted exception: EXC-009.
+  statement {
+    sid       = "XrayWrite"
+    actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+    resources = ["*"]
+  }
+}
+
+# Kept in its own document so the Checkov skips below cover only this statement.
+# VPC-attached Lambda: the exact EC2 actions of the AWS managed policy
+# AWSLambdaVPCAccessExecutionRole (plus DescribeSecurityGroups and DescribeVpcs), on "*".
+# Lambda checks these permissions when the function is created, before any network interface
+# exists, so ARN- or condition-scoped grants fail that check ("does not have permissions to call
+# DeleteNetworkInterface on EC2"). No other ec2: action is granted.
+data "aws_iam_policy_document" "vpc_eni" {
+  # checkov:skip=CKV_AWS_111:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Phase 7 tightening.
+  # checkov:skip=CKV_AWS_356:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Phase 7 tightening.
   statement {
     sid = "VpcLambdaNetworkInterfaces"
     actions = [
@@ -98,12 +109,6 @@ data "aws_iam_policy_document" "permissions" {
     ]
     resources = ["*"]
   }
-
-  statement {
-    sid       = "XrayWrite"
-    actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role" "this" {
@@ -115,6 +120,12 @@ resource "aws_iam_role_policy" "this" {
   name   = "rotate-api-key"
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.permissions.json
+}
+
+resource "aws_iam_role_policy" "vpc_eni" {
+  name   = "vpc-network-interfaces"
+  role   = aws_iam_role.this.id
+  policy = data.aws_iam_policy_document.vpc_eni.json
 }
 
 resource "aws_lambda_function" "this" {
@@ -150,7 +161,7 @@ resource "aws_lambda_function" "this" {
     security_group_ids = [aws_security_group.this.id]
   }
 
-  depends_on = [aws_cloudwatch_log_group.this, aws_iam_role_policy.this]
+  depends_on = [aws_cloudwatch_log_group.this, aws_iam_role_policy.this, aws_iam_role_policy.vpc_eni]
 }
 
 resource "aws_lambda_permission" "secrets_manager" {

@@ -1,0 +1,8 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/fix-lambda-eni-role
+Date: 2026-10-08
+Scope: terraform/ including terraform/cluster-addons/
+terraform: passed=250 failed=0 skipped=10 resources=61
+Skips (CKV_AWS_111, CKV_AWS_356) apply only to module.secret_rotation.aws_iam_policy_document.vpc_eni (EXC-009)
+Skips (CKV_AWS_111, CKV_AWS_356) apply only to module.secret_rotation.aws_iam_policy_document.vpc_eni (EXC-009); the permissions document passes both checks without a skip.
+Before (CI runs 37819426414 and 37819393361): passed=237 failed=2 skipped=8
