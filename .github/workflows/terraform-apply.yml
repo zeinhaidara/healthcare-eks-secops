@@ -112,3 +112,79 @@ jobs:
       - name: apply the reviewed plan
         working-directory: terraform
         run: terraform apply tfplan
+
+  # Second root (D2b): namespaces and the Load Balancer Controller. Runs under the apply role
+  # behind a second infra approval, after the cluster exists. Read the add-ons plan in
+  # addons-plan before approving addons-apply.
+  addons-plan:
+    name: addons-plan
+    needs: apply
+    runs-on: ubuntu-latest
+    environment: infra
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: init
+        working-directory: terraform/cluster-addons
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}"
+      - run: terraform fmt -check
+        working-directory: terraform/cluster-addons
+      - run: terraform validate
+        working-directory: terraform/cluster-addons
+      - name: plan
+        working-directory: terraform/cluster-addons
+        run: |
+          terraform plan -out=addons.tfplan
+          terraform show -no-color addons.tfplan > addons-plan.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: addons-tfplan
+          path: |
+            terraform/cluster-addons/addons.tfplan
+            terraform/cluster-addons/addons-plan.txt
+          retention-days: 7
+
+  addons-apply:
+    name: addons-apply
+    needs: addons-plan
+    runs-on: ubuntu-latest
+    environment: infra
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: addons-tfplan
+          path: terraform/cluster-addons
+      - name: init
+        working-directory: terraform/cluster-addons
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}"
+      - name: apply the reviewed add-ons plan
+        working-directory: terraform/cluster-addons
+        run: terraform apply addons.tfplan
