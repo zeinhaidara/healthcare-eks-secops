@@ -1,0 +1,17 @@
+Source: GitHub Actions runs on PR feature/ci-evidence -> dev (log extracts, Checkov 3.3.26)
+Date: 2026-10-08
+
+app-ci run 37780950496, job app-checkov
+  Dockerfile:        passed=48 failed=0
+  .github/workflows: passed=195 failed=1
+    FAILED CKV_GHA_7  on(terraform-apply)  /terraform-apply.yml:8-19  (workflow_dispatch inputs must be empty)
+
+terraform-ci run 37780950499, job tf-checkov
+  terraform/: passed=58 failed=5
+    FAILED CKV_AWS_109  module.kms.aws_iam_policy_document.key       /modules/kms/main.tf:13-50
+    FAILED CKV_AWS_111  module.kms.aws_iam_policy_document.key       /modules/kms/main.tf:13-50
+    FAILED CKV_AWS_356  module.kms.aws_iam_policy_document.key       /modules/kms/main.tf:13-50
+    FAILED CKV_AWS_338  module.network.aws_cloudwatch_log_group.flow /modules/network/main.tf:109-113
+    FAILED CKV2_AWS_57  module.secrets.aws_secretsmanager_secret.this /modules/secrets/main.tf:2-6
+
+Helm output: not yet present (Phase 4).

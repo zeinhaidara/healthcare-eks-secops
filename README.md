@@ -8,7 +8,7 @@ DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/C
 |---|---|---|
 | Frontend | Static single page (HTML/CSS/JS, strict CSP, no inline scripts) | `app/static/` |
 | Backend | FastAPI service on port 8080 | `app/src/` |
-| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | Terraform, Phase 2 |
+| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | `terraform/modules/dynamodb` |
 
 ## Endpoints
 
@@ -52,6 +52,31 @@ pytest
 ruff check . && ruff format --check .
 ```
 
+## Branch flow and CI
+
+`feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit, no squash) -> `app-release.yml` deploys with approvals. `dev` never deploys.
+
+Two independent, AWS-free pipelines run on PRs to `main` or `dev` and on pushes to `dev`. Mark these job names as required checks on `main`:
+
+| Workflow | Required checks |
+|---|---|
+| `app-ci.yml` | `app-test-lint`, `app-trivy`, `app-checkov` |
+| `terraform-ci.yml` | `tf-validate`, `tf-checkov` |
+
+Terraform is manual only and takes no inputs. Run `terraform-apply.yml` from the Actions tab: `tf-plan` runs first (read-only plan role), you read the plan, then approve `tf-apply` (environment `infra`). `terraform-destroy.yml` runs behind its own `infra-destroy` approval.
+
+## Terraform layout
+
+`terraform/` is one stack and one state file. Each concern is a module under `terraform/modules/` (`network`, `kms`, `ecr`, `secrets`, `secret-rotation`, `dynamodb`, `budget`) with its own `variables.tf` and `outputs.tf`. Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`.
+
+## Budget
+
+$75 per month with alerts at 50%, 80% and 100% of actual spend and a 100% forecast alert. Destroy the stack after every session. Details: [docs/cost/budget.md](docs/cost/budget.md).
+
 ## Docs
 
 - [Bootstrap (manual one-time setup)](docs/bootstrap.md)
+- [Security controls, PR gate to approval gate](docs/security/controls.md)
+- [Improvement log](docs/security/improvement-log.md), [exceptions](docs/security/exceptions-register.md), [triage](docs/security/triage-process.md)
+- [Budget](docs/cost/budget.md)
+- [CI role policies](docs/bootstrap-policies/README.md), [API key rotation runbook](docs/runbooks/rotation.md)

@@ -10,13 +10,14 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 | Role | Used by | Access |
 |---|---|---|
-| plan | `terraform-plan.yml` | read-only on state |
-| apply | `terraform-apply.yml` (environment `infra`) | write, scoped to project resources |
+| plan | `terraform-apply.yml` job `tf-plan` | read-only on resources, lock file only on state (`docs/bootstrap-policies/plan-policy.json`) |
+| apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources (`docs/bootstrap-policies/apply-policy.json`) |
 | ecr-push | `app-release.yml` push job | push to the project ECR repo |
 | deploy-dev | `app-release.yml` dev deploy | namespace-scoped EKS access |
 | deploy-prod | `app-release.yml` prod deploy | namespace-scoped EKS access |
 
-- GitHub Environments `infra`, `dev`, `prod`, each requiring approval and limited to `main`.
+- GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`, each requiring approval and limited to `main`. `infra` and `infra-destroy` each hold `AWS_ROLE_ARN` (the apply role). The apply role's trust policy must allow the `environment:infra` and `environment:infra-destroy` subjects.
+- IAM policies for the CI roles are in `docs/bootstrap-policies/` and are applied by hand, never by Terraform.
 - GitHub variables (repo and environment level) as listed in the design plan.
 
 ## Set manually after Terraform apply
@@ -27,7 +28,8 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
   3. Use the Plaintext tab, paste the value, and save.
   4. Keep a copy in your password manager for testing `/patients`.
 - The app reads the secret itself at startup through its IRSA role. Until the value is set, the pod stays not-ready (`/ready` returns 503) by design.
-- To rotate: repeat the steps above, then restart the pods.
+- Rotation is automatic every 30 days (Lambda `cloudbatch818-zein-hcsecops-rotate-api-key`). After any rotation, restart the pods; see `docs/runbooks/rotation.md`.
+- Destroying the stack deletes the secret immediately (recovery window 0), so set a new value after every apply.
 
 ## Rules
 

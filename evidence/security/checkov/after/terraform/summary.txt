@@ -1,0 +1,10 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/terraform
+Date: 2026-10-08
+Scope: terraform/ (all modules)
+terraform: passed=58 failed=5 skipped=0
+  FAILED CKV_AWS_109 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_356 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_111 module.kms.aws_iam_policy_document.key
+  FAILED CKV_AWS_338 module.network.aws_cloudwatch_log_group.flow
+  FAILED CKV2_AWS_57 module.secrets.aws_secretsmanager_secret.this

@@ -1,0 +1,8 @@
+# Checkov config for the Terraform pipeline. Kept separate from app.yaml on purpose.
+directory:
+  - terraform
+framework:
+  - terraform
+download-external-modules: false
+compact: true
+quiet: true
