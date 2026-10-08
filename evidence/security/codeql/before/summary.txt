@@ -1,0 +1,5 @@
+files: actions.sarif, python.sarif
+findings: 0
+scope: python (app/ and the rotation Lambda) and actions (workflows), security-extended
+source: CI run 37797586192 (PR #4, head 8c47d54), first CodeQL run
+codeql-action v4.38.3

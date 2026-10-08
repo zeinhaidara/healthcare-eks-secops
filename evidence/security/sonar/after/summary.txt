@@ -1,0 +1,6 @@
+Source: SonarCloud GitHub check run and PR comment on CI run 37797586192 (PR #4, head 8c47d54), raw files saved unedited in this folder
+Date: 2026-10-08
+Quality gate: PASSED
+New issues: 0 | Accepted issues: 0 | Security hotspots: 0
+Coverage on new code: 100.0% | Duplication on new code: 0.0%
+Previous run (PR #2, before/): FAILED on coverage 0.0% and reliability rating C

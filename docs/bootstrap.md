@@ -38,6 +38,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
   - secret `SONAR_TOKEN` (repo secret)
   - variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION` (repo variables)
   - Without them the `sonar` job fails on purpose with a message naming what is missing.
+  - SonarCloud free plan: the quality gate is enforced on pull requests only. Push runs upload the analysis but do not wait for gate status, because the free plan cannot return it for non-main branches.
 - `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
 - Merge method: merge commits only (no squash, no rebase).
 

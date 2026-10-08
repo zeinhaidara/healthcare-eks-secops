@@ -93,20 +93,20 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Date / PR: 2026-10-08 / feature/sec-tools
 - Source: CodeQL (`github/codeql-action` v4.38.3, query suite security-extended), languages python and actions
 - Risk: Checkov, Trivy and ruff do not do semantic analysis of Python code or workflow injection paths.
-- Before: `evidence/security/codeql/before/` (PENDING: first run on the PR; baseline saved before any fix)
+- Before: `evidence/security/codeql/before/` (first CodeQL run, CI run 37797586192 (PR #4, head 8c47d54): python and actions analysed, 0 findings at any severity; SARIF saved unedited)
 - Fix: `.github/workflows/ci.yml` (job `codeql`, no paths filter, no AWS access) and `security/codeql/sarif_gate.py`, which fails the job on security-severity 7.0 or more. Terraform is not supported by CodeQL; Checkov covers it. GHAS status: the repo is public, so code scanning upload to the Security tab is available at no cost.
-- After: `evidence/security/codeql/after/` (PENDING)
-- Outcome: pending baseline
+- After: `evidence/security/codeql/after/` (same result, 0 findings; nothing needed fixing)
+- Outcome: resolved (control in place, no findings)
 - Control area: vulnerability management, secure SDLC
 
 ### SEC-008: SonarCloud added to CI
 - Date / PR: 2026-10-08 / feature/sec-tools
 - Source: SonarCloud via `SonarSource/sonarqube-scan-action` v8.3.0, quality gate wait enabled
 - Risk: no static analysis for bugs, code smells and security hotspots across app and Terraform code.
-- Before: `evidence/security/sonar/before/` (PENDING: needs `SONAR_TOKEN`, `SONAR_PROJECT_KEY`, `SONAR_ORGANIZATION` to be set)
+- Before: `evidence/security/sonar/before/` (first analysis, PR #2: gate FAILED on coverage 0.0% and reliability rating C; see SEC-013 and SEC-014)
 - Fix: `.github/workflows/ci.yml` (job `sonar`), `sonar-project.properties`. The job fails with a clear message if any setting is missing, and fails when the quality gate fails. Coverage is not reported: `pytest-cov` is not a dependency yet.
-- After: `evidence/security/sonar/after/` (PENDING)
-- Outcome: pending baseline
+- After: `evidence/security/sonar/after/` (CI run 37797586192 (PR #4, head 8c47d54): gate PASSED, 0 new issues, 0 hotspots, 100% coverage on new code, 0% duplication)
+- Outcome: resolved. Gate enforcement is scoped to pull requests (SEC-015).
 - Control area: vulnerability management, secure SDLC
 
 ### SEC-009: Required approvals set to 0 on `main`
@@ -146,6 +146,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Before: `evidence/security/trivy/before/image/` (raw CI report, unedited, and summary). 44 HIGH, 0 CRITICAL, 0 with a fix available.
 - Fix: `ci.yml` (`app-trivy`, `app-image-scan`) and `cd.yml` (`build`) pass `severity: HIGH,CRITICAL`, `ignore-unfixed: "true"` and `exit-code: "1"` as action inputs, mirroring `trivy.yaml` (comments in both places say to change them together). The gate still fails on any HIGH or CRITICAL that has a fix. No `.trivyignore`: there are no fixable HIGH or CRITICAL findings, so no exception and no EXC row was needed. Commit: see git log (`ci: apply trivy.yaml policy to Trivy steps`).
 - After: `evidence/security/trivy/after/image/` (same Trivy version, same environment the action exports). 0 fixable findings, exit 0.
+- Confirmed in CI: `app-image-scan` passed on CI run 37797586192 (PR #4, head 8c47d54); report in `evidence/security/trivy/after/ci-image/` (0 findings).
 - Outcome: resolved. Residual: unfixed upstream HIGH CVEs in the base image stay visible in each report; Dependabot bumps the pinned base image when a patched build exists.
 - Control area: vulnerability management
 
@@ -155,8 +156,8 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Risk: a hung network call to Secrets Manager would hold the invocation until the Lambda timeout and could leave a rotation half done.
 - Before: `evidence/security/sonar/before/` (check run summary and annotation from the SonarCloud GitHub check on `dd1188e`, PR #2, unedited)
 - Fix: `boto3.client("secretsmanager", config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}))`. Commit: see git log (`fix: set explicit timeouts on rotation Lambda client`).
-- After: pending the next SonarCloud analysis on a PR (`evidence/security/sonar/after/`)
-- Outcome: fixed in code; verification pending the next Sonar run
+- After: `evidence/security/sonar/after/` (CI run 37797586192 (PR #4, head 8c47d54)): 0 new issues, reliability condition passed
+- Outcome: resolved
 - Control area: reliability, secrets management
 
 ### SEC-014: Test coverage reported to SonarCloud (rotation Lambda tests added)
@@ -165,6 +166,15 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Risk: untested security-relevant code (secret rotation) and a gate that could not pass.
 - Before: `evidence/security/sonar/before/` (check run summary, unedited JSON)
 - Fix: `pytest-cov==7.1.0` added to `app/requirements-dev.txt`. 13 unit tests for the rotation Lambda in `terraform/modules/secret-rotation/tests/` (all four steps, idempotency, error paths, a test that secret values are never logged, a test that the client has explicit timeouts). `ci.yml`: `app-test-lint` writes `app/coverage.xml`, new job `lambda-test` writes `lambda-coverage.xml`, and the `sonar` job downloads both. `sonar-project.properties` sets `sonar.python.coverage.reportPaths`. Only the test directories are excluded from sources; no source is excluded from coverage. Commit: see git log (`test: add coverage and rotation Lambda tests`).
-- After: local run, same pytest and pytest-cov versions: app 97% (199 statements, 6 missed), rotation Lambda 100% (50 statements). SonarCloud's own new-code figure is pending the next PR analysis (`evidence/security/sonar/after/`).
-- Outcome: fixed in code; verification pending the next Sonar run
+- After: local run, same pytest and pytest-cov versions: app 97% (199 statements, 6 missed), rotation Lambda 100% (50 statements). SonarCloud on CI run 37797586192 (PR #4, head 8c47d54): 100.0% coverage on new code (`evidence/security/sonar/after/`).
+- Outcome: resolved
 - Control area: secure SDLC, secrets management
+### SEC-015: Sonar quality gate wait scoped to pull requests
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud free-plan restriction. The `sonar` job on a push to `dev` completed the scan and upload, then failed with: `ERROR Failed to get Quality Gate status - Organization is not allowed to access data from non main branches.`
+- Risk: a push to `dev` could show a red `sonar` run that carries no gate result, which hides real failures behind a plan limitation.
+- Before: push run on `dev` failed at the gate step (run 37794090882 family, 2026-10-08 15:04 UTC); the pull_request run returned a real gate result.
+- Fix: `qualitygate.wait` is `true` only when `github.event_name == 'pull_request'`, `false` otherwise (`ci.yml`, `sonar` job). The missing-settings pre-check, the job name `sonar` and the required check are unchanged; no `continue-on-error`. Commit: 923dc9c768be14f1c96e33678c2c89bc443247a4 (`ci: enforce sonar gate on pull requests only`).
+- After: the PR gate still enforces (PR #4 run returned "Quality Gate passed" with wait=true). Push runs only upload the analysis.
+- Outcome: resolved for PR gating; push-branch gating is a plan limitation, not a suppression, so there is no exceptions-register row.
+- Control area: vulnerability management, change control
