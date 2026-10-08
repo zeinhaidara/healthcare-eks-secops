@@ -1,7 +1,8 @@
 from src.models import Patient
-from src.store import DynamoStore
+from src.store import DynamoStore, MemoryStore
 
-NEW = {
+ROW = {
+    "patient_id": "P1",
     "name": "Test Person",
     "age": 40,
     "condition": "Asthma",
@@ -34,27 +35,10 @@ def test_get_unknown_patient_404(client, auth):
     assert client.get("/patients/nope", headers=auth).status_code == 404
 
 
-def test_create_then_delete(client, auth):
-    created = client.post("/patients", json=NEW, headers=auth)
-    assert created.status_code == 201
-    pid = created.json()["patient_id"]
-    assert client.get(f"/patients/{pid}", headers=auth).status_code == 200
-    assert client.delete(f"/patients/{pid}", headers=auth).status_code == 204
-    assert client.get(f"/patients/{pid}", headers=auth).status_code == 404
-
-
-def test_delete_unknown_404(client, auth):
-    assert client.delete("/patients/nope", headers=auth).status_code == 404
-
-
-def test_create_rejects_extra_and_invalid_fields(client, auth):
-    assert client.post("/patients", json={**NEW, "ssn": "x"}, headers=auth).status_code == 422
-    assert client.post("/patients", json={**NEW, "age": 500}, headers=auth).status_code == 422
-
-
-def test_write_requires_key(client):
-    assert client.post("/patients", json=NEW).status_code == 403
-    assert client.delete("/patients/P001").status_code == 403
+def test_write_methods_are_not_allowed(client, auth):
+    assert client.post("/patients", json=ROW, headers=auth).status_code == 405
+    assert client.delete("/patients/P001", headers=auth).status_code == 405
+    assert client.put("/patients/P001", json=ROW, headers=auth).status_code == 405
 
 
 def test_index_served_with_csp(client):
@@ -63,33 +47,38 @@ def test_index_served_with_csp(client):
     assert "default-src 'none'" in r.headers["content-security-policy"]
 
 
+def test_memory_store_loads_seed_file():
+    store = MemoryStore.from_file("data/patients.json")
+    assert len(store.list()) == 30
+    assert store.get("P001").patient_id == "P001"
+    assert store.get("missing") is None
+
+
 class FakeTable:
-    """Just enough of a boto3 DynamoDB Table for DynamoStore."""
+    """Read side of a boto3 DynamoDB Table, with two scan pages."""
 
-    def __init__(self):
-        self.items = {}
+    def __init__(self, rows):
+        self.rows = {r["patient_id"]: r for r in rows}
 
-    def scan(self, **_):
-        return {"Items": list(self.items.values())}
+    def scan(self, **kwargs):
+        rows = sorted(self.rows.values(), key=lambda r: r["patient_id"])
+        if "ExclusiveStartKey" not in kwargs:
+            return {"Items": rows[:1], "LastEvaluatedKey": {"patient_id": rows[0]["patient_id"]}}
+        return {"Items": rows[1:]}
 
     def get_item(self, Key):
-        item = self.items.get(Key["patient_id"])
-        return {"Item": item} if item else {}
-
-    def put_item(self, Item):
-        self.items[Item["patient_id"]] = Item
-
-    def delete_item(self, Key, ReturnValues):
-        old = self.items.pop(Key["patient_id"], None)
-        return {"Attributes": old} if old else {}
+        row = self.rows.get(Key["patient_id"])
+        return {"Item": row} if row else {}
 
 
-def test_dynamo_store_roundtrip():
-    store = DynamoStore(FakeTable())
-    patient = Patient(patient_id="P1", **NEW)
-    store.put(patient)
-    assert store.get("P1") == patient
-    assert store.list() == [patient]
-    assert store.delete("P1") is True
-    assert store.delete("P1") is False
-    assert store.get("P1") is None
+def test_dynamo_store_reads_all_pages_and_items():
+    second = {**ROW, "patient_id": "P2"}
+    store = DynamoStore(FakeTable([ROW, second]))
+    assert [p.patient_id for p in store.list()] == ["P1", "P2"]
+    assert store.get("P1") == Patient(**ROW)
+    assert store.get("nope") is None
+
+
+def test_dynamo_store_has_no_write_methods():
+    assert not hasattr(DynamoStore, "put")
+    assert not hasattr(DynamoStore, "delete")

@@ -15,8 +15,8 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings, fetch_api_key, load_settings
-from .models import Patient, PatientCreate
-from .store import DynamoStore, MemoryStore, seed_if_empty
+from .models import Patient
+from .store import DynamoStore, MemoryStore
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 CSP = (
@@ -63,12 +63,11 @@ async def lifespan(app: FastAPI):
     setup_logging()
     settings = load_settings()
     app.state.api_key = settings.api_key  # set only for local/tests; AWS fetches below
+    # Read-only: the table is seeded by Terraform. The in-memory store is for local runs and tests.
     if settings.dynamodb_table:
-        store = DynamoStore.from_env(settings.dynamodb_table, settings.aws_region)
+        app.state.store = DynamoStore.from_env(settings.dynamodb_table, settings.aws_region)
     else:
-        store = MemoryStore()
-    seed_if_empty(store, settings.seed_file)
-    app.state.store = store
+        app.state.store = MemoryStore.from_file(settings.seed_file)
     task = None if app.state.api_key else asyncio.create_task(load_api_key(app, settings))
     yield
     if task:
@@ -163,17 +162,3 @@ def get_patient(patient_id: str, request: Request) -> Patient:
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
-
-
-@app.post("/patients", status_code=201, dependencies=[Depends(require_key)])
-def create_patient(data: PatientCreate, request: Request) -> Patient:
-    patient = Patient.new(data)
-    request.app.state.store.put(patient)
-    return patient
-
-
-@app.delete("/patients/{patient_id}", status_code=204, dependencies=[Depends(require_key)])
-def delete_patient(patient_id: str, request: Request) -> Response:
-    if not request.app.state.store.delete(patient_id):
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return Response(status_code=204)

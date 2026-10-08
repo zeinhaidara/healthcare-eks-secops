@@ -10,7 +10,7 @@ class Settings:
     api_key_secret_name: str
     aws_region: str
     dynamodb_table: str  # empty = in-memory store (local dev and tests)
-    seed_file: str
+    seed_file: str  # in-memory store data for local runs and tests (never written to DynamoDB)
 
 
 def load_settings() -> Settings:
