@@ -11,6 +11,9 @@ locals {
 }
 
 data "aws_iam_policy_document" "key" {
+  # checkov:skip=CKV_AWS_109:Account-root statement is required in every KMS key policy, otherwise the key becomes unmanageable; "*" means this key only. owner Moulaye, expires 2027-04-08. EXC-001
+  # checkov:skip=CKV_AWS_111:Same account-root statement as CKV_AWS_109. owner Moulaye, expires 2027-04-08. EXC-001
+  # checkov:skip=CKV_AWS_356:Same account-root statement as CKV_AWS_109; resource "*" in a key policy is this key only. owner Moulaye, expires 2027-04-08. EXC-001
   # In a KMS key policy, resource "*" means "this key" only; it cannot reach any other key.
   # The account root statement is what lets IAM policies (apply role, IRSA roles) grant use of the key.
   # Owner approval needed per CLAUDE.md (wildcard resource).

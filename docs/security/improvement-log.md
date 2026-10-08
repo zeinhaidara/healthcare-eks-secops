@@ -69,11 +69,22 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Outcome: resolved
 - Control area: change control, least privilege
 
-## Open findings awaiting owner approval (no suppression added)
+### SEC-005: Accepted risk, KMS account-root statement (CKV_AWS_109, CKV_AWS_111, CKV_AWS_356)
+- Date / PR: 2026-10-08 / feature/ci-evidence
+- Source: Checkov 3.3.26, module.kms aws_iam_policy_document.key
+- Risk: none beyond the standard KMS design. The statement delegates key use to IAM; without it the key could become unmanageable. `*` as resource in a key policy means this key only.
+- Before: `evidence/security/checkov/after/terraform-hardening/` (4 failed)
+- Fix: none possible; suppressed inline with reason, owner and expiry. Register: EXC-001.
+- After: `evidence/security/checkov/after/terraform-final/` (0 failed, 4 skipped, same command and version)
+- Outcome: accepted risk (EXC-001, expires 2027-04-08)
+- Control area: encryption at rest, access control
 
-After SEC-001 to SEC-004: 4 failed, 112 passed. See `evidence/security/checkov/after/terraform-hardening/summary.txt`.
-
-| Rule | Resource | Proposed handling |
-|---|---|---|
-| CKV_AWS_109, CKV_AWS_356, CKV_AWS_111 | KMS key policy | Skip. The account-root `kms:*` statement is required in every key policy; `*` as resource means this key only. |
-| CKV_AWS_272 | Rotation Lambda | Cannot be satisfied without an AWS Signer signing profile plus a signing job that signs the zip before deploy; unsigned code would be rejected under enforce mode. Options: skip with expiry, or add Signer in a later phase. |
+### SEC-006: Accepted risk, Lambda code signing (CKV_AWS_272)
+- Date / PR: 2026-10-08 / feature/ci-evidence
+- Source: Checkov 3.3.26, module.secret_rotation aws_lambda_function.this
+- Risk: the Lambda zip is not cryptographically signed, so a tampered package would not be rejected at deploy. Mitigated by reviewed source in this repo, packaging by Terraform in the approved apply path, and the apply role being the only deployer.
+- Before: `evidence/security/checkov/after/terraform-hardening/`
+- Fix: deferred. Add an AWS Signer profile and signing step in Phase 7. Register: EXC-002.
+- After: `evidence/security/checkov/after/terraform-final/`
+- Outcome: accepted risk (EXC-002, expires 2027-04-08)
+- Control area: vulnerability management, change control
