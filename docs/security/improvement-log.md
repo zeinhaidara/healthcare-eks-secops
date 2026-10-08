@@ -188,3 +188,13 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/checkov/after/fix-lambda-package/` (same command and version, no new skips); actionlint exit 0.
 - Outcome: resolved
 - Control area: change control, build integrity
+
+### SEC-017: Rotation Lambda execution role could not manage its network interfaces
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: `tf-apply` failure on `aws_lambda_function`: `InvalidParameterValueException: The provided execution role does not have permissions to call DeleteNetworkInterface on EC2`. Classification: defect in our IAM policy.
+- Risk: the rotation Lambda could not be created, so the API key had no rotation.
+- Before: `ec2:DeleteNetworkInterface` was allowed only with an `ec2:Subnet` condition. Lambda checks Delete without subnet context, so the condition never matched. `ec2:AssignPrivateIpAddresses`, `ec2:UnassignPrivateIpAddresses` and `ec2:DescribeVpcs` were missing.
+- Fix: the role now has the same ENI actions as the AWS managed policy `AWSLambdaVPCAccessExecutionRole`. Create stays limited to the function's subnets and security group by resource ARN. Delete, Assign and Unassign are limited to network interfaces in this account and region, without the subnet condition. Describe actions use `*` because EC2 does not support resource scoping for them. Log, DLQ, Secrets Manager and KMS statements are unchanged. Commit: see git log (`fix: rotation Lambda ENI permissions`).
+- After: verified by the next `tf-apply` (Lambda creation). Checkov on `terraform/` in `evidence/security/checkov/after/terraform-eks/`.
+- Outcome: fixed in code; confirmation pending the next apply
+- Control area: least privilege, secrets management
