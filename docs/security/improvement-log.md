@@ -138,3 +138,33 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: required check names are unchanged: `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar` (new, also available: `app-build`, `app-image-scan`). Checkov and actionlint results recorded in the PR.
 - Outcome: resolved. Accepted trust-policy risk recorded as EXC-004.
 - Control area: change control, least privilege, supply chain
+
+### SEC-012: Trivy image scan did not honor trivy.yaml
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: Trivy v0.75.0 via `aquasecurity/trivy-action` v0.36.0; CI job `app-image-scan` (and the CD `build` scan). Classification: defect in our workflow, not a scanner issue and not an image-reference problem. The log line `trivy image .` is cosmetic: the scan did run on `image.tar` (`ArtifactName: image.tar`, Debian 13.7, 87 OS packages).
+- Risk: the gate documented in `security/trivy/trivy.yaml` (HIGH and CRITICAL, unfixed ignored) was not what ran. The action exports its own defaults (all severities, `ignore-unfixed` false), which override the config file, so the job failed on 44 HIGH findings (8 CVEs in `util-linux`, `libacl1`, `ncurses`, `systemd`, `perl-base`) that no vendor has fixed. Nothing could pass until upstream patches, so the gate would have been disabled in practice or routinely bypassed.
+- Before: `evidence/security/trivy/before/image/` (raw CI report, unedited, and summary). 44 HIGH, 0 CRITICAL, 0 with a fix available.
+- Fix: `ci.yml` (`app-trivy`, `app-image-scan`) and `cd.yml` (`build`) pass `severity: HIGH,CRITICAL`, `ignore-unfixed: "true"` and `exit-code: "1"` as action inputs, mirroring `trivy.yaml` (comments in both places say to change them together). The gate still fails on any HIGH or CRITICAL that has a fix. No `.trivyignore`: there are no fixable HIGH or CRITICAL findings, so no exception and no EXC row was needed. Commit: see git log (`ci: apply trivy.yaml policy to Trivy steps`).
+- After: `evidence/security/trivy/after/image/` (same Trivy version, same environment the action exports). 0 fixable findings, exit 0.
+- Outcome: resolved. Residual: unfixed upstream HIGH CVEs in the base image stay visible in each report; Dependabot bumps the pinned base image when a patched build exists.
+- Control area: vulnerability management
+
+### SEC-013: Explicit timeouts on the rotation Lambda's Secrets Manager client
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud, reliability rating C on new code (quality gate condition), issue at `terraform/modules/secret-rotation/src/lambda_function.py:16` "Set an explicit timeout for this network call to prevent hanging executions in Lambda functions"
+- Risk: a hung network call to Secrets Manager would hold the invocation until the Lambda timeout and could leave a rotation half done.
+- Before: `evidence/security/sonar/before/` (check run summary and annotation from the SonarCloud GitHub check on `dd1188e`, PR #2, unedited)
+- Fix: `boto3.client("secretsmanager", config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}))`. Commit: see git log (`fix: set explicit timeouts on rotation Lambda client`).
+- After: pending the next SonarCloud analysis on a PR (`evidence/security/sonar/after/`)
+- Outcome: fixed in code; verification pending the next Sonar run
+- Control area: reliability, secrets management
+
+### SEC-014: Test coverage reported to SonarCloud (rotation Lambda tests added)
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud quality gate condition "Coverage on new code >= 80%": 0.0% (failed). No coverage report reached Sonar, and the rotation Lambda had no tests.
+- Risk: untested security-relevant code (secret rotation) and a gate that could not pass.
+- Before: `evidence/security/sonar/before/` (check run summary, unedited JSON)
+- Fix: `pytest-cov==7.1.0` added to `app/requirements-dev.txt`. 13 unit tests for the rotation Lambda in `terraform/modules/secret-rotation/tests/` (all four steps, idempotency, error paths, a test that secret values are never logged, a test that the client has explicit timeouts). `ci.yml`: `app-test-lint` writes `app/coverage.xml`, new job `lambda-test` writes `lambda-coverage.xml`, and the `sonar` job downloads both. `sonar-project.properties` sets `sonar.python.coverage.reportPaths`. Only the test directories are excluded from sources; no source is excluded from coverage. Commit: see git log (`test: add coverage and rotation Lambda tests`).
+- After: local run, same pytest and pytest-cov versions: app 97% (199 statements, 6 missed), rotation Lambda 100% (50 statements). SonarCloud's own new-code figure is pending the next PR analysis (`evidence/security/sonar/after/`).
+- Outcome: fixed in code; verification pending the next Sonar run
+- Control area: secure SDLC, secrets management

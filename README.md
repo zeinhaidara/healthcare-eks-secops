@@ -48,7 +48,7 @@ Open http://localhost:8080 and enter `test-key`.
 ```sh
 cd app
 pip install -r requirements-dev.txt
-pytest
+pytest --cov=src --cov-report=term-missing
 ruff check . && ruff format --check .
 ```
 

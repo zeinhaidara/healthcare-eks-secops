@@ -25,6 +25,7 @@ Two independent pipelines. Neither depends on the other, and neither can reach A
 | `tf-validate` | `ci.yml` | `fmt -check`, `init -backend=false`, `validate` |
 | `tf-checkov` | `ci.yml` |
 | `app-build`, `app-image-scan` | `ci.yml` | Local docker build and Trivy image scan, nothing pushed |
+| `lambda-test` | `ci.yml` | pytest with coverage for the rotation Lambda (boto3 faked) |
 | `codeql` | `ci.yml` | CodeQL for Python and Actions, fails on security-severity 7.0 or more |
 | `sonar` | `ci.yml` | SonarCloud quality gate | Checkov on `terraform/` |
 

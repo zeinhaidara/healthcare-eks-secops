@@ -1,0 +1,6 @@
+Source: SonarCloud GitHub check run on dd1188e (PR #2), raw JSON saved unedited in this folder
+Date: 2026-10-08
+Quality gate: FAILED
+Failed conditions: coverage on new code 0.0% (required >= 80%); reliability rating on new code C (required >= A)
+Issue: terraform/modules/secret-rotation/src/lambda_function.py:16 explicit timeout missing on network call
+Other gate conditions: not listed as failed (passed). Exact hotspot and issue counts need a SonarCloud token.

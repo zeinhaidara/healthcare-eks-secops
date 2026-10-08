@@ -9,6 +9,12 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# Test coverage output
+.coverage
+coverage.xml
+lambda-coverage.xml
+htmlcov/
+
 # Secrets and env
 .env
 .env.*
