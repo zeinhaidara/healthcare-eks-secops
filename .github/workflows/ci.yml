@@ -29,8 +29,35 @@ jobs:
         working-directory: app
       - run: ruff format --check .
         working-directory: app
-      - run: pytest
+      # coverage.xml feeds the sonar job (new-code coverage is a quality gate condition)
+      - run: pytest --cov=src --cov-report=xml
         working-directory: app
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-app
+          path: app/coverage.xml
+          retention-days: 90
+
+  lambda-test:
+    name: lambda-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/requirements-dev.txt
+      - run: pip install -r app/requirements-dev.txt
+      # Unit tests for the rotation Lambda; boto3 is faked, no AWS calls.
+      - run: >
+          pytest terraform/modules/secret-rotation/tests
+          --cov=terraform/modules/secret-rotation/src --cov-report=xml:lambda-coverage.xml -p no:cacheprovider
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-lambda
+          path: lambda-coverage.xml
+          retention-days: 90
 
   app-trivy:
     name: app-trivy
@@ -201,6 +228,7 @@ jobs:
 
   sonar:
     name: sonar
+    needs: [app-test-lint, lambda-test]
     runs-on: ubuntu-latest
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -220,6 +248,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-app
+          path: app
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-lambda
+          path: .
       - uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         with:
           args: >

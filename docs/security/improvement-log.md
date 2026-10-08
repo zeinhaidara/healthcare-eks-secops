@@ -158,3 +158,13 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: pending the next SonarCloud analysis on a PR (`evidence/security/sonar/after/`)
 - Outcome: fixed in code; verification pending the next Sonar run
 - Control area: reliability, secrets management
+
+### SEC-014: Test coverage reported to SonarCloud (rotation Lambda tests added)
+- Date / PR: 2026-10-08 / feature/sec-tools
+- Source: SonarCloud quality gate condition "Coverage on new code >= 80%": 0.0% (failed). No coverage report reached Sonar, and the rotation Lambda had no tests.
+- Risk: untested security-relevant code (secret rotation) and a gate that could not pass.
+- Before: `evidence/security/sonar/before/` (check run summary, unedited JSON)
+- Fix: `pytest-cov==7.1.0` added to `app/requirements-dev.txt`. 13 unit tests for the rotation Lambda in `terraform/modules/secret-rotation/tests/` (all four steps, idempotency, error paths, a test that secret values are never logged, a test that the client has explicit timeouts). `ci.yml`: `app-test-lint` writes `app/coverage.xml`, new job `lambda-test` writes `lambda-coverage.xml`, and the `sonar` job downloads both. `sonar-project.properties` sets `sonar.python.coverage.reportPaths`. Only the test directories are excluded from sources; no source is excluded from coverage. Commit: see git log (`test: add coverage and rotation Lambda tests`).
+- After: local run, same pytest and pytest-cov versions: app 97% (199 statements, 6 missed), rotation Lambda 100% (50 statements). SonarCloud's own new-code figure is pending the next PR analysis (`evidence/security/sonar/after/`).
+- Outcome: fixed in code; verification pending the next Sonar run
+- Control area: secure SDLC, secrets management

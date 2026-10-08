@@ -18,7 +18,9 @@ logger.setLevel(logging.INFO)
 # Worst case per call: 2 attempts x (3 s connect + 5 s read) = 16 s.
 client = boto3.client(
     "secretsmanager",
-    config=Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}),
+    config=Config(
+        connect_timeout=3, read_timeout=5, retries={"max_attempts": 2, "mode": "standard"}
+    ),
 )
 
 
@@ -78,9 +80,7 @@ def test_secret(arn, token):
 
 def finish_secret(arn, token):
     meta = client.describe_secret(SecretId=arn)
-    current = next(
-        (v for v, s in meta["VersionIdsToStages"].items() if "AWSCURRENT" in s), None
-    )
+    current = next((v for v, s in meta["VersionIdsToStages"].items() if "AWSCURRENT" in s), None)
     if current == token:
         return
     kwargs = {"SecretId": arn, "VersionStage": "AWSCURRENT", "MoveToVersionId": token}
