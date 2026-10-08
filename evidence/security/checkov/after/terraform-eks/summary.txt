@@ -1,0 +1,7 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/after/terraform-eks
+Date: 2026-10-08
+Scope: terraform/ including terraform/cluster-addons/ (both roots)
+terraform: passed=239 failed=2 skipped=6 resources=59
+  FAILED CKV2_AWS_5 module.eks.aws_security_group.pods["cloudbatch818-healthcare-prod"]
+  FAILED CKV2_AWS_5 module.eks.aws_security_group.pods["cloudbatch818-healthcare-dev"]

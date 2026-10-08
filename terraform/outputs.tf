@@ -33,3 +33,35 @@ output "dynamodb_table_name" {
 output "dynamodb_table_arn" {
   value = module.dynamodb.table_arn
 }
+
+output "cluster_name" {
+  value = module.eks.cluster_name
+}
+
+output "cluster_endpoint" {
+  value = module.eks.cluster_endpoint
+}
+
+output "cluster_security_group_id" {
+  value = module.eks.cluster_security_group_id
+}
+
+output "oidc_provider_arn" {
+  value = module.eks.oidc_provider_arn
+}
+
+output "pod_security_group_ids" {
+  value = module.eks.pod_security_group_ids
+}
+
+output "certificate_arn" {
+  value = module.acm.certificate_arn
+}
+
+output "app_role_arns" {
+  value = { for env, m in module.irsa_app : env => m.role_arn }
+}
+
+output "lb_controller_role_arn" {
+  value = module.irsa_lb_controller.role_arn
+}

@@ -8,7 +8,7 @@
 </head>
 <body>
   <header>
-    <div class="brand"><span class="dot"></span>Patient Registry <small>synthetic data</small></div>
+    <div class="brand"><span class="dot"></span>Patient Registry <small>synthetic data, read-only</small></div>
     <form id="key-form" class="key">
       <input id="key" type="password" placeholder="API key" autocomplete="off" required>
       <button type="submit">Connect</button>
@@ -17,25 +17,13 @@
 
   <main>
     <section class="card">
-      <h2>Add patient</h2>
-      <form id="add-form" class="grid">
-        <label>Name<input name="name" maxlength="100" required></label>
-        <label>Age<input name="age" type="number" min="0" max="120" required></label>
-        <label>Condition<input name="condition" maxlength="100" required></label>
-        <label>Date of birth<input name="date_of_birth" type="date" required></label>
-        <label>Admission date<input name="admission_date" type="date" required></label>
-        <button type="submit" class="primary">Add</button>
-      </form>
-    </section>
-
-    <section class="card">
       <div class="bar">
         <h2>Patients <span id="count" class="pill">0</span></h2>
         <input id="search" type="search" placeholder="Search name or condition">
       </div>
       <div class="scroll">
         <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Condition</th><th>DOB</th><th>Admitted</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Condition</th><th>DOB</th><th>Admitted</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>

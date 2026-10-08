@@ -188,3 +188,103 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/checkov/after/fix-lambda-package/` (same command and version, no new skips); actionlint exit 0.
 - Outcome: resolved
 - Control area: change control, build integrity
+
+### SEC-017: Rotation Lambda execution role could not manage its network interfaces
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: `tf-apply` failure on `aws_lambda_function`: `InvalidParameterValueException: The provided execution role does not have permissions to call DeleteNetworkInterface on EC2`. Classification: defect in our IAM policy.
+- Risk: the rotation Lambda could not be created, so the API key had no rotation.
+- Before: `ec2:DeleteNetworkInterface` was allowed only with an `ec2:Subnet` condition. Lambda checks Delete without subnet context, so the condition never matched. `ec2:AssignPrivateIpAddresses`, `ec2:UnassignPrivateIpAddresses` and `ec2:DescribeVpcs` were missing.
+- Fix: the role now has the same ENI actions as the AWS managed policy `AWSLambdaVPCAccessExecutionRole`. Create stays limited to the function's subnets and security group by resource ARN. Delete, Assign and Unassign are limited to network interfaces in this account and region, without the subnet condition. Describe actions use `*` because EC2 does not support resource scoping for them. Log, DLQ, Secrets Manager and KMS statements are unchanged. Commit: see git log (`fix: rotation Lambda ENI permissions`).
+- After: verified by the next `tf-apply` (Lambda creation). Checkov on `terraform/` in `evidence/security/checkov/after/terraform-eks/`.
+- Outcome: fixed in code; confirmation pending the next apply
+- Control area: least privilege, secrets management
+
+### SEC-018: EKS cluster endpoint (accepted risk, D1)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: Checkov 3.3.26, `CKV_AWS_38` and `CKV_AWS_39` on `module.eks.aws_eks_cluster.this` (confirmed in the baseline run)
+- Risk: the Kubernetes API is reachable from the internet. Authentication is still required.
+- Before: `evidence/security/checkov/before/terraform-eks/` (4 failed: these two plus SEC-021)
+- Fix: none possible with GitHub-hosted runners. Inline skips with reason, owner and expiry; EXC-005 lists the compensating controls.
+- After: `evidence/security/checkov/after/terraform-eks/`
+- Outcome: accepted risk (EXC-005, expires 2027-04-08)
+- Control area: access control
+
+### SEC-019: Apply role is cluster admin (accepted risk, D2a)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design decision, not a scanner finding
+- Risk: the apply role can do anything in the cluster.
+- Before: no cluster
+- Fix: `bootstrap_cluster_creator_admin_permissions = false`, so admin exists only as an explicit access entry for the apply role, which is used only behind the `infra` and `infra-destroy` approvals. Deploy roles get `AmazonEKSEditPolicy` scoped to one namespace each. The plan role gets no cluster access; in-cluster resources live in a second root planned by the apply role (D2b).
+- After: `terraform/main.tf` (`access_entries`), `terraform/cluster-addons/`
+- Outcome: accepted risk (EXC-006, expires 2027-04-08)
+- Control area: access control, least privilege
+
+### SEC-020: Plan role could not read budget tags
+- Date / PR: 2026-10-08 / feature/eks-fargate (policy applied by hand by Moulaye)
+- Source: `tf-plan` failure: `AccessDeniedException ... not authorized to perform: budgets:ListTagsForResource on resource: ...budget/cloudbatch818-zein-hcsecops-monthly`
+- Risk: the read-only plan could not complete, blocking every apply.
+- Before: plan policy allowed `budgets:View*` and `budgets:Describe*` only
+- Fix: `budgets:ListTagsForResource` added to the plan role (live), mirrored in `docs/bootstrap-policies/plan-policy.json`. Still read-only.
+- After: next `tf-plan` run
+- Outcome: resolved
+- Control area: least privilege, change control
+
+### SEC-021: Network isolation for Fargate pods (security groups for pods)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review. AWS docs: VPC CNI network policies apply to EC2 Linux nodes only, not Fargate (https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html). Security groups for Pods apply to EC2 nodes "and Fargate" (https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html; https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group).
+- Risk: a Kubernetes NetworkPolicy would be accepted but not enforced on Fargate pods.
+- Before: design relied on a default-deny NetworkPolicy.
+- Fix: per-namespace pod security groups in `module.eks` (app port from the VPC only, HTTPS and DNS out), to be attached with a `SecurityGroupPolicy` in the Phase 4 chart alongside the cluster security group. NetworkPolicy manifests stay for intent. `vpc-cni` and `kube-proxy` are not installed (`bootstrap_self_managed_addons = false`). Checkov flags the groups as unattached (`CKV2_AWS_5`) because the attachment happens in Kubernetes; that skip is pending owner approval.
+- After: enforcement is not yet verified; verify after Phase 4 by checking that a pod's ENI carries the pod security group.
+- Outcome: in progress (pending CKV2_AWS_5 decision and Phase 4)
+- Control area: network segmentation
+
+### SEC-022: Read-only application (write routes removed)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review. The app role is read-only (`GetItem`, `Query`, `Scan`), but the app had `POST` and `DELETE /patients` and seeded an empty table at startup, so the first deploy would have failed on `PutItem`.
+- Risk: write routes on patient data widen the attack surface and need write IAM; a startup seed needs write IAM too.
+- Before: `POST`, `DELETE /patients`, `seed_if_empty` at startup, write methods on the DynamoDB store.
+- Fix: routes and write methods removed (`POST`/`DELETE` now return 405), no startup seed, frontend read-only. Local runs and tests load the in-memory store from `app/data/patients.json`. Commit 195fb12.
+- After: 16 tests pass, coverage 98% (was 97%); container check: 30 patients, POST 405, DELETE 405.
+- Outcome: resolved
+- Control area: least privilege, data protection
+
+### SEC-023: Patients table seeded by Terraform
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: follows SEC-022.
+- Risk: without a seed the read-only app would serve an empty table.
+- Before: the app seeded the table at startup.
+- Fix: `aws_dynamodb_table_item` for each record in `app/data/patients.json` (30 synthetic items, keyed by `patient_id`, typed `S` and `N`), in the existing KMS-encrypted table with point-in-time recovery. No output exposes item values. Plan role gains `dynamodb:GetItem` on that table only, so refreshes work (file change, Moulaye attaches). Commit 6dbb742.
+- After: verified by the next apply; a second apply must show no change for the items.
+- Outcome: resolved in code; confirmation pending apply
+- Control area: data protection, change control
+
+### SEC-024: CKV2_AWS_5 on pod security groups (accepted, EXC-007)
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: Checkov 3.3.26 `CKV2_AWS_5` on `module.eks.aws_security_group.pods` (both namespaces)
+- Risk: none by itself; Checkov cannot see the Kubernetes `SecurityGroupPolicy` that attaches the groups.
+- Before: `evidence/security/checkov/after/terraform-eks/` (2 failed)
+- Fix: inline skip on that resource only, owner Moulaye, expiry 2027-04-08, EXC-007. Phase 4 must verify the attachment or remove the skip.
+- After: `evidence/security/checkov/after/terraform-eks-seed/`
+- Outcome: accepted risk (EXC-007)
+- Control area: network segmentation
+
+### SEC-025: Seeded patient values hidden in plan and apply output
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review after SEC-023. The repo is public, so CI logs and the `plan.txt` artifact are readable by anyone; `terraform plan` printed each seeded item's full JSON.
+- Risk: patient-shaped data in public logs. Synthetic today, but the same pipeline would leak real records.
+- Before: plan output showed every attribute of each `aws_dynamodb_table_item`.
+- Fix: the item body is wrapped in `sensitive()`, so plan and apply output and `plan.txt` show `(sensitive value)`. The key stays visible in the address (`seed["P001"]`). No output, log line or artifact carries the body. Verified with `terraform console` (no AWS) that `nonsensitive(item)` equals the previous plain JSON for all 30 items, so the value sent to DynamoDB, and the second-apply diff, are unchanged. Commit 7644331.
+- After: next `tf-plan` log shows `(sensitive value)` for `item`.
+- Outcome: resolved for logs and artifacts. Residual: values remain in Terraform state (EXC-008).
+- Control area: data protection
+
+### SEC-026: Patients table classified, with a guard on the classification
+- Date / PR: 2026-10-08 / feature/eks-fargate
+- Source: design review after SEC-023.
+- Risk: nothing marked the table as holding synthetic data, and nothing stopped it being treated as real data storage.
+- Before: no classification tag.
+- Fix: tag `DataClassification = synthetic` on the patients table only, from module variable `data_classification` (default `synthetic`, validation allows only `synthetic` or `phi`). `phi` is not set anywhere and must not be until the Phase 7 items are closed (KMS state, EXC-008; plan-role item read, EXC-004). Commit 4ea491c.
+- After: tag visible on the table after apply.
+- Outcome: resolved. State encryption accepted as EXC-008.
+- Control area: data protection, asset classification

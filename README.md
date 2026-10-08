@@ -8,7 +8,7 @@ DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/C
 |---|---|---|
 | Frontend | Static single page (HTML/CSS/JS, strict CSP, no inline scripts) | `app/static/` |
 | Backend | FastAPI service on port 8080 | `app/src/` |
-| Database | DynamoDB table (in-memory store when `DYNAMODB_TABLE` is unset) | `terraform/modules/dynamodb` |
+| Database | DynamoDB table, seeded by Terraform; the app only reads (in-memory store from `app/data/patients.json` when `DYNAMODB_TABLE` is unset) | `terraform/modules/dynamodb` |
 
 ## Endpoints
 
@@ -20,8 +20,6 @@ DevSecOps operating model for a healthcare API on EKS: OIDC-based CI/CD, Trivy/C
 | GET | `/metrics` | none | Prometheus text format |
 | GET | `/patients` | `x-api-key` | List patients |
 | GET | `/patients/{id}` | `x-api-key` | One patient |
-| POST | `/patients` | `x-api-key` | Add a patient |
-| DELETE | `/patients/{id}` | `x-api-key` | Delete a patient |
 
 Logs are JSON on stdout (request ID, method, path, status, latency). Patient fields are never logged.
 
@@ -31,7 +29,7 @@ Logs are JSON on stdout (request ID, method, path, status, latency). Patient fie
 |---|---|---|
 | `API_KEY_SECRET_NAME` | none | Secrets Manager secret holding the key (plaintext). The app fetches it at startup through its IRSA role and stays not-ready until it succeeds |
 | `API_KEY` | none | Local run and unit test fallback only |
-| `DYNAMODB_TABLE` | empty | Empty means in-memory store seeded from `app/data/patients.json` |
+| `DYNAMODB_TABLE` | empty | Empty means a local in-memory store loaded from `app/data/patients.json` |
 | `AWS_REGION` | `us-east-2` | |
 
 ## Run locally
