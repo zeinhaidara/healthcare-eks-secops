@@ -165,6 +165,19 @@ locals {
   )
 }
 
+# One-time import of the console-created entry, run by the normal terraform-apply plan. Remove these
+# blocks in a follow-up once the state holds both resources (see docs/runbooks/eks-operator-import.md).
+# IDs are built from variables and the account data source, so no ARN is written in the code.
+import {
+  to = aws_eks_access_entry.operator
+  id = "${var.cluster_name}:${local.operator_principal_arn}"
+}
+
+import {
+  to = aws_eks_access_policy_association.operator_view
+  id = "${var.cluster_name}#${local.operator_principal_arn}#arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+}
+
 resource "aws_eks_access_entry" "operator" {
   cluster_name  = module.eks.cluster_name
   principal_arn = local.operator_principal_arn
