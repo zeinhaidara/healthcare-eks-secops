@@ -1,0 +1,4 @@
+replicaCount: 2
+
+ingress:
+  host: prod.cloudbatch818.click

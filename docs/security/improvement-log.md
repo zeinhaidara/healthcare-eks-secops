@@ -320,3 +320,36 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Residual risks: the operator IAM user holds one long-lived access key on the workstation (13 days old at the time of this entry); the planned move is to IAM Identity Center. The public API endpoint remains open to 0.0.0.0/0 under EXC-005.
 - Control area: access control, change control
 - Update (2026-10-09): the import completed through the normal `terraform-apply` run and the two `import {}` blocks were removed (`chore: remove operator import blocks after import`). The resources are now managed normally; see `docs/runbooks/eks-operator-import.md`.
+
+### SEC-030: healthcare-api Helm chart with Pod Security `restricted` settings
+- Date / PR: 2026-10-09 / feature/helm-chart
+- Source: Phase 4 build. Checkov 3.3.26 (kubernetes framework) on the rendered chart found three issues, each fixed, none suppressed.
+- Risk: a chart that deploys the app must satisfy Pod Security `restricted` (already enforced on both namespaces) and keep the image supply chain tight.
+- Before: `evidence/security/checkov/before/helm-chart/`: 186 passed, 6 failed (3 checks, each on dev and prod). Reproduced from the chart with the fixes switched off, because the first run was not saved before fixing.
+  - `CKV_K8S_43` image not pinned by digest
+  - `CKV_K8S_15` pull policy not `Always`
+  - `CKV2_K8S_6` no NetworkPolicy
+- Fix: `helm/healthcare-api/` (Deployment, Service, ServiceAccount with the IRSA annotation, Ingress for the ALB, PodDisruptionBudget, HPA off by default, NetworkPolicy, SecurityGroupPolicy off by default). Pod and container: `runAsNonRoot`, UID 10001, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, all capabilities dropped, `seccompProfile: RuntimeDefault`, no API token mounted. No `/tmp` volume: the app runs with `--read-only` and no tmpfs (checked in a container). The image is pulled by digest (CD passes it), pull policy `Always`, and a NetworkPolicy (default-deny plus the app port and DNS/HTTPS) is rendered. The NetworkPolicy is not enforced on Fargate (SEC-021); isolation there comes from security groups for pods (SEC-032).
+- After: `evidence/security/checkov/after/helm-chart/`: 192 passed, 0 failed, 0 skipped. `helm lint` clean for both environments; kubeconform strict: 13 valid, 1 skipped (the SecurityGroupPolicy CRD has no published schema).
+- Outcome: resolved
+- Control area: runtime hardening, supply chain
+
+### SEC-031: CD deploy flags and deploy-time values
+- Date / PR: 2026-10-09 / feature/helm-chart
+- Source: design review of `cd.yml` against the new chart and Helm 4.3.0.
+- Risk: `--atomic` is deprecated in Helm 4 (`Flag --atomic has been deprecated, use --rollback-on-failure instead`), and the chart needs account-dependent values that must not be committed.
+- Before: `helm upgrade --install ... --atomic --wait`; no way to pass the IRSA role, certificate, digest or VPC CIDR.
+- Fix: `--rollback-on-failure --wait --timeout 5m`. The deploy jobs now resolve, at run time: the image digest (`ecr describe-images`, the same call and permission as the old existence check), the account ID (`sts get-caller-identity`) to build the IRSA role ARN `<account>:role/<cluster name>-app-<environment>`, and the ACM certificate ARN by its wildcard domain. They pass them with `--set`, with the VPC CIDR from `VPC_CIDR`. The smoke test step is unchanged. The deploy roles need one new read permission, `acm:ListCertificates` (`docs/bootstrap-policies/deploy-dev-policy.json`, `deploy-prod-policy.json`, attached by hand).
+- After: actionlint exit 0; Checkov on workflows: 0 failed. First real run is the next merge to main touching `app/` or `helm/`.
+- Outcome: resolved in code; confirmation pending the first deploy
+- Control area: change control, supply chain
+
+### SEC-032: SecurityGroupPolicy blocked by the deploy roles' Kubernetes permissions (EXC-007 stays open)
+- Date / PR: 2026-10-09 / feature/helm-chart
+- Source: AWS docs, access policy permissions (https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html). `AmazonEKSEditPolicy` lists core, apps, autoscaling, batch, extensions, networking.k8s.io and policy groups only; it has no rule for `vpcresources.k8s.aws`, so a role with it cannot create a `SecurityGroupPolicy`. The design plan says not to widen the role.
+- Risk: without the policy, the pod security groups from Terraform (EXC-007) are never attached, so Fargate pods only use the cluster security group.
+- Before: the groups exist in Terraform and nothing attaches them.
+- Fix (partial): the chart has `templates/securitygrouppolicy.yaml`, rendered when `securityGroupPolicy.enabled` is true (default false), with the pod security group and the cluster security group (the EKS Fargate guide requires the cluster group: https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group). Pending an owner decision: (a) a namespaced RBAC Role and RoleBinding for the deploy role's group (needs `kubernetes_groups` on the access entry, a small widening), or (b) create the `SecurityGroupPolicy` from `terraform/cluster-addons` with the apply role, taking the group IDs from Terraform (deploy roles unchanged; recommended).
+- After: not applicable yet.
+- Outcome: deferred. EXC-007 is closed only after the Phase 4 smoke test proves the pods picked up the security group; it is not closed in the register.
+- Control area: network segmentation
