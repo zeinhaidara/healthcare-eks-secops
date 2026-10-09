@@ -308,3 +308,14 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/checkov/after/fix-lambda-eni-role/`: 250 passed, 0 failed, 10 skipped. The permissions document passes both checks without a skip.
 - Outcome: accepted risk (EXC-009, expires 2027-04-08)
 - Control area: access control, least privilege
+
+### SEC-029: Operator read-only EKS access entry imported into Terraform
+- Date / PR: 2026-10-09 / feature/eks-operator-import
+- Source: manual change review, not a scanner finding. An operator access entry was created by hand in the EKS console (type Standard, Kubernetes username `zein`, `AmazonEKSViewPolicy` only, cluster scope) and was unmanaged.
+- Risk: access that exists only in the console is invisible to review and to drift detection, and a later apply or destroy would not account for it.
+- Before: the entry existed only in the console.
+- Fix: `aws_eks_access_entry.operator` and `aws_eks_access_policy_association.operator_view` in `terraform/main.tf`, brought under Terraform by import (`docs/runbooks/eks-operator-import.md`), not recreated. View policy at cluster scope only; no Edit or Admin policy and no groups in any operator resource. The principal ARN is built from the account data source and a user-name variable, so no account ID is hardcoded.
+- After: after import, the plan should show no changes for these two resources.
+- Outcome: resolved in code; confirmation pending the import and the next plan
+- Residual risks: the operator IAM user holds one long-lived access key on the workstation (13 days old at the time of this entry); the planned move is to IAM Identity Center. The public API endpoint remains open to 0.0.0.0/0 under EXC-005.
+- Control area: access control, change control
