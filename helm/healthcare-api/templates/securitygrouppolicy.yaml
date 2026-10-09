@@ -1,0 +1,20 @@
+{{- if .Values.securityGroupPolicy.enabled }}
+# Security groups for pods on Fargate. The pod security group comes from Terraform (module.eks) and
+# the cluster security group must be listed too: the EKS guide for Fargate pods requires it so pods
+# can reach the control plane (https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group).
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: {{ include "healthcare-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "healthcare-api.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "healthcare-api.selectorLabels" . | nindent 6 }}
+  securityGroups:
+    groupIds:
+      - {{ required "securityGroupPolicy.podSecurityGroupId is required when enabled" .Values.securityGroupPolicy.podSecurityGroupId }}
+      - {{ required "securityGroupPolicy.clusterSecurityGroupId is required when enabled" .Values.securityGroupPolicy.clusterSecurityGroupId }}
+{{- end }}
