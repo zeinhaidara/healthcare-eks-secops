@@ -344,12 +344,12 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Outcome: resolved in code; confirmation pending the first deploy
 - Control area: change control, supply chain
 
-### SEC-032: SecurityGroupPolicy blocked by the deploy roles' Kubernetes permissions (EXC-007 stays open)
-- Date / PR: 2026-10-09 / feature/helm-chart
-- Source: AWS docs, access policy permissions (https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html). `AmazonEKSEditPolicy` lists core, apps, autoscaling, batch, extensions, networking.k8s.io and policy groups only; it has no rule for `vpcresources.k8s.aws`, so a role with it cannot create a `SecurityGroupPolicy`. The design plan says not to widen the role.
+### SEC-032: SecurityGroupPolicy created from cluster-addons by the apply role (EXC-007 stays open)
+- Date / PR: 2026-10-09 / feature/helm-chart, then feature/sgp-addons
+- Source: AWS docs, access policy permissions (https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html). `AmazonEKSEditPolicy` lists core, apps, autoscaling, batch, extensions, networking.k8s.io and policy groups only; it has no rule for `vpcresources.k8s.aws`, so a deploy role cannot create a `SecurityGroupPolicy`. The design plan says not to widen the role.
 - Risk: without the policy, the pod security groups from Terraform (EXC-007) are never attached, so Fargate pods only use the cluster security group.
-- Before: the groups exist in Terraform and nothing attaches them.
-- Fix (partial): the chart has `templates/securitygrouppolicy.yaml`, rendered when `securityGroupPolicy.enabled` is true (default false), with the pod security group and the cluster security group (the EKS Fargate guide requires the cluster group: https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group). Pending an owner decision: (a) a namespaced RBAC Role and RoleBinding for the deploy role's group (needs `kubernetes_groups` on the access entry, a small widening), or (b) create the `SecurityGroupPolicy` from `terraform/cluster-addons` with the apply role, taking the group IDs from Terraform (deploy roles unchanged; recommended).
-- After: not applicable yet.
-- Outcome: deferred. EXC-007 is closed only after the Phase 4 smoke test proves the pods picked up the security group; it is not closed in the register.
-- Control area: network segmentation
+- Before: the groups existed in Terraform and nothing attached them. The first attempt put the policy in the chart behind a flag (off), blocked by the permission above.
+- Fix: decision (b). `terraform/cluster-addons` creates one `SecurityGroupPolicy` per app namespace (`kubernetes_manifest.security_group_policy`), applied by the apply role (cluster admin, behind the `infra` approval in `addons-apply`), so the deploy roles are unchanged. The groups are found without IDs in code: the pod group by name in the project VPC (`data.aws_security_group.pods`) and the cluster group from `data.aws_eks_cluster`. The list is the pod group first, then the cluster group, which Fargate pods need to reach the control plane (https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group). The selector matches the chart's labels. The chart no longer owns a policy: `securityGroupPolicy.enabled` stays `false` and the template fails the render if it is set, so two policies can never select the same pods.
+- After: pods get the groups only when created after the policy exists, so the first deploy must come after `addons-apply`, or the pods need a restart. Verification: `docs/runbooks/phase4-deploy-check.md` section 5.
+- Outcome: in progress. EXC-007 is closed only after the Phase 4 smoke test shows the pods picked up the group; it is not closed in the register.
+- Control area: network segmentation, least privilege

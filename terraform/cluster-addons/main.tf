@@ -55,3 +55,54 @@ resource "helm_release" "lb_controller" {
     }
   })]
 }
+
+# Security groups for pods on Fargate (closes EXC-007 once the smoke test proves attachment).
+# Owned here, not by the chart: the deploy roles use AmazonEKSEditPolicy, which has no rule for the
+# vpcresources.k8s.aws API group. The apply role (cluster admin, behind the infra approval) creates
+# these. The groups are found by name in the project VPC and from the cluster, never by ID.
+data "aws_security_group" "pods" {
+  for_each = toset(var.app_namespaces)
+
+  name   = "${var.name_prefix}-pods-${each.key}"
+  vpc_id = data.aws_vpc.this.id
+}
+
+locals {
+  # Must match the chart's selector labels (helm/healthcare-api/templates/_helpers.tpl):
+  # app.kubernetes.io/name is the chart name and app.kubernetes.io/instance is the release name.
+  app_selector_labels = {
+    "app.kubernetes.io/name"     = var.app_name
+    "app.kubernetes.io/instance" = var.app_name
+  }
+  cluster_security_group_id = data.aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+}
+
+# Pods created after this policy get the groups; running pods need a restart to pick them up.
+# The pod group comes first, then the cluster group, which Fargate pods need to reach the control
+# plane (https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group).
+resource "kubernetes_manifest" "security_group_policy" {
+  for_each = toset(var.app_namespaces)
+
+  manifest = {
+    apiVersion = "vpcresources.k8s.aws/v1beta1"
+    kind       = "SecurityGroupPolicy"
+    metadata = {
+      name      = var.app_name
+      namespace = each.key
+      labels    = local.app_selector_labels
+    }
+    spec = {
+      podSelector = {
+        matchLabels = local.app_selector_labels
+      }
+      securityGroups = {
+        groupIds = [
+          data.aws_security_group.pods[each.key].id,
+          local.cluster_security_group_id,
+        ]
+      }
+    }
+  }
+
+  depends_on = [kubernetes_namespace_v1.app]
+}

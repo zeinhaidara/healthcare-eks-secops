@@ -37,3 +37,9 @@ variable "lbc_image_tag" {
   type        = string
   default     = "v3.6.0"
 }
+
+variable "app_name" {
+  description = "Chart name and Helm release name; the SecurityGroupPolicy selects pods by these labels."
+  type        = string
+  default     = "healthcare-api"
+}
