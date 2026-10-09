@@ -74,4 +74,6 @@ Every new call was checked against both files. Result:
 | `deploy-dev-policy.json`, `deploy-prod-policy.json` | New files: the live statements (`eks:DescribeCluster` on the cluster, `ecr:DescribeImages` on the repository) plus `acm:ListCertificates` | `cd.yml` looks up the wildcard certificate by domain at deploy time. `acm:ListCertificates` does not support resource scoping, so it is on `*`, read-only and limited to us-east-2. Attach by hand before the first deploy. |
 | `apply-policy.json`, `plan-policy.json` | No change | The chart is deployed by the deploy roles, not by Terraform. |
 
+Rotation-aware rollout: both deploy policy files also get `SecretDescribeVersion` (`secretsmanager:DescribeSecret` on the one API key secret; `??????` matches the six-character suffix Secrets Manager adds). It returns version IDs and stages, never the value; the roles still have no `GetSecretValue`. The live policies are changed by hand (SEC-034).
+
 Remaining wildcard, owner Moulaye, Phase 7: `acm:ListCertificates` on `*` in both deploy roles. Alternative that removes it: drop `certificate-arn` and let the controller discover the certificate by host.

@@ -141,6 +141,23 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+      # DescribeSecret returns metadata only (version IDs and stages), never the value, and the
+      # secret value is never read or printed here. The current version ID is not secret. A new current
+      # version (rotation or a manual edit) changes the pod annotation, so the next deploy rolls the pods
+      # and they read the new key at startup. An empty secret has no current version: the annotation is
+      # then unset and nothing restarts. The secret name follows Terraform's naming (<cluster name>-api-key)
+      # and is also passed to the chart so the app reads the secret that was described.
+      - name: Read the API key secret version (metadata only)
+        run: |
+          secret_name="${CLUSTER_NAME}-api-key"
+          stages=$(aws secretsmanager describe-secret --secret-id "$secret_name" \
+            --query VersionIdsToStages --output json)
+          version=$(printf '%s' "$stages" | jq -r '(. // {}) | to_entries[] | select(.value | index("AWSCURRENT")) | .key')
+          if [ -z "$version" ]; then echo "::notice::Secret has no current version yet; pods will not be annotated"; fi
+          {
+            echo "API_KEY_SECRET_NAME=${secret_name}"
+            echo "SECRET_VERSION=${version}"
+          } >> "$GITHUB_ENV"
       - name: Deploy
         run: |
           helm upgrade --install healthcare-api helm/healthcare-api \
@@ -152,6 +169,8 @@ jobs:
             --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
             --set ingress.certificateArn="$CERTIFICATE_ARN" \
             --set networkPolicy.vpcCidr="$VPC_CIDR" \
+            --set env.apiKeySecretName="$API_KEY_SECRET_NAME" \
+            --set podAnnotations.secret-version="$SECRET_VERSION" \
             --rollback-on-failure --wait --timeout 5m
       - name: Smoke test
         run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"
@@ -204,6 +223,23 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+      # DescribeSecret returns metadata only (version IDs and stages), never the value, and the
+      # secret value is never read or printed here. The current version ID is not secret. A new current
+      # version (rotation or a manual edit) changes the pod annotation, so the next deploy rolls the pods
+      # and they read the new key at startup. An empty secret has no current version: the annotation is
+      # then unset and nothing restarts. The secret name follows Terraform's naming (<cluster name>-api-key)
+      # and is also passed to the chart so the app reads the secret that was described.
+      - name: Read the API key secret version (metadata only)
+        run: |
+          secret_name="${CLUSTER_NAME}-api-key"
+          stages=$(aws secretsmanager describe-secret --secret-id "$secret_name" \
+            --query VersionIdsToStages --output json)
+          version=$(printf '%s' "$stages" | jq -r '(. // {}) | to_entries[] | select(.value | index("AWSCURRENT")) | .key')
+          if [ -z "$version" ]; then echo "::notice::Secret has no current version yet; pods will not be annotated"; fi
+          {
+            echo "API_KEY_SECRET_NAME=${secret_name}"
+            echo "SECRET_VERSION=${version}"
+          } >> "$GITHUB_ENV"
       - name: Deploy the same SHA that dev ran
         run: |
           helm upgrade --install healthcare-api helm/healthcare-api \
@@ -215,6 +251,8 @@ jobs:
             --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
             --set ingress.certificateArn="$CERTIFICATE_ARN" \
             --set networkPolicy.vpcCidr="$VPC_CIDR" \
+            --set env.apiKeySecretName="$API_KEY_SECRET_NAME" \
+            --set podAnnotations.secret-version="$SECRET_VERSION" \
             --rollback-on-failure --wait --timeout 5m
       - name: Smoke test
         run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"

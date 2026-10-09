@@ -12,6 +12,11 @@ image:
 
 containerPort: 8080
 
+# Extra pod annotations. cd.yml sets secret-version to the API key secret's current version ID so a
+# rotation rolls the pods on the next deploy (they read the key only at startup). The version ID is
+# not secret. Empty values are not rendered, so leaving it unset adds no annotation and restarts nothing.
+podAnnotations: {}
+
 serviceAccount:
   name: healthcare-api # IRSA trust is pinned to <namespace>:healthcare-api
   roleArn: "" # required, set at deploy time

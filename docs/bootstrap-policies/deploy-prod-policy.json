@@ -18,7 +18,17 @@
       "Effect": "Allow",
       "Action": "acm:ListCertificates",
       "Resource": "*",
-      "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-2" } }
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "SecretDescribeVersion",
+      "Effect": "Allow",
+      "Action": "secretsmanager:DescribeSecret",
+      "Resource": "arn:aws:secretsmanager:us-east-2:<ACCOUNT_ID>:secret:cloudbatch818-zein-hcsecops-api-key-??????"
     }
   ]
 }
