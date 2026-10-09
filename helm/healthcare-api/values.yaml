@@ -73,10 +73,9 @@ networkPolicy:
   enabled: true
   vpcCidr: "" # required, set at deploy time (VPC_CIDR)
 
-# Security groups for pods (Fargate). Off: the deploy roles use AmazonEKSEditPolicy, which has no
-# rule for the vpcresources.k8s.aws API group, so they cannot create a SecurityGroupPolicy.
-# See docs/runbooks/phase4-deploy-check.md and SEC-032.
+# Security groups for pods (Fargate). The SecurityGroupPolicy is owned by terraform/cluster-addons
+# (created by the apply role), not by this chart: the deploy roles use AmazonEKSEditPolicy, which has
+# no rule for the vpcresources.k8s.aws API group (SEC-032). Keep this false; enabling it makes the
+# chart fail on purpose so two policies never select the same pods.
 securityGroupPolicy:
   enabled: false
-  podSecurityGroupId: ""
-  clusterSecurityGroupId: ""

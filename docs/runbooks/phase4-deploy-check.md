@@ -50,7 +50,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://<ALB DNS>/ -H "Host: <host>"    
 
 ## 5. Security group for pods (EXC-007)
 
-Only when `securityGroupPolicy.enabled` is true (SEC-032): the pod's network interface must carry the pod security group, and the pods must still serve traffic.
+The `SecurityGroupPolicy` is created by `terraform/cluster-addons` (apply role, `addons-apply`), not by the chart (SEC-032). Pods created before the policy existed do not have the group: restart them (`kubectl rollout restart deploy/healthcare-api -n "$NS"`). The pod's network interface must then carry the pod security group, and the pods must still serve traffic.
 
 ```sh
 kubectl get securitygrouppolicy -n "$NS"
