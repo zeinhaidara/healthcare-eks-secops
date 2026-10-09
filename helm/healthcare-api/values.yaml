@@ -1,0 +1,81 @@
+# Base values. Environment files (values-dev.yaml, values-prod.yaml) override host and sizing.
+# Values that depend on the AWS account are NOT set here: cd.yml passes them with --set at deploy
+# time (image.repository, image.tag, serviceAccount.roleArn, ingress.certificateArn).
+
+replicaCount: 2
+
+image:
+  repository: "" # required, set at deploy time
+  tag: "" # required, the commit SHA, set at deploy time
+  digest: "" # set at deploy time (sha256:...); when set the image is pulled by digest, the tag stays as a label
+  pullPolicy: Always
+
+containerPort: 8080
+
+serviceAccount:
+  name: healthcare-api # IRSA trust is pinned to <namespace>:healthcare-api
+  roleArn: "" # required, set at deploy time
+
+env:
+  awsRegion: us-east-2
+  dynamodbTable: cloudbatch818-zein-hcsecops-patients
+  apiKeySecretName: cloudbatch818-zein-hcsecops-api-key
+
+# /ready returns 503 until the API key loads from Secrets Manager, so a pod without a key value
+# stays out of the ALB target group by design.
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Fargate sizes the pod from requests, rounded up to the next supported combination.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: alb
+  host: "" # required, set per environment
+  certificateArn: "" # required, set at deploy time
+
+# Needs metrics-server, which is not installed on this cluster yet. Off until it is (follow-up).
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Default-deny with the traffic the app needs. Kept for intent: the VPC CNI network policy agent does
+# not run on Fargate, so these are NOT enforced there (SEC-021). Pod isolation on Fargate comes from
+# security groups for pods (securityGroupPolicy below).
+networkPolicy:
+  enabled: true
+  vpcCidr: "" # required, set at deploy time (VPC_CIDR)
+
+# Security groups for pods (Fargate). The SecurityGroupPolicy is owned by terraform/cluster-addons
+# (created by the apply role), not by this chart: the deploy roles use AmazonEKSEditPolicy, which has
+# no rule for the vpcresources.k8s.aws API group (SEC-032). Keep this false; enabling it makes the
+# chart fail on purpose so two policies never select the same pods.
+securityGroupPolicy:
+  enabled: false

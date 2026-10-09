@@ -1,0 +1,14 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "healthcare-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "healthcare-api.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "healthcare-api.selectorLabels" . | nindent 6 }}
+{{- end }}

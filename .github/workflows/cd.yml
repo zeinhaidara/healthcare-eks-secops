@@ -106,6 +106,7 @@ jobs:
       K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
       REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
       DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+      VPC_CIDR: ${{ vars.VPC_CIDR }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -115,8 +116,29 @@ jobs:
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v4.3.0
-      - name: Check the pushed image exists (no rebuild)
-        run: aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" >/dev/null
+      # Fails if the pushed image is missing (no rebuild). The digest pins exactly the image that
+      # passed the scan; the tag stays as a label.
+      - name: Resolve the pushed image digest
+        run: |
+          digest=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$GITHUB_SHA" --query 'imageDetails[0].imageDigest' --output text)
+          case "$digest" in sha256:*) ;; *) echo "::error::No digest for tag $GITHUB_SHA"; exit 1 ;; esac
+          echo "IMAGE_DIGEST=${digest}" >> "$GITHUB_ENV"
+      # Account-dependent values are built at run time, never committed: the account ID comes from
+      # STS, the IRSA role name from Terraform's naming (<cluster name>-app-<environment>), and the
+      # certificate is looked up by its wildcard domain.
+      - name: Resolve account-dependent deploy values
+        run: |
+          account_id=$(aws sts get-caller-identity --query Account --output text)
+          cert_arn=$(aws acm list-certificates --certificate-statuses ISSUED \
+            --query "CertificateSummaryList[?DomainName=='*.${DOMAIN_NAME}'].CertificateArn | [0]" --output text)
+          if [ -z "$cert_arn" ] || [ "$cert_arn" = "None" ]; then
+            echo "::error::No ISSUED ACM certificate for *.${DOMAIN_NAME}"; exit 1
+          fi
+          {
+            echo "IRSA_ROLE_ARN=arn:aws:iam::${account_id}:role/${CLUSTER_NAME}-app-${ENVIRONMENT}"
+            echo "CERTIFICATE_ARN=${cert_arn}"
+          } >> "$GITHUB_ENV"
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
       - name: Deploy
@@ -126,7 +148,11 @@ jobs:
             --values "helm/healthcare-api/values-${ENVIRONMENT}.yaml" \
             --set image.repository="${REGISTRY}/${ECR_REPOSITORY}" \
             --set image.tag="$GITHUB_SHA" \
-            --atomic --wait --timeout 5m
+            --set image.digest="$IMAGE_DIGEST" \
+            --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
+            --set ingress.certificateArn="$CERTIFICATE_ARN" \
+            --set networkPolicy.vpcCidr="$VPC_CIDR" \
+            --rollback-on-failure --wait --timeout 5m
       - name: Smoke test
         run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"
 
@@ -143,6 +169,7 @@ jobs:
       K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
       REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
       DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+      VPC_CIDR: ${{ vars.VPC_CIDR }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -152,8 +179,29 @@ jobs:
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v4.3.0
-      - name: Check the pushed image exists (no rebuild)
-        run: aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" >/dev/null
+      # Fails if the pushed image is missing (no rebuild). The digest pins exactly the image that
+      # passed the scan; the tag stays as a label.
+      - name: Resolve the pushed image digest
+        run: |
+          digest=$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$GITHUB_SHA" --query 'imageDetails[0].imageDigest' --output text)
+          case "$digest" in sha256:*) ;; *) echo "::error::No digest for tag $GITHUB_SHA"; exit 1 ;; esac
+          echo "IMAGE_DIGEST=${digest}" >> "$GITHUB_ENV"
+      # Account-dependent values are built at run time, never committed: the account ID comes from
+      # STS, the IRSA role name from Terraform's naming (<cluster name>-app-<environment>), and the
+      # certificate is looked up by its wildcard domain.
+      - name: Resolve account-dependent deploy values
+        run: |
+          account_id=$(aws sts get-caller-identity --query Account --output text)
+          cert_arn=$(aws acm list-certificates --certificate-statuses ISSUED \
+            --query "CertificateSummaryList[?DomainName=='*.${DOMAIN_NAME}'].CertificateArn | [0]" --output text)
+          if [ -z "$cert_arn" ] || [ "$cert_arn" = "None" ]; then
+            echo "::error::No ISSUED ACM certificate for *.${DOMAIN_NAME}"; exit 1
+          fi
+          {
+            echo "IRSA_ROLE_ARN=arn:aws:iam::${account_id}:role/${CLUSTER_NAME}-app-${ENVIRONMENT}"
+            echo "CERTIFICATE_ARN=${cert_arn}"
+          } >> "$GITHUB_ENV"
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
       - name: Deploy the same SHA that dev ran
@@ -163,6 +211,10 @@ jobs:
             --values "helm/healthcare-api/values-${ENVIRONMENT}.yaml" \
             --set image.repository="${REGISTRY}/${ECR_REPOSITORY}" \
             --set image.tag="$GITHUB_SHA" \
-            --atomic --wait --timeout 5m
+            --set image.digest="$IMAGE_DIGEST" \
+            --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
+            --set ingress.certificateArn="$CERTIFICATE_ARN" \
+            --set networkPolicy.vpcCidr="$VPC_CIDR" \
+            --rollback-on-failure --wait --timeout 5m
       - name: Smoke test
         run: scripts/smoke-test.sh "$K8S_NAMESPACE" "${ENVIRONMENT}.${DOMAIN_NAME}"

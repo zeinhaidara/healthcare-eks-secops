@@ -1,0 +1,6 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov -d <rendered helm template output, dev and prod> --framework kubernetes --output json --output sarif --output-file-path evidence/security/checkov/after/helm-chart
+Date: 2026-10-09
+Scope: helm/healthcare-api rendered with values-dev.yaml and values-prod.yaml
+Note: current chart, digest and VPC CIDR set as CD sets them
+kubernetes: passed=192 failed=0 skipped=0

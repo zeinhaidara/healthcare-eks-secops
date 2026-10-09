@@ -1,0 +1,30 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "healthcare-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "healthcare-api.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # HTTP 80 exists only to redirect to HTTPS 443; ssl-redirect needs the 80 listener.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.probes.liveness.path }}
+    alb.ingress.kubernetes.io/certificate-arn: {{ required "ingress.certificateArn is required (set at deploy time)" .Values.ingress.certificateArn | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ required "ingress.host is required (set in the environment values file)" .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "healthcare-api.name" . }}
+                port:
+                  name: http
+{{- end }}

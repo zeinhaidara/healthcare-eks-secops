@@ -1,0 +1,8 @@
+{{- if .Values.securityGroupPolicy.enabled }}
+{{- /*
+  The SecurityGroupPolicy for these pods is owned by terraform/cluster-addons (kubernetes_manifest
+  security_group_policy), created by the apply role. The deploy roles cannot create this kind, and a
+  second policy selecting the same pods would be ambiguous, so this chart refuses to render one.
+*/ -}}
+{{- fail "securityGroupPolicy is managed by terraform/cluster-addons; keep securityGroupPolicy.enabled=false" }}
+{{- end }}

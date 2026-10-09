@@ -1,0 +1,7 @@
+apiVersion: v2
+name: healthcare-api
+description: Healthcare API (synthetic data) with HIPAA-aligned controls
+type: application
+version: 0.1.0
+# The image tag is always passed at deploy time (the commit SHA); never latest.
+appVersion: "0.0.0"

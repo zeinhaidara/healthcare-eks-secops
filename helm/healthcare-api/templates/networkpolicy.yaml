@@ -1,0 +1,41 @@
+{{- if .Values.networkPolicy.enabled }}
+# Not enforced on Fargate (no network policy agent there); see values.yaml and SEC-021.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "healthcare-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "healthcare-api.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "healthcare-api.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # The ALB (target-type ip) sends traffic from inside the VPC.
+    - from:
+        - ipBlock:
+            cidr: {{ required "networkPolicy.vpcCidr is required (set at deploy time, VPC_CIDR)" .Values.networkPolicy.vpcCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.containerPort }}
+  egress:
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.vpcCidr }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # DynamoDB, Secrets Manager and KMS APIs through the NAT gateway.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}
