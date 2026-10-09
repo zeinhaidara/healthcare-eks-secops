@@ -384,7 +384,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Outcome: resolved in code; residual gap recorded (no automatic trigger)
 - Control area: secrets management, availability
 - Verification (2026-10-09), reported by the operator. No key value, hostname-and-key pair or patient record is recorded here, only version IDs, status codes and times.
-  - Rotation: performed by hand in Secrets Manager at about 13:42 (America/New_York), an edit of the secret value, not a run of the rotation Lambda. New current version ID: `<NEW_VERSION_ID>` (**placeholder: the operator has not provided it yet; fill it in**).
+  - Rotation: performed by hand in Secrets Manager at about 13:42 (America/New_York), an edit of the secret value, not a run of the rotation Lambda. New current version ID: `3bb794ac-5acf-4a32-9e4b-f61deb8d2773` (`AWSCURRENT`). Previous version ID: `915c4d26-37bb-4dc9-b9ec-bfeeba0bc4ba` (`AWSPREVIOUS`). These are identifiers, not secrets.
   - Redeploy: CD run for `157cc3a` on `main` (merge of PR #24). The prod and dev deploy jobs were approved. Status: Success, 5m 23s.
   - Results after the redeploy:
 
@@ -393,7 +393,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
     | dev | 200 | 200 | 403 |
     | prod | 200 | 200 | 403 |
 
-  - Pod annotation `secret-version` matches the new version ID: **not confirmed**. The operator has not yet confirmed it with `kubectl` (for example `kubectl get deploy healthcare-api -n <namespace> -o jsonpath='{.spec.template.metadata.annotations.secret-version}'`). Update this line to confirmed or not confirmed after checking.
-  - Outcome: rotation accepted and the old key rejected on both environments. The rollout evidence rests on the status codes above; the annotation match is the missing link between the new version and the restarted pods.
+  - Pod annotation `secret-version` matches the new version ID: **confirmed** by the operator on both environments. The dev and prod Deployments carry `secret-version` = `3bb794ac-5acf-4a32-9e4b-f61deb8d2773`, which is the `AWSCURRENT` version in Secrets Manager; the previous version is `AWSPREVIOUS`, so the rotation is the one expected. The earlier "not confirmed" was a check not yet run, not a failed rollout.
+  - Outcome: rotation accepted and the old key rejected on both environments, and the pods carry the new secret version (confirmed). The status codes are as reported by the operator from their own test; the key itself is not recorded.
   - Gap still open: rotation does not trigger a deploy automatically. After a rotation, pods keep the old key until some deploy runs (as happened here).
 
