@@ -351,5 +351,20 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Before: the groups existed in Terraform and nothing attached them. The first attempt put the policy in the chart behind a flag (off), blocked by the permission above.
 - Fix: decision (b). `terraform/cluster-addons` creates one `SecurityGroupPolicy` per app namespace (`kubernetes_manifest.security_group_policy`), applied by the apply role (cluster admin, behind the `infra` approval in `addons-apply`), so the deploy roles are unchanged. The groups are found without IDs in code: the pod group by name in the project VPC (`data.aws_security_group.pods`) and the cluster group from `data.aws_eks_cluster`. The list is the pod group first, then the cluster group, which Fargate pods need to reach the control plane (https://repost.aws/knowledge-center/eks-configure-fargate-pod-security-group). The selector matches the chart's labels. The chart no longer owns a policy: `securityGroupPolicy.enabled` stays `false` and the template fails the render if it is set, so two policies can never select the same pods.
 - After: pods get the groups only when created after the policy exists, so the first deploy must come after `addons-apply`, or the pods need a restart. Verification: `docs/runbooks/phase4-deploy-check.md` section 5.
-- Outcome: in progress. EXC-007 is closed only after the Phase 4 smoke test shows the pods picked up the group; it is not closed in the register.
+- Outcome (2026-10-07 to 2026-10-09): in progress while EXC-007 stayed open until the pods were checked.
 - Control area: network segmentation, least privilege
+- Verification (2026-10-09): pod IPs from `kubectl get pods -n <namespace> -o wide` matched to pod-group ENIs in EC2 (us-east-2). Every pod interface carries the pod group and the cluster group.
+  - dev: pod IPs 10.60.12.210 (eni-06d1c48cb8cf3e52f, us-east-2b) and 10.60.11.44 (eni-0487d3ffacc78eeac, us-east-2a); pod group sg-0353f22520e90e937, cluster group sg-0d6e7fdf604dac005.
+  - prod: pod IPs 10.60.12.205 (eni-0679d07ddd7e26a25, us-east-2b) and 10.60.11.28 (eni-0f994eb491e8d0306, us-east-2a); pod group sg-0dbf04b151e5d70ac, cluster group sg-0d6e7fdf604dac005.
+- Outcome (final): resolved for dev and prod. EXC-007 closed on 2026-10-09 (row kept, with the evidence table below the register).
+
+### SEC-033: Prod DNS alias pointed at the dev load balancer
+- Date / PR: 2026-10-09 / docs/close-exc-007
+- Source: operator check during the Phase 4 verification, not a scanner finding.
+- Risk: the prod hostname resolved to the dev load balancer, so prod requests would have gone to another environment's load balancer while the deploy looked verified.
+- Before: the Route 53 alias record for the prod hostname first pointed at the dev ALB. The HTTPS check against the prod hostname returned a 404 from the load balancer, which exposed it.
+- Fix: the alias record was repointed to the prod ALB. After the change, `/health` and `/ready` return 200 on the prod hostname.
+- Control gap: nothing checks that a DNS alias target matches the Ingress address of its own environment before a deploy is marked verified. `scripts/smoke-test.sh` connects straight to the ingress address with `curl --connect-to`, so it does not exercise DNS at all and could not have caught this. No Terraform or pipeline code manages these alias records (the Terraform ACM module creates only the certificate validation records).
+- After: the prod hostname resolves to the prod ALB and answers 200 on `/health` and `/ready`.
+- Outcome: resolved. Gap open: add a check that resolves the environment hostname and compares it with the Ingress load balancer address before a deploy is called verified.
+- Control area: change control, availability
