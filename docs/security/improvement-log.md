@@ -383,4 +383,17 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `helm lint --strict` and `actionlint` clean; the annotation renders when set and is absent when empty. First real effect is the next deploy after the policy statement is attached.
 - Outcome: resolved in code; residual gap recorded (no automatic trigger)
 - Control area: secrets management, availability
+- Verification (2026-10-09), reported by the operator. No key value, hostname-and-key pair or patient record is recorded here, only version IDs, status codes and times.
+  - Rotation: performed by hand in Secrets Manager at about 13:42 (America/New_York), an edit of the secret value, not a run of the rotation Lambda. New current version ID: `<NEW_VERSION_ID>` (**placeholder: the operator has not provided it yet; fill it in**).
+  - Redeploy: CD run for `157cc3a` on `main` (merge of PR #24). The prod and dev deploy jobs were approved. Status: Success, 5m 23s.
+  - Results after the redeploy:
+
+    | Environment | `/ready` (no key required) | `/patients` with the new key | `/patients` with the old key |
+    |---|---|---|---|
+    | dev | 200 | 200 | 403 |
+    | prod | 200 | 200 | 403 |
+
+  - Pod annotation `secret-version` matches the new version ID: **not confirmed**. The operator has not yet confirmed it with `kubectl` (for example `kubectl get deploy healthcare-api -n <namespace> -o jsonpath='{.spec.template.metadata.annotations.secret-version}'`). Update this line to confirmed or not confirmed after checking.
+  - Outcome: rotation accepted and the old key rejected on both environments. The rollout evidence rests on the status codes above; the annotation match is the missing link between the new version and the restarted pods.
+  - Gap still open: rotation does not trigger a deploy automatically. After a rotation, pods keep the old key until some deploy runs (as happened here).
 
