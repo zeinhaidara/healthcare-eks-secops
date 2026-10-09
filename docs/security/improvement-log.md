@@ -397,3 +397,18 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - Outcome: rotation accepted and the old key rejected on both environments, and the pods carry the new secret version (confirmed). The status codes are as reported by the operator from their own test; the key itself is not recorded.
   - Gap still open: rotation does not trigger a deploy automatically. After a rotation, pods keep the old key until some deploy runs (as happened here).
 
+### SEC-035: Detective controls added (Security Hub, GuardDuty, CloudTrail)
+- Date / PR: 2026-10-09 / feature/phase7-detective
+- Source: design plan, Phase 7 baseline ("CloudTrail, GuardDuty, Security Hub"). New Terraform module `terraform/modules/detective`, called from the main root, us-east-2 only.
+- Risk: no audit trail or threat detection existed. API activity and threats against the cluster and account were unrecorded.
+- Before: none of the three services were enabled. `evidence/security/checkov/before/detective/` is the first Checkov run on the new code: 280 passed, 7 failed (all in the new module), 10 skipped (the existing approved ones).
+- Fix: Security Hub with the FSBP standard; a GuardDuty detector with S3 data events and EKS audit log features; a single-region CloudTrail with log file validation, encrypted with the project KMS key, delivering to a new bucket (`<prefix>-logs-cloudtrail-<account id>`: public access blocked, versioning, KMS encryption, lifecycle, TLS-only, writes limited to the trail). The KMS key policy gains one statement for the named trail only. No account IDs or ARNs are written in code.
+- Open Checkov findings, not suppressed (waiting for a decision per finding):
+  - `CKV_AWS_67` trail not multi-region: the single-region choice was explicit.
+  - `CKV_AWS_252` no SNS topic, `CKV2_AWS_10` no CloudWatch Logs integration, `CKV_AWS_18` no S3 access logging, `CKV2_AWS_62` no S3 event notifications: each needs an extra resource and cost.
+  - `CKV_AWS_144` no cross-region replication: not wanted for a log bucket in a destroy-after-session stack.
+  - `CKV2_AWS_3` GuardDuty not enabled "to specific org/region": an organization-level check that a single account cannot satisfy.
+- Residual: Security Hub control findings need AWS Config recording, which this module does not enable.
+- After: pending the decisions above and the first apply. IAM: none needed for the first apply (see `docs/bootstrap-policies/README.md`).
+- Outcome: in progress
+- Control area: audit logging, threat detection

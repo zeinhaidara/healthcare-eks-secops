@@ -27,6 +27,31 @@ data "aws_iam_policy_document" "key" {
     }
   }
 
+  # CloudTrail log file encryption for the named trail(s) only. "*" as the resource in a key policy
+  # means this key. The encryption context pins the account's trails, as in the AWS documented policy.
+  dynamic "statement" {
+    for_each = length(var.cloudtrail_trail_arns) > 0 ? [1] : []
+    content {
+      sid       = "CloudTrailEncryptLogs"
+      actions   = ["kms:GenerateDataKey*", "kms:DescribeKey"]
+      resources = ["*"]
+      principals {
+        type        = "Service"
+        identifiers = ["cloudtrail.amazonaws.com"]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "aws:SourceArn"
+        values   = var.cloudtrail_trail_arns
+      }
+      condition {
+        test     = "StringLike"
+        variable = "kms:EncryptionContext:aws:cloudtrail:arn"
+        values   = ["arn:aws:cloudtrail:*:${local.account_id}:trail/*"]
+      }
+    }
+  }
+
   dynamic "statement" {
     for_each = length(local.log_group_arns) > 0 ? [1] : []
     content {

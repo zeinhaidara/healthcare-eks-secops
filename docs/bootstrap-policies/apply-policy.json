@@ -4,7 +4,12 @@
     {
       "Sid": "TerraformState",
       "Effect": "Allow",
-      "Action": ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
       "Resource": [
         "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>",
         "arn:aws:s3:::cloudbatch818-zein-hcsecops-tfstate-<ACCOUNT_ID>/*"
@@ -33,7 +38,11 @@
         "acm:*"
       ],
       "Resource": "*",
-      "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-2" } }
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
     },
     {
       "Sid": "SecretsProjectOnly",
@@ -94,7 +103,10 @@
     {
       "Sid": "IamRead",
       "Effect": "Allow",
-      "Action": ["iam:Get*", "iam:List*"],
+      "Action": [
+        "iam:Get*",
+        "iam:List*"
+      ],
       "Resource": "*"
     },
     {
@@ -122,12 +134,19 @@
       "Sid": "Route53",
       "Effect": "Allow",
       "Action": "route53:*",
-      "Resource": ["arn:aws:route53:::hostedzone/Z0900957ARJDK4SXKDV0", "arn:aws:route53:::change/*"]
+      "Resource": [
+        "arn:aws:route53:::hostedzone/Z0900957ARJDK4SXKDV0",
+        "arn:aws:route53:::change/*"
+      ]
     },
     {
       "Sid": "Route53Read",
       "Effect": "Allow",
-      "Action": ["route53:ListHostedZones", "route53:ListHostedZonesByName", "route53:GetChange"],
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:ListHostedZonesByName",
+        "route53:GetChange"
+      ],
       "Resource": "*"
     },
     {
@@ -135,6 +154,100 @@
       "Effect": "Deny",
       "Action": "iam:*",
       "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/cloudbatch818-zein-hcsecops-gha-*"
+    },
+    {
+      "Sid": "DetectiveSecurityHubHub",
+      "Effect": "Allow",
+      "Action": [
+        "securityhub:EnableSecurityHub",
+        "securityhub:DisableSecurityHub",
+        "securityhub:DescribeHub",
+        "securityhub:UpdateSecurityHubConfiguration",
+        "securityhub:TagResource",
+        "securityhub:UntagResource",
+        "securityhub:ListTagsForResource",
+        "securityhub:BatchEnableStandards",
+        "securityhub:BatchDisableStandards"
+      ],
+      "Resource": [
+        "arn:aws:securityhub:us-east-2:<ACCOUNT_ID>:hub/default",
+        "arn:aws:securityhub:us-east-2:<ACCOUNT_ID>:subscription/aws-foundational-security-best-practices/v/1.0.0"
+      ]
+    },
+    {
+      "Sid": "DetectiveSecurityHubRead",
+      "Effect": "Allow",
+      "Action": [
+        "securityhub:GetEnabledStandards",
+        "securityhub:DescribeStandards",
+        "securityhub:DescribeStandardsControls"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "DetectiveGuardDutyDetector",
+      "Effect": "Allow",
+      "Action": [
+        "guardduty:GetDetector",
+        "guardduty:UpdateDetector",
+        "guardduty:DeleteDetector",
+        "guardduty:TagResource",
+        "guardduty:UntagResource",
+        "guardduty:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:guardduty:us-east-2:<ACCOUNT_ID>:detector/*"
+    },
+    {
+      "Sid": "DetectiveGuardDutyCreateList",
+      "Effect": "Allow",
+      "Action": [
+        "guardduty:CreateDetector",
+        "guardduty:ListDetectors"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "DetectiveCloudTrailTrail",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:CreateTrail",
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:GetTrail",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:AddTags",
+        "cloudtrail:RemoveTags",
+        "cloudtrail:ListTags"
+      ],
+      "Resource": "arn:aws:cloudtrail:us-east-2:<ACCOUNT_ID>:trail/cloudbatch818-zein-hcsecops-trail"
+    },
+    {
+      "Sid": "DetectiveCloudTrailDescribe",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:ListTrails"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
     }
   ]
 }
