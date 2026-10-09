@@ -319,3 +319,4 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Outcome: resolved in code; confirmation pending the import and the next plan
 - Residual risks: the operator IAM user holds one long-lived access key on the workstation (13 days old at the time of this entry); the planned move is to IAM Identity Center. The public API endpoint remains open to 0.0.0.0/0 under EXC-005.
 - Control area: access control, change control
+- Update (2026-10-09): the import completed through the normal `terraform-apply` run and the two `import {}` blocks were removed (`chore: remove operator import blocks after import`). The resources are now managed normally; see `docs/runbooks/eks-operator-import.md`.
