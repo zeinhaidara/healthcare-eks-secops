@@ -18,6 +18,14 @@ spec:
     metadata:
       labels:
         {{- include "healthcare-api.selectorLabels" . | nindent 8 }}
+      {{- $annotations := dict }}
+      {{- range $key, $value := .Values.podAnnotations }}
+      {{- if $value }}{{- $_ := set $annotations $key $value }}{{- end }}
+      {{- end }}
+      {{- if $annotations }}
+      annotations:
+        {{- toYaml $annotations | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       automountServiceAccountToken: false

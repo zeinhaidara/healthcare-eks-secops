@@ -368,3 +368,19 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: the prod hostname resolves to the prod ALB and answers 200 on `/health` and `/ready`.
 - Outcome: resolved. Gap open: add a check that resolves the environment hostname and compares it with the Ingress load balancer address before a deploy is called verified.
 - Control area: change control, availability
+
+### SEC-034: Roll pods when the API key secret version changes
+- Date / PR: 2026-10-09 / feature/secret-rotation-rollout
+- Source: design review of rotation (SEC-003, `docs/runbooks/rotation.md`). The app reads the API key only at startup, so a rotated key does nothing until the pods restart, and the restart was a manual step.
+- Risk: after a rotation the running pods hold the old key while the secret holds the new one, so clients using the new key get 403 until someone restarts the pods.
+- Before: manual `kubectl rollout restart` after every rotation.
+- Fix: both deploy jobs in `cd.yml` run `aws secretsmanager describe-secret` on the API key secret before Helm, read the version ID that carries `AWSCURRENT`, and pass it as `--set podAnnotations.secret-version=<id>`. The chart renders it on the pod template, so a new version changes the template and the next deploy rolls the pods. Empty annotation values are not rendered: if the secret has no current version, nothing is added and nothing restarts. The step never calls `get-secret-value` and never prints the value. The secret name is built as `<cluster name>-api-key` and also passed to the chart as `env.apiKeySecretName`, so the app reads the secret that was described.
+- What this does and does not do:
+  - Rotation takes effect on the next deploy, not immediately.
+  - The version ID is not secret; it is a metadata identifier.
+  - The deploy roles gain one read-only permission, `secretsmanager:DescribeSecret` on the one secret (`docs/bootstrap-policies/deploy-dev-policy.json`, `deploy-prod-policy.json`; attached by hand). They still have no `GetSecretValue`.
+  - The rotation Lambda is not wired to trigger a deploy, so after a scheduled rotation nothing rolls the pods until some deploy runs. Triggering one (for example an event on rotation that starts `cd.yml`) is open work.
+- After: `helm lint --strict` and `actionlint` clean; the annotation renders when set and is absent when empty. First real effect is the next deploy after the policy statement is attached.
+- Outcome: resolved in code; residual gap recorded (no automatic trigger)
+- Control area: secrets management, availability
+
