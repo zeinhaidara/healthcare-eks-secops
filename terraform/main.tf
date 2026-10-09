@@ -155,3 +155,33 @@ module "irsa_lb_controller" {
   service_account   = "aws-load-balancer-controller"
   policy_json       = jsonencode(jsondecode(file("${path.module}/policies/aws-load-balancer-controller-v3.6.0.json")))
 }
+
+# Operator: read-only cluster access. Created by hand in the EKS console, then brought under
+# Terraform by import (docs/runbooks/eks-operator-import.md). View policy only, cluster scope.
+locals {
+  operator_principal_arn = coalesce(
+    var.operator_principal_arn,
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.operator_iam_user_name}",
+  )
+}
+
+resource "aws_eks_access_entry" "operator" {
+  cluster_name  = module.eks.cluster_name
+  principal_arn = local.operator_principal_arn
+  type          = "STANDARD"
+  user_name     = var.operator_kubernetes_username
+
+  depends_on = [module.eks]
+}
+
+resource "aws_eks_access_policy_association" "operator_view" {
+  cluster_name  = module.eks.cluster_name
+  principal_arn = aws_eks_access_entry.operator.principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [module.eks]
+}

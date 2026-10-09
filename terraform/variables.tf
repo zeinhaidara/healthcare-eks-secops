@@ -85,3 +85,21 @@ variable "coredns_version" {
   type        = string
   default     = "v1.12.4-eksbuild.38"
 }
+
+variable "operator_principal_arn" {
+  description = "Read-only operator access, imported from console. Null builds the ARN from the account and operator_iam_user_name (no hardcoded account ID)."
+  type        = string
+  default     = null
+}
+
+variable "operator_iam_user_name" {
+  description = "IAM user of the operator whose console-created access entry is imported."
+  type        = string
+  default     = "moulaye.haidara@techconsulting.tech"
+}
+
+variable "operator_kubernetes_username" {
+  description = "Kubernetes username on the operator access entry."
+  type        = string
+  default     = "zein"
+}
