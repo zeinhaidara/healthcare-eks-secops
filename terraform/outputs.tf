@@ -65,3 +65,11 @@ output "app_role_arns" {
 output "lb_controller_role_arn" {
   value = module.irsa_lb_controller.role_arn
 }
+
+output "detective_trail_bucket" {
+  value = module.detective.trail_bucket_name
+}
+
+output "guardduty_detector_id" {
+  value = module.detective.guardduty_detector_id
+}
