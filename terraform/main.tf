@@ -4,6 +4,11 @@ module "kms" {
   name = "${var.name_prefix}-main"
   # CloudWatch Logs groups this key may encrypt.
   log_group_prefixes = ["/${var.name_prefix}", "/aws/lambda/${var.name_prefix}", "/aws/eks/${var.cluster_name}"]
+  # The detective trail may encrypt its log files with this key (ARN built from names, no IDs).
+  cloudtrail_trail_arns = [local.trail_arn]
+  # CloudTrail and the trail bucket publish to the encrypted detective SNS topic.
+  sns_service_publishers = ["cloudtrail.amazonaws.com", "s3.amazonaws.com"]
+  sns_topic_arns         = [local.detective_topic_arn]
 }
 
 module "network" {
@@ -184,4 +189,22 @@ resource "aws_eks_access_policy_association" "operator_view" {
   }
 
   depends_on = [module.eks]
+}
+
+# Detective controls (Phase 7 step 1): Security Hub, GuardDuty and a single-region CloudTrail.
+locals {
+  trail_name           = "${var.name_prefix}-trail"
+  detective_topic_name = "${var.name_prefix}-cloudtrail"
+  detective_topic_arn  = "arn:aws:sns:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${local.detective_topic_name}"
+  trail_arn            = "arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"
+}
+
+module "detective" {
+  source = "./modules/detective"
+
+  name               = var.name_prefix
+  trail_name         = local.trail_name
+  sns_topic_name     = local.detective_topic_name
+  kms_key_arn        = module.kms.key_arn
+  log_retention_days = var.log_retention_days
 }

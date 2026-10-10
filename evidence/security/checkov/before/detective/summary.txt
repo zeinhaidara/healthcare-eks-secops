@@ -1,0 +1,13 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Command: checkov --config-file security/checkov/terraform.yaml --output json --output sarif --output-file-path evidence/security/checkov/before/detective
+Date: 2026-10-09
+Scope: terraform/ including the new modules/detective and the kms change (both roots)
+Note: first run on the new code, saved before any decision on the findings
+terraform: passed=280 failed=7 skipped=10 resources=78
+  FAILED CKV_AWS_252 module.detective.aws_cloudtrail.this
+  FAILED CKV_AWS_67 module.detective.aws_cloudtrail.this
+  FAILED CKV_AWS_144 module.detective.aws_s3_bucket.trail
+  FAILED CKV2_AWS_62 module.detective.aws_s3_bucket.trail
+  FAILED CKV_AWS_18 module.detective.aws_s3_bucket.trail
+  FAILED CKV2_AWS_10 module.detective.aws_cloudtrail.this
+  FAILED CKV2_AWS_3 module.detective.aws_guardduty_detector.this

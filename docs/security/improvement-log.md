@@ -397,3 +397,35 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - Outcome: rotation accepted and the old key rejected on both environments, and the pods carry the new secret version (confirmed). The status codes are as reported by the operator from their own test; the key itself is not recorded.
   - Gap still open: rotation does not trigger a deploy automatically. After a rotation, pods keep the old key until some deploy runs (as happened here).
 
+### SEC-035: Detective controls added (Security Hub, GuardDuty, CloudTrail)
+- Date / PR: 2026-10-09 / feature/phase7-detective
+- Source: design plan, Phase 7 baseline ("CloudTrail, GuardDuty, Security Hub"). New Terraform module `terraform/modules/detective`, called from the main root, us-east-2 only.
+- Risk: no audit trail or threat detection existed. API activity and threats against the cluster and account were unrecorded.
+- Before: none of the three services were enabled. `evidence/security/checkov/before/detective/` is the first Checkov run on the new code: 280 passed, 7 failed (all in the new module), 10 skipped (the existing approved ones).
+- Fix: Security Hub with the FSBP standard; a GuardDuty detector with S3 data events and EKS audit log features; a single-region CloudTrail with log file validation, encrypted with the project KMS key, delivering to a new bucket (`<prefix>-logs-cloudtrail-<account id>`: public access blocked, versioning, KMS encryption, lifecycle, TLS-only, writes limited to the trail). The KMS key policy gains one statement for the named trail only. No account IDs or ARNs are written in code.
+- Open Checkov findings, not suppressed (waiting for a decision per finding):
+  - `CKV_AWS_67` trail not multi-region: the single-region choice was explicit.
+  - `CKV_AWS_252` no SNS topic, `CKV2_AWS_10` no CloudWatch Logs integration, `CKV_AWS_18` no S3 access logging, `CKV2_AWS_62` no S3 event notifications: each needs an extra resource and cost.
+  - `CKV_AWS_144` no cross-region replication: not wanted for a log bucket in a destroy-after-session stack.
+  - `CKV2_AWS_3` GuardDuty not enabled "to specific org/region": an organization-level check that a single account cannot satisfy.
+- Residual: Security Hub control findings need AWS Config recording, which this module does not enable.
+- After: pending the decisions above and the first apply. IAM: none needed for the first apply (see `docs/bootstrap-policies/README.md`).
+- Outcome: four logging findings fixed and three accepted in SEC-036 (EXC-010 to EXC-013).
+- Control area: audit logging, threat detection
+
+### SEC-036: Detective logging gaps fixed, three findings accepted
+- Date / PR: 2026-10-10 / feature/phase7-detective
+- Source: Checkov 3.3.26 on `terraform/modules/detective` (SEC-035): `CKV_AWS_252`, `CKV2_AWS_10`, `CKV_AWS_18`, `CKV2_AWS_62` fixed; `CKV_AWS_67`, `CKV2_AWS_3`, `CKV_AWS_144` accepted.
+- Before: `evidence/security/checkov/after/detective/module-before/` (the module at commit 1cdcc3e): 30 passed, 7 failed, 0 skipped.
+- Fixes, each a real gap:
+  - `CKV_AWS_252` SNS topic for CloudTrail notifications, encrypted with the project key. Gap: nothing signalled log delivery, so a stopped trail would go unnoticed. Only `cloudtrail.amazonaws.com` (this trail) and `s3.amazonaws.com` (this bucket and account) may publish; the KMS key policy lets those two services use the key only for this topic (SNS encryption context). No subscriber yet; alert routing is Phase 6. Cost: per publish request, a few thousand a month here, near zero.
+  - `CKV2_AWS_10` CloudWatch Logs log group `/<prefix>/cloudtrail` (KMS, 365 days) and IAM role `<prefix>-cloudtrail-logs`, trusted only by CloudTrail for this trail, allowed only `logs:CreateLogStream` and `logs:PutLogEvents` on that log group. Gap: S3 delivery alone has no near-real-time search or metric filters, which the Phase 6 alarms need. Cost: CloudWatch Logs ingestion and storage, under $1 a month for management events of this stack.
+  - `CKV_AWS_18` server access logging from the trail bucket to a new bucket `<prefix>-logs-cloudtrail-access-<account id>` (public access blocked, versioning, same lifecycle, TLS-only, delivery limited to the logging service from the trail bucket). Gap: reads of the audit logs themselves were not recorded. Cost: small S3 storage. S3 delivers server access logs only to a target with SSE-S3 default encryption, so this bucket uses AES256, not the project key.
+  - `CKV2_AWS_62` object-created notifications from the trail bucket to the SNS topic, and EventBridge notifications on the access-log bucket (free for S3 events on the default bus, and it avoids an SNS message per access-log file). Gap: no event when new log files land. Cost: SNS publishes as above.
+- Accepted, each with an inline skip on its one resource (no blanket or module-wide skips): `CKV_AWS_67` EXC-010, `CKV2_AWS_3` EXC-011, `CKV_AWS_144` on the trail bucket EXC-012. `force_destroy` on both log buckets: EXC-013 (process control).
+- After: `evidence/security/checkov/after/detective/`: module 104 passed, 2 failed, 3 skipped (EXC-010 to EXC-012); full `terraform/` 355 passed, 2 failed, 13 skipped (the 10 existing approved skips plus the 3 new). No regression.
+- Still open, not suppressed (owner decision needed): the new access-log bucket fails `CKV_AWS_145` (S3 server access logging requires SSE-S3 on the target, so KMS is not possible) and `CKV_AWS_144` (no replication, same reason as EXC-012).
+- Update (2026-10-10): the two access-log bucket findings are accepted with inline skips on `aws_s3_bucket.access_logs` only: `CKV_AWS_145` under EXC-014 and `CKV_AWS_144` under EXC-012 (extended to this bucket). Evidence: `evidence/security/checkov/after/detective/`.
+- Outcome: resolved; all detective findings are fixed or accepted with an exception (EXC-010 to EXC-014).
+- Control area: audit logging, threat detection
+

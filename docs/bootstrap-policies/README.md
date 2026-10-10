@@ -77,3 +77,10 @@ Every new call was checked against both files. Result:
 Rotation-aware rollout: both deploy policy files also get `SecretDescribeVersion` (`secretsmanager:DescribeSecret` on the one API key secret; `??????` matches the six-character suffix Secrets Manager adds). It returns version IDs and stages, never the value; the roles still have no `GetSecretValue`. The live policies are changed by hand (SEC-034).
 
 Remaining wildcard, owner Moulaye, Phase 7: `acm:ListCertificates` on `*` in both deploy roles. Alternative that removes it: drop `certificate-arn` and let the controller discover the certificate by host.
+
+## Phase 7 step 1 (detective controls) review
+
+| File | Change | Reason |
+|---|---|---|
+| `apply-policy.json` | New statements `DetectiveSecurityHub*`, `DetectiveGuardDuty*`, `DetectiveCloudTrail*`, scoped to the hub, the one detector family and the one trail | **Not required for the first apply.** The live apply role already has `securityhub:*`, `guardduty:*`, `cloudtrail:*` and `kms:*` (us-east-2), `s3:*` on `cloudbatch818-zein-hcsecops-logs-*` (the trail bucket is `...-logs-cloudtrail-<account id>`), and the service-linked-role rights for GuardDuty and Security Hub. These statements are the scoped replacement to use when the Phase 7 tightening removes those service wildcards. Review the ARN shapes against a real plan before swapping them in; I could not test them offline. |
+| KMS | None | The key policy change is in Terraform (`terraform/modules/kms`): a statement for the named trail only. The apply role edits it through `kms:*`. |
