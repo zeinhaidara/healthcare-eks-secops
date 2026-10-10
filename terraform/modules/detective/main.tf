@@ -312,6 +312,8 @@ resource "aws_iam_role_policy" "trail_logs" {
 # disabled by BucketOwnerEnforced).
 
 resource "aws_s3_bucket" "access_logs" {
+  # checkov:skip=CKV_AWS_145:EXC-014 S3 server access logging requires the target bucket to use SSE-S3
+  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
   bucket        = local.access_log_bucket_name
   force_destroy = var.force_destroy
 }

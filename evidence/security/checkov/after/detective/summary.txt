@@ -21,3 +21,12 @@ module-after: passed=104 failed=2 skipped=3 resources=28
 full-after: passed=355 failed=2 skipped=13 resources=93
    FAILED CKV_AWS_145 module.detective.aws_s3_bucket.access_logs
    FAILED CKV_AWS_144 module.detective.aws_s3_bucket.access_logs
+
+2026-10-10, after the EXC-014 and extended EXC-012 skips (same version and commands):
+module-final: passed=104 failed=0 skipped=5 resources=28
+   SKIPPED CKV_AWS_67 aws_cloudtrail.this
+   SKIPPED CKV_AWS_145 aws_s3_bucket.access_logs
+   SKIPPED CKV_AWS_144 aws_s3_bucket.trail
+   SKIPPED CKV_AWS_144 aws_s3_bucket.access_logs
+   SKIPPED CKV2_AWS_3 aws_guardduty_detector.this
+full-final: passed=355 failed=0 skipped=15 resources=93

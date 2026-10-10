@@ -425,6 +425,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Accepted, each with an inline skip on its one resource (no blanket or module-wide skips): `CKV_AWS_67` EXC-010, `CKV2_AWS_3` EXC-011, `CKV_AWS_144` on the trail bucket EXC-012. `force_destroy` on both log buckets: EXC-013 (process control).
 - After: `evidence/security/checkov/after/detective/`: module 104 passed, 2 failed, 3 skipped (EXC-010 to EXC-012); full `terraform/` 355 passed, 2 failed, 13 skipped (the 10 existing approved skips plus the 3 new). No regression.
 - Still open, not suppressed (owner decision needed): the new access-log bucket fails `CKV_AWS_145` (S3 server access logging requires SSE-S3 on the target, so KMS is not possible) and `CKV_AWS_144` (no replication, same reason as EXC-012).
-- Outcome: in progress until the two access-log bucket findings are decided.
+- Update (2026-10-10): the two access-log bucket findings are accepted with inline skips on `aws_s3_bucket.access_logs` only: `CKV_AWS_145` under EXC-014 and `CKV_AWS_144` under EXC-012 (extended to this bucket). Evidence: `evidence/security/checkov/after/detective/`.
+- Outcome: resolved; all detective findings are fixed or accepted with an exception (EXC-010 to EXC-014).
 - Control area: audit logging, threat detection
 
