@@ -30,6 +30,14 @@ resource "aws_securityhub_standards_subscription" "fsbp" {
 
 # ---------- GuardDuty ----------
 
+# A detector already exists in this account and region (GuardDuty allows one per region), so it is
+# adopted by import, not created. The root looks the ID up with a data source. Remove this block after
+# the first successful apply; the resource stays in state (docs/runbooks/phase7-detective.md).
+import {
+  to = aws_guardduty_detector.this
+  id = var.guardduty_detector_id
+}
+
 resource "aws_guardduty_detector" "this" {
   # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account
   enable                       = true
