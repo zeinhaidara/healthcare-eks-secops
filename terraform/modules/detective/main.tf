@@ -6,7 +6,10 @@ locals {
   region     = data.aws_region.current.region
   # Name follows the project rule: <prefix>-logs-<purpose>-<account id> (the apply role is scoped to it).
   bucket_name = "${var.name}-logs-cloudtrail-${local.account_id}"
-  trail_arn   = "arn:aws:cloudtrail:${local.region}:${local.account_id}:trail/${var.trail_name}"
+  # Server access logs for the trail bucket (same naming rule, so the apply role covers it).
+  access_log_bucket_name = "${var.name}-logs-cloudtrail-access-${local.account_id}"
+  topic_arn              = "arn:aws:sns:${local.region}:${local.account_id}:${var.sns_topic_name}"
+  trail_arn              = "arn:aws:cloudtrail:${local.region}:${local.account_id}:trail/${var.trail_name}"
 }
 
 # ---------- Security Hub ----------
@@ -28,6 +31,7 @@ resource "aws_securityhub_standards_subscription" "fsbp" {
 # ---------- GuardDuty ----------
 
 resource "aws_guardduty_detector" "this" {
+  # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account
   enable                       = true
   finding_publishing_frequency = "FIFTEEN_MINUTES"
 }
@@ -47,6 +51,7 @@ resource "aws_guardduty_detector_feature" "eks_audit_logs" {
 # ---------- CloudTrail bucket ----------
 
 resource "aws_s3_bucket" "trail" {
+  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
   bucket        = local.bucket_name
   force_destroy = var.force_destroy
 }
@@ -178,6 +183,7 @@ resource "aws_s3_bucket_policy" "trail" {
 # trail does not see them (known gap; a multi-region trail would).
 
 resource "aws_cloudtrail" "this" {
+  # checkov:skip=CKV_AWS_67:EXC-010 single-region design, the project runs only in us-east-2
   name                          = var.trail_name
   s3_bucket_name                = aws_s3_bucket.trail.id
   kms_key_id                    = var.kms_key_arn
@@ -185,6 +191,247 @@ resource "aws_cloudtrail" "this" {
   include_global_service_events = true
   enable_log_file_validation    = true
   enable_logging                = true
+  sns_topic_name                = aws_sns_topic.trail.arn
+  cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.trail.arn}:*"
+  cloud_watch_logs_role_arn     = aws_iam_role.trail_logs.arn
 
-  depends_on = [aws_s3_bucket_policy.trail]
+  depends_on = [
+    aws_s3_bucket_policy.trail,
+    aws_sns_topic_policy.trail,
+    aws_iam_role_policy.trail_logs,
+  ]
+}
+
+# ---------- SNS topic for trail and bucket notifications (fixes CKV_AWS_252, CKV2_AWS_62) ----------
+# Encrypted with the project key. Only the CloudTrail and S3 services may publish, each limited to this
+# trail or this bucket. No subscriber yet: alerts are wired in Phase 6.
+
+resource "aws_sns_topic" "trail" {
+  name              = var.sns_topic_name
+  kms_master_key_id = var.kms_key_arn
+}
+
+data "aws_iam_policy_document" "trail_topic" {
+  statement {
+    sid       = "CloudTrailPublish"
+    actions   = ["SNS:Publish"]
+    resources = [aws_sns_topic.trail.arn]
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = [local.trail_arn]
+    }
+  }
+
+  statement {
+    sid       = "TrailBucketPublish"
+    actions   = ["SNS:Publish"]
+    resources = [aws_sns_topic.trail.arn]
+    principals {
+      type        = "Service"
+      identifiers = ["s3.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.trail.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+}
+
+resource "aws_sns_topic_policy" "trail" {
+  arn    = aws_sns_topic.trail.arn
+  policy = data.aws_iam_policy_document.trail_topic.json
+}
+
+resource "aws_s3_bucket_notification" "trail" {
+  bucket = aws_s3_bucket.trail.id
+
+  topic {
+    topic_arn = aws_sns_topic.trail.arn
+    events    = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [aws_sns_topic_policy.trail]
+}
+
+# ---------- CloudWatch Logs delivery for the trail (fixes CKV2_AWS_10) ----------
+
+resource "aws_cloudwatch_log_group" "trail" {
+  name              = "/${var.name}/cloudtrail"
+  retention_in_days = var.log_retention_days
+  kms_key_id        = var.kms_key_arn
+}
+
+data "aws_iam_policy_document" "trail_logs_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = [local.trail_arn]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "trail_logs" {
+  statement {
+    sid       = "WriteThisLogGroupOnly"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.trail.arn}:log-stream:*"]
+  }
+}
+
+resource "aws_iam_role" "trail_logs" {
+  name               = "${var.name}-cloudtrail-logs"
+  assume_role_policy = data.aws_iam_policy_document.trail_logs_trust.json
+}
+
+resource "aws_iam_role_policy" "trail_logs" {
+  name   = "write-cloudtrail-log-group"
+  role   = aws_iam_role.trail_logs.id
+  policy = data.aws_iam_policy_document.trail_logs.json
+}
+
+# ---------- server access logging for the trail bucket (fixes CKV_AWS_18) ----------
+# S3 server access logs can only be delivered to a target bucket with SSE-S3 default encryption, not
+# SSE-KMS, so this bucket uses AES256. Delivery uses a bucket policy for the logging service (ACLs are
+# disabled by BucketOwnerEnforced).
+
+resource "aws_s3_bucket" "access_logs" {
+  bucket        = local.access_log_bucket_name
+  force_destroy = var.force_destroy
+}
+
+resource "aws_s3_bucket_public_access_block" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_ownership_controls" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    id     = "expire-old-logs"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      days = var.log_expiration_days
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.noncurrent_expiration_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.access_logs]
+}
+
+data "aws_iam_policy_document" "access_logs" {
+  statement {
+    sid       = "S3ServerAccessLogsDelivery"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.access_logs.arn}/access/*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.trail.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.access_logs.arn, "${aws_s3_bucket.access_logs.arn}/*"]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = data.aws_iam_policy_document.access_logs.json
+
+  depends_on = [aws_s3_bucket_public_access_block.access_logs]
+}
+
+resource "aws_s3_bucket_logging" "trail" {
+  bucket        = aws_s3_bucket.trail.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "access/"
+
+  depends_on = [aws_s3_bucket_policy.access_logs]
+}
+
+# Object-created events on the access-log bucket go to EventBridge (free for S3 events on the default
+# bus), not to the SNS topic, so each access-log delivery does not publish an SNS message.
+resource "aws_s3_bucket_notification" "access_logs" {
+  bucket      = aws_s3_bucket.access_logs.id
+  eventbridge = true
 }

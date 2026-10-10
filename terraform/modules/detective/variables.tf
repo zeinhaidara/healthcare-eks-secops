@@ -30,3 +30,14 @@ variable "force_destroy" {
   type        = bool
   default     = true
 }
+
+variable "sns_topic_name" {
+  description = "SNS topic for CloudTrail and trail-bucket notifications. The KMS key policy allows publishers for exactly this topic, so the root builds its ARN from the same value."
+  type        = string
+}
+
+variable "log_retention_days" {
+  description = "Retention of the CloudTrail CloudWatch Logs log group."
+  type        = number
+  default     = 365
+}

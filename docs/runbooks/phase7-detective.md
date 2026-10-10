@@ -52,5 +52,12 @@ aws s3 ls "s3://<trail bucket>/AWSLogs/" --recursive | head
 ## Known gaps
 
 - The trail is single-region (us-east-2). IAM and STS events originate in us-east-1 and are not captured.
-- No CloudWatch Logs integration, SNS topic or S3 access logging on the trail bucket yet (Checkov findings below).
-- `force_destroy` is true on the trail bucket so the session destroy works, which deletes the audit logs with the stack.
+- The SNS topic has no subscriber yet (Phase 6 wires alerts), so notifications are published but not delivered anywhere.
+- The access-log bucket uses SSE-S3, not the project key, because S3 server access logging requires it (SEC-036).
+- `force_destroy` is true on both log buckets so the session destroy works, which deletes the audit logs with the stack (EXC-013).
+
+## What SEC-036 added
+
+- CloudWatch Logs: `/<prefix>/cloudtrail` receives the trail (check `aws logs describe-log-streams --log-group-name /<prefix>/cloudtrail`).
+- SNS topic `<prefix>-cloudtrail` for trail delivery and new-object notifications.
+- Access logs of the trail bucket in `<prefix>-logs-cloudtrail-access-<account id>` under `access/`.

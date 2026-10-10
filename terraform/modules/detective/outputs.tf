@@ -13,3 +13,15 @@ output "guardduty_detector_id" {
 output "securityhub_standards_arn" {
   value = aws_securityhub_standards_subscription.fsbp.standards_arn
 }
+
+output "sns_topic_arn" {
+  value = aws_sns_topic.trail.arn
+}
+
+output "trail_log_group_name" {
+  value = aws_cloudwatch_log_group.trail.name
+}
+
+output "access_log_bucket_name" {
+  value = aws_s3_bucket.access_logs.id
+}

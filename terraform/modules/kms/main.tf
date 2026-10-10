@@ -52,6 +52,26 @@ data "aws_iam_policy_document" "key" {
     }
   }
 
+  # AWS services publishing to an SNS topic encrypted with this key need data keys. Limited by the SNS
+  # encryption context to the named topics only.
+  dynamic "statement" {
+    for_each = length(var.sns_topic_arns) > 0 && length(var.sns_service_publishers) > 0 ? [1] : []
+    content {
+      sid       = "ServicePublishersToEncryptedTopics"
+      actions   = ["kms:GenerateDataKey*", "kms:Decrypt"]
+      resources = ["*"]
+      principals {
+        type        = "Service"
+        identifiers = var.sns_service_publishers
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "kms:EncryptionContext:aws:sns:topicArn"
+        values   = var.sns_topic_arns
+      }
+    }
+  }
+
   dynamic "statement" {
     for_each = length(local.log_group_arns) > 0 ? [1] : []
     content {

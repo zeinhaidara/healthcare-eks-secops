@@ -1,0 +1,23 @@
+Tool: Checkov 3.3.26 (bridgecrew/checkov:3.3.26)
+Date: 2026-10-10
+module-before: checkov -d <terraform/modules/detective at commit 1cdcc3e> --framework terraform (exported from git, unchanged)
+module-after: checkov -d terraform/modules/detective --framework terraform
+full-after: checkov --config-file security/checkov/terraform.yaml (both roots)
+
+module-before: passed=30 failed=7 skipped=0 resources=13
+   FAILED CKV_AWS_252 aws_cloudtrail.this
+   FAILED CKV_AWS_67 aws_cloudtrail.this
+   FAILED CKV_AWS_144 aws_s3_bucket.trail
+   FAILED CKV2_AWS_62 aws_s3_bucket.trail
+   FAILED CKV_AWS_18 aws_s3_bucket.trail
+   FAILED CKV2_AWS_10 aws_cloudtrail.this
+   FAILED CKV2_AWS_3 aws_guardduty_detector.this
+module-after: passed=104 failed=2 skipped=3 resources=28
+   FAILED CKV_AWS_145 aws_s3_bucket.access_logs
+   FAILED CKV_AWS_144 aws_s3_bucket.access_logs
+   SKIPPED CKV_AWS_67 aws_cloudtrail.this
+   SKIPPED CKV_AWS_144 aws_s3_bucket.trail
+   SKIPPED CKV2_AWS_3 aws_guardduty_detector.this
+full-after: passed=355 failed=2 skipped=13 resources=93
+   FAILED CKV_AWS_145 module.detective.aws_s3_bucket.access_logs
+   FAILED CKV_AWS_144 module.detective.aws_s3_bucket.access_logs
