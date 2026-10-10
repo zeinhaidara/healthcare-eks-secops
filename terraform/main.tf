@@ -199,12 +199,17 @@ locals {
   trail_arn            = "arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"
 }
 
+# The detector that already exists in this region (GuardDuty allows one per region). The lookup fails
+# if none exists, which is the case after a destroy removes it; see docs/runbooks/phase7-detective.md.
+data "aws_guardduty_detector" "existing" {}
+
 module "detective" {
   source = "./modules/detective"
 
-  name               = var.name_prefix
-  trail_name         = local.trail_name
-  sns_topic_name     = local.detective_topic_name
-  kms_key_arn        = module.kms.key_arn
-  log_retention_days = var.log_retention_days
+  guardduty_detector_id = data.aws_guardduty_detector.existing.id
+  name                  = var.name_prefix
+  trail_name            = local.trail_name
+  sns_topic_name        = local.detective_topic_name
+  kms_key_arn           = module.kms.key_arn
+  log_retention_days    = var.log_retention_days
 }

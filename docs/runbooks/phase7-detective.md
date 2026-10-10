@@ -49,6 +49,14 @@ aws s3 ls "s3://<trail bucket>/AWSLogs/" --recursive | head
 ```
 `LatestDeliveryError` must be empty. A `KMS` or `AccessDenied` error means the key policy or the bucket policy does not match the trail name.
 
+## The GuardDuty detector is imported
+
+GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopts it with an `import {}` block. The root finds its ID with `data.aws_guardduty_detector.existing` (no ID in code). The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
+
+After the first successful apply:
+1. Remove the `import {}` block in `terraform/modules/detective/main.tf`, the `guardduty_detector_id` variable and the `data "aws_guardduty_detector"` lookup in `terraform/main.tf` (pass nothing), and commit. The resource stays in state.
+2. Know that `terraform-destroy.yml` now deletes the detector (it is managed). While no detector exists, the lookup fails at plan. If you rebuild after a destroy with the lookup still in place, remove the lookup and the import first (a fresh account or region needs neither; GuardDuty is then created normally).
+
 ## Known gaps
 
 - The trail is single-region (us-east-2). IAM and STS events originate in us-east-1 and are not captured.
