@@ -236,7 +236,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Before: design relied on a default-deny NetworkPolicy.
 - Fix: per-namespace pod security groups in `module.eks` (app port from the VPC only, HTTPS and DNS out), to be attached with a `SecurityGroupPolicy` in the Phase 4 chart alongside the cluster security group. NetworkPolicy manifests stay for intent. `vpc-cni` and `kube-proxy` are not installed (`bootstrap_self_managed_addons = false`). Checkov flags the groups as unattached (`CKV2_AWS_5`) because the attachment happens in Kubernetes; that skip is pending owner approval.
 - After: enforcement is not yet verified; verify after Phase 4 by checking that a pod's ENI carries the pod security group.
-- Outcome: in progress (pending CKV2_AWS_5 decision and Phase 4)
+- Outcome: resolved for dev and prod on 2026-10-09 (SEC-032: pod security groups attached and verified; EXC-007 closed). Was: in progress (pending CKV2_AWS_5 decision and Phase 4).
 - Control area: network segmentation
 
 ### SEC-022: Read-only application (write routes removed)
@@ -427,7 +427,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Still open, not suppressed (owner decision needed): the new access-log bucket fails `CKV_AWS_145` (S3 server access logging requires SSE-S3 on the target, so KMS is not possible) and `CKV_AWS_144` (no replication, same reason as EXC-012).
 - Update (2026-10-10): the two access-log bucket findings are accepted with inline skips on `aws_s3_bucket.access_logs` only: `CKV_AWS_145` under EXC-014 and `CKV_AWS_144` under EXC-012 (extended to this bucket). Evidence: `evidence/security/checkov/after/detective/`.
 - Outcome: resolved; all detective findings are fixed or accepted with an exception (EXC-010 to EXC-014).
-- Update (2026-10-10): a GuardDuty detector already existed in us-east-2 (one per region), so Terraform could not create one. The pre-existing detector is adopted by an `import {}` block in `terraform/modules/detective`, with its ID from a data source lookup in the root (`data.aws_guardduty_detector.existing`), not recreated. Settings are unchanged (`enable = true`, 15-minute publishing, S3 data events and EKS audit logs features), so the first plan shows the import plus an in-place update of the publishing frequency if the existing value differs. After the first successful apply the import block and lookup should be removed, and a destroy deletes the detector, so the lookup fails on the next plan until a detector exists again (`docs/runbooks/phase7-detective.md`).
+- Update (2026-10-10): a GuardDuty detector already existed in us-east-2 (one per region), so Terraform could not create one. The pre-existing detector is adopted by an `import {}` block in `terraform/modules/detective`, with its ID from a data source lookup in the root (`data.aws_guardduty_detector.existing`), not recreated. Settings are unchanged (`enable = true`, 15-minute publishing, S3 data events and EKS audit logs features), so the first plan shows the import plus an in-place update of the publishing frequency if the existing value differs. After the first successful apply the import block and lookup should be removed (the import block was removed on 2026-10-10, SEC-037; the lookup remains until the detector is unmanaged), and a destroy deletes the detector, so the lookup fails on the next plan until a detector exists again (`docs/runbooks/phase7-detective.md`).
 - Control area: audit logging, threat detection
 
 ### SEC-037: Apply removed the detective log buckets' security configuration while the buckets remained (incident)
@@ -443,7 +443,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Fix proposed in the diagnosis: (1) plan role read access to the log buckets; (2) import the two `aws_s3_bucket` resources only; (3) a `tf-plan` guard against deleting or replacing buckets, KMS keys and tables.
 - State after the failed apply (inferred from the log, to be confirmed with `terraform state list`): the two `aws_s3_bucket` resources and their 15 sub-resources are not in state, and the buckets exist in AWS.
 - Update (2026-10-10, fix/detective-bucket-state):
-  - IAM (applied by hand by the operator, outside Terraform, as for all bootstrap roles): the plan role now has `s3:ListBucket` on the two log buckets, so `HeadBucket` no longer fails during refresh. The operator checked it with the IAM policy simulator (`s3:ListBucket` on both log buckets as the plan role: allowed). The repo copy `docs/bootstrap-policies/plan-policy.json` does not include this grant yet (follow-up).
+  - IAM (applied by hand by the operator, outside Terraform, as for all bootstrap roles): the plan role now has `s3:ListBucket` on the two log buckets, so `HeadBucket` no longer fails during refresh. The operator checked it with the IAM policy simulator (`s3:ListBucket` on both log buckets as the plan role: allowed). The repo copy `docs/bootstrap-policies/plan-policy.json` does not include this grant yet (follow-up; done 2026-10-10 in docs/sec-037-close-and-sync).
   - Import repair: `terraform/modules/detective/main.tf` has `import {}` blocks for `aws_s3_bucket.trail` (`id = local.bucket_name`) and `aws_s3_bucket.access_logs` (`id = local.access_log_bucket_name`). Buckets only; the 15 sub-resources are not imported. No bucket is deleted or re-created.
   - Guard: `tf-plan` in `terraform-apply.yml` has a `destructive plan guard` step after `terraform plan`. It fails, printing the matching lines, when `plan.txt` says an `aws_s3_bucket`, `aws_s3_bucket_*`, `aws_kms_key` or `aws_dynamodb_table` resource `will be destroyed`, `must be replaced` or `will be replaced`. It runs before the plan artifact is uploaded, so `tf-apply` cannot run. No override input; see the runbook `docs/runbooks/phase7-detective.md`.
   - Manual restores by the operator in AWS (outside Terraform) after the incident: on both buckets, the bucket-level public access block (all four settings); on the trail bucket, the bucket policy (CloudTrail ACL check, CloudTrail log write, digest write, TLS-only deny); on the access-log bucket, the bucket policy (S3 server access logging delivery, TLS-only deny). Ownership controls, versioning, encryption, lifecycle, notifications and server access logging were not reported as restored.
@@ -455,6 +455,13 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - The hand-restored public access blocks and bucket policies were replaced by Terraform's versions in that apply.
   - Trail delivery confirmed by the operator at 21:38 America/New_York on 2026-10-10: log files, SNS notifications, CloudWatch Logs and digest files.
   - The `data "aws_guardduty_detector" "existing"` lookup in `terraform/main.tf` and the module's `guardduty_detector_id` variable remain (now unused by the module); remove them only when the detector is no longer managed (runbook).
-- After: apply succeeded and delivery is confirmed; a clean follow-up plan (no changes for `module.detective`) is not yet recorded.
-- Outcome: open. Close when a clean follow-up plan is recorded here.
+- Verification (2026-10-10, about 22:00 America/New_York):
+  - Apply ran from `main`, including the import block removal and the fail-closed destructive plan guard. Run ID: not recorded.
+  - Plan after that apply: one cosmetic in-place update to `module.detective.aws_cloudtrail.this` (`sns_topic_name`, topic name in code versus topic ARN read back). No creates or destroys in any detective resource. Accepted as provider drift; it does not change delivery.
+  - Trail delivery confirmed by the operator at 22:01: log files, SNS notifications, CloudWatch Logs and digests succeeding.
+  - The hand-restored bucket policies and public access blocks were replaced by Terraform's versions.
+  - `docs/bootstrap-policies/plan-policy.json` now has the log-bucket grants the plan role was given by hand (`LogBucketRefreshReads`, `LogBucketHead`; docs/sec-037-close-and-sync).
+  - Follow-ups: set `sns_topic_name` on `aws_cloudtrail.this` in the form the provider reads back, so the cosmetic update stops; remove the `guardduty_detector_id` lookup and variable when the detector is no longer managed; confirm the next plan still shows only this single cosmetic change.
+- After: apply succeeded, delivery confirmed, plan shows only the accepted `sns_topic_name` drift.
+- Outcome: closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up.
 - Control area: change control, access control, audit logging

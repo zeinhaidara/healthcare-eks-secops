@@ -51,7 +51,7 @@ aws s3 ls "s3://<trail bucket>/AWSLogs/" --recursive | head
 
 ## The GuardDuty detector was imported
 
-GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopts it with an `import {}` block. The root finds its ID with `data.aws_guardduty_detector.existing` (no ID in code). The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
+GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopted it with an `import {}` block (since removed, see the status below). The root finds its ID with `data.aws_guardduty_detector.existing` (no ID in code). The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
 
 Status (2026-10-10): the apply succeeded and the `import {}` block was removed, together with the two bucket import blocks from the SEC-037 repair. All three resources stay in state.
 
