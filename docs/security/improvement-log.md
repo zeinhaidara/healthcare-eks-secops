@@ -450,6 +450,11 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - Trail delivery after the restore (operator check): log file delivery and SNS notification delivery confirmed; digest delivery pending (digests are written about once an hour).
   - Next plan, expected and accepted only after review: `will be imported` for the two buckets, possibly with an in-place update of `force_destroy` (import reads it as false, the code sets true); the 15 sub-resources as `will be created`, because they are not in state. Applying those creates writes the Terraform configuration over the hand restores (same content intended); review the policy and public access block diffs before approving `tf-apply`. The guard must pass; any destroy or replace of a bucket resource means stop.
   - Not yet confirmed: that the sub-resource configuration is restored. Do not claim it until a plan after the apply shows no changes for the detective module.
-- After: pending a clean plan after the repair apply, and digest delivery confirmation.
-- Outcome: open. Close when a clean plan (no changes for `module.detective`) and digest delivery are recorded here; then remove the two bucket `import {}` blocks.
+- Update (2026-10-10, chore/detective-remove-imports):
+  - The repair apply succeeded. The bucket imports and the GuardDuty detector import ran once in that apply; all three `import {}` blocks were then removed from `terraform/modules/detective/main.tf`. The resources stay in state.
+  - The hand-restored public access blocks and bucket policies were replaced by Terraform's versions in that apply.
+  - Trail delivery confirmed by the operator at 21:38 America/New_York on 2026-10-10: log files, SNS notifications, CloudWatch Logs and digest files.
+  - The `data "aws_guardduty_detector" "existing"` lookup in `terraform/main.tf` and the module's `guardduty_detector_id` variable remain (now unused by the module); remove them only when the detector is no longer managed (runbook).
+- After: apply succeeded and delivery is confirmed; a clean follow-up plan (no changes for `module.detective`) is not yet recorded.
+- Outcome: open. Close when a clean follow-up plan is recorded here.
 - Control area: change control, access control, audit logging

@@ -30,14 +30,8 @@ resource "aws_securityhub_standards_subscription" "fsbp" {
 
 # ---------- GuardDuty ----------
 
-# A detector already exists in this account and region (GuardDuty allows one per region), so it is
-# adopted by import, not created. The root looks the ID up with a data source. Remove this block after
-# the first successful apply; the resource stays in state (docs/runbooks/phase7-detective.md).
-import {
-  to = aws_guardduty_detector.this
-  id = var.guardduty_detector_id
-}
-
+# The detector existed before this module (GuardDuty allows one per region) and was adopted by import.
+# It is in state now; the import block was removed (docs/runbooks/phase7-detective.md).
 resource "aws_guardduty_detector" "this" {
   # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account
   enable                       = true
@@ -57,19 +51,6 @@ resource "aws_guardduty_detector_feature" "eks_audit_logs" {
 }
 
 # ---------- CloudTrail bucket ----------
-
-# Incident repair (SEC-037): both buckets exist in AWS but fell out of state when the plan role could
-# not read them. They are adopted by import; their sub-resources are NOT imported and get created or
-# updated on the existing buckets by the next apply. Remove these two blocks after that apply.
-import {
-  to = aws_s3_bucket.trail
-  id = local.bucket_name
-}
-
-import {
-  to = aws_s3_bucket.access_logs
-  id = local.access_log_bucket_name
-}
 
 resource "aws_s3_bucket" "trail" {
   # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
