@@ -7,6 +7,8 @@ IAM policies for the CI roles. They are applied by hand and are not managed by T
 | `plan-policy.json` | `...-gha-plan` | Copy of the live policy (2026-10-08), read-only. |
 | `apply-policy.json` | `...-gha-apply` | This directory. Replaces the policy currently attached. |
 
+The plan role needs `s3:ListBucket` on the `cloudbatch818-zein-hcsecops-logs-*` buckets (`LogBucketHead` in `plan-policy.json`); without it `HeadBucket` fails during refresh and the provider drops the buckets from state (SEC-037).
+
 ## Applying
 
 The files use `<ACCOUNT_ID>` instead of a real account ID. Substitute it, then put the result on the role as the inline policy `apply-policy`:
