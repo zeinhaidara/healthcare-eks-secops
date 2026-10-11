@@ -73,8 +73,15 @@ jobs:
         run: |
           pattern='^[[:space:]]*# ([^ ]+\.)?(aws_s3_bucket(_[a-z0-9_]+)?|aws_kms_key|aws_dynamodb_table)\.[^ ]+ .*(will be destroyed|must be replaced|will be replaced)'
           test -s plan.txt || { echo "::error::plan.txt missing or empty"; exit 1; }
-          if grep -E "$pattern" plan.txt; then
+          # Only grep exit 1 (no match) passes. The default shell runs with -e, so capture rc with ||.
+          rc=0
+          grep -qE "$pattern" plan.txt || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            grep -E "$pattern" plan.txt
             echo "::error::Plan deletes or replaces a protected resource (lines above). Blocked."
+            exit 1
+          elif [ "$rc" -ne 1 ]; then
+            echo "::error::guard grep failed (exit $rc)"
             exit 1
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

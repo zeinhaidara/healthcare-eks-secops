@@ -61,6 +61,9 @@ After the first successful apply:
 
 `tf-plan` in `.github/workflows/terraform-apply.yml` runs a `destructive plan guard` step after `terraform plan` (SEC-037). It reads `plan.txt` and fails the job, printing the matching lines, if any `aws_s3_bucket`, `aws_s3_bucket_*` (policy, public access block, versioning, encryption, lifecycle, notification, logging and so on), `aws_kms_key` or `aws_dynamodb_table` resource `will be destroyed`, `must be replaced` or `will be replaced`. The step runs before the plan artifact is uploaded, so `tf-apply` has nothing to apply. Creates, imports and in-place updates pass. `aws_dynamodb_table_item`, `aws_kms_alias` and `aws_kms_key_policy` are not covered.
 
+- The guard fails closed if `plan.txt` is missing or empty.
+- The guard fails closed on any grep error (any exit code other than 0 or 1); only exit 1, no match, passes.
+
 There is no override input. When the guard fails:
 1. Do not re-run the workflow hoping it passes. Read the printed lines and the refresh section of the plan log: a `has been deleted` on a bucket that exists means the plan role could not read it (SEC-037), not that it is gone.
 2. Fix the cause (permissions, state, an unintended code change) and run the plan again.
