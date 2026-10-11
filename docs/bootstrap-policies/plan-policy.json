@@ -113,6 +113,12 @@
       "Resource": "arn:aws:dynamodb:us-east-2:<ACCOUNT_ID>:table/cloudbatch818-zein-hcsecops-patients"
     },
     {
+      "Sid": "DecryptSeededItems",
+      "Effect": "Allow",
+      "Action": "kms:Decrypt",
+      "Resource": "arn:aws:kms:us-east-2:<ACCOUNT_ID>:key/99621367-862c-47d2-9742-0655d00423f7"
+    },
+    {
       "Sid": "LogBucketRefreshReads",
       "Effect": "Allow",
       "Action": [
