@@ -462,6 +462,15 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - The hand-restored bucket policies and public access blocks were replaced by Terraform's versions.
   - `docs/bootstrap-policies/plan-policy.json` now has the log-bucket grants the plan role was given by hand (`LogBucketRefreshReads`, `LogBucketHead`; docs/sec-037-close-and-sync).
   - Follow-ups: set `sns_topic_name` on `aws_cloudtrail.this` in the form the provider reads back, so the cosmetic update stops; remove the `guardduty_detector_id` lookup and variable when the detector is no longer managed; confirm the next plan still shows only this single cosmetic change.
+- GuardDuty evidence (operator-verified, 2026-10-11):
+  - Three GuardDuty findings, all severity Low, dated 2026-10-10 between 15:19 and 15:25 America/New_York. They are historical and describe the incident window, not the current state.
+    - `Policy:S3/BucketBlockPublicAccessDisabled` on the trail bucket.
+    - `Policy:S3/BucketBlockPublicAccessDisabled` on the access-log bucket.
+    - `Stealth:S3/ServerAccessLoggingDisabled` on the trail bucket.
+  - Actor: the apply role through GitHub Actions (`AssumedRole`, session name `GitHubActions`), calling `DeleteBucketPublicAccessBlock` and `PutBucketLogging`. This matches the apply that removed the sub-resources.
+  - Effective permission: `NOT_PUBLIC` for all three findings.
+  - Current state: the public access blocks on both log buckets and server access logging on the trail bucket are in place, restored by the repair apply. Operator-confirmed at 2026-10-11, console check.
+  - The findings are retained in GuardDuty as history and are not archived.
 - After: apply succeeded, delivery confirmed, plan shows only the accepted `sns_topic_name` drift.
 - Outcome: closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up.
 - Control area: change control, access control, audit logging
@@ -474,5 +483,10 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Fix: a `cost_filter` `TagKeyValue` = `user:Project$cloudbatch818`, built from the new module variables `cost_tag_key` (default `Project`) and `cost_tag_value` (default `cloudbatch818`). The $75 limit, the `MONTHLY` period, the three actual-spend notifications (50%, 80%, 100%) and the 100% forecast notification are unchanged. In the 2026-10-10 Prowler scan, only this project's resources carry `Project=cloudbatch818`. Prerequisites and checks: `docs/runbooks/budget.md`.
 - Residual: the filter counts only tagged spend. ALBs created by the Load Balancer Controller and Fargate pod compute carry no `Project` tag in this code, so the scoped figure is a lower bound. Follow-up: set default tags on the controller's ALBs.
 - After: `terraform fmt -check` and `terraform validate` pass; Checkov 3.3.26 on `terraform/modules/budget` has no applicable check (0 passed, 0 failed). Not applied yet. The `Project` cost allocation tag must be activated in Billing (management account if this is an Organization member), which can take up to 24 hours; a $0 scoped spend right after the apply is expected.
-- Outcome: open. Close when the apply is done, the tag is active, the scoped spend matches Cost Explorer filtered on the tag, and delivery to the alert recipient is verified (the recipient is still unverified).
+- Update (2026-10-11, operator-confirmed):
+  - The scope filter was applied on 2026-10-11.
+  - The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member.
+  - October 2026 tagged spend is $9.80 of $75. This is a lower bound: untagged load balancers and Fargate cost are excluded.
+  - The alert recipient is still unverified. The operator identity lacks permission to view the budget's notification settings.
+- Outcome: open. Close when the scoped spend has been checked against Cost Explorer filtered on the tag, and delivery to the alert recipient is verified.
 - Control area: cost control, monitoring

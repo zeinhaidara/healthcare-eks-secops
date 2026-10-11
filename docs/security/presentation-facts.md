@@ -37,7 +37,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 - `prod`, `infra` and `infra-destroy` deploy only from `main` (GitHub environment branch policy, read 2026-10-11).
 - `dev` deploys only from protected branches (GitHub environment branch policy, read 2026-10-11).
-- Each environment requires one reviewer, and self-review is not prevented, so the single maintainer approves their own deploys (GitHub settings read 2026-10-11; EXC-003).
+- There is no independent reviewer. Each environment's only required reviewer is the single maintainer, and self-review is allowed. This is recorded as EXC-003 (GitHub settings re-read 2026-10-11).
 - Required approvals on `main` are 0 because there is a single maintainer; required status checks are the compensating control (EXC-003, SEC-009).
 - Terraform runs only by manual dispatch with no inputs; `tf-apply` applies the exact plan that `tf-plan` produced (SEC-004, SEC-016).
 
@@ -58,8 +58,8 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - Repair: plan role read access, `import` blocks for the two buckets, and the destructive plan guard; the apply recreated the configuration and the import blocks were removed (SEC-037).
 - Accepted drift, as the register states it: "Accepted as provider drift; it does not change delivery." Outcome: "closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up." (SEC-037)
 - Trail delivery was confirmed at 22:01 on 2026-10-10: log files, SNS notifications, CloudWatch Logs and digests (SEC-037).
-- GuardDuty raised a Low severity finding related to the incident. **GAP:** not recorded in the register.
-- The affected buckets' effective permission was NOT_PUBLIC. **GAP:** not recorded in the register; SEC-037 records only that the operator reported no public access was opened.
+- GuardDuty raised three Low severity findings in the incident window (2026-10-10, 15:19 to 15:25 America/New_York): public access block disabled on both log buckets, and server access logging disabled on the trail bucket. The actor was the apply role through GitHub Actions. The findings are kept as history. (Resolved GAP: SEC-037)
+- The effective permission was NOT_PUBLIC for all three findings. The public access blocks and trail-bucket logging are back in place: operator-confirmed at 2026-10-11, console check. (Resolved GAP: SEC-037)
 - Alerting is deferred: the CloudTrail SNS topic has no subscriber (`docs/runbooks/phase7-detective.md`, known gaps). The incident was diagnosed from the failed apply run's logs (SEC-037).
 
 ## Prowler (2026-10-10 scan)
@@ -74,13 +74,12 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 - The budget is `cloudbatch818-zein-hcsecops-monthly`: $75 a month, with four alerts (actual spend at 50, 80 and 100 percent, forecast at 100 percent), all set in Terraform (SEC-038, `terraform/modules/budget`).
 - The budget is filtered to the `Project=cloudbatch818` cost tag (SEC-038).
-- The filter was applied on 2026-10-11. **GAP:** operator-reported; SEC-038 does not record the apply yet.
-- October 2026 tagged spend is $9.80 of $75. This is a lower bound, because untagged load balancers and Fargate cost are excluded. **GAP:** operator-reported figure; the exclusion is from SEC-038.
+- The filter was applied on 2026-10-11 (SEC-038, operator-confirmed).
+- October 2026 tagged spend is $9.80 of $75. This is a lower bound, because untagged load balancers and Fargate cost are excluded (SEC-038).
 - The scoped-spend history shows $0 before October 2026. That reflects the filter and tag activation, not zero project cost before then (SEC-038, `docs/runbooks/budget.md`).
-- **GAP:** the `Project` cost allocation tag is not confirmed active in Billing.
-- **GAP:** tag activation depends on the management account if this is an Organization member account; confirm in Billing (`docs/runbooks/budget.md`).
-- **GAP:** the alert subscriber is unverified, so no alert delivery has been confirmed (SEC-038).
-- **GAP:** the spend shown before the scope change was the whole shared account, not this project (SEC-038).
+- The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member (SEC-038, operator-confirmed).
+- **GAP:** the alert subscriber is unverified, so no alert delivery has been confirmed. The operator identity lacks permission to view the notification settings (SEC-038).
+- **GAP (explanation only):** the spend shown before the scope change was the whole shared account, not this project (SEC-038).
 
 ## Risk register
 
@@ -111,5 +110,5 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 - The controls are HIPAA-aligned, not HIPAA-compliant, and the data is synthetic only (`docs/security/controls.md`, `docs/security/improvement-log.md`).
 - SEC-033: the prod DNS alias first pointed at the dev load balancer; it was caught by an HTTPS check and repointed. Nothing automated checks it yet (SEC-033).
-- No public exposure of the log buckets was opened during the incident, according to the operator. **GAP:** SEC-037 records this as operator-reported, not verified.
+- No public exposure: GuardDuty reported effective permission NOT_PUBLIC for all three incident findings (SEC-037).
 - The EKS API endpoint is reachable from the internet by design, behind access-entry authentication (EXC-005).
