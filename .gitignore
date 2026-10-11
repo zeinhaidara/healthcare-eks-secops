@@ -39,3 +39,6 @@ terraform/modules/secret-rotation/build/
 
 # Raw Prowler output: file names hold the account ID and rows hold identities (stays local)
 evidence/security/prowler/
+
+# Local presentation deck and PDF (never committed)
+presentation/

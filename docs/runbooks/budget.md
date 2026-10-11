@@ -18,6 +18,14 @@ The filter matches nothing until `Project` is an **active user-defined cost allo
 - Check after a day: Cost Explorer, filter Tag `Project` = `cloudbatch818`, current month. The budget's actual spend should match that view.
 - If it is still $0 after 48 hours with the stack running, check that the tag shows as active and that the value matches exactly (tag values are case-sensitive).
 
+## Status (2026-10-11)
+
+- The scope filter was applied on 2026-10-11 (operator-confirmed, SEC-038).
+- The `Project` cost allocation tag is confirmed active in Billing. The management account activated it, because this account is an Organization member (SEC-038).
+- The budget's scoped-spend history shows $0 before October 2026. That reflects the filter and the tag activation, not zero project cost before then. The spend shown before the scope change was the whole shared account.
+- October 2026 tagged spend: $9.80 of $75 (SEC-038). This is a lower bound; see the next section.
+- The alert recipient is still unverified (SEC-038); see [Alert recipient](#alert-recipient).
+
 ## What the filter does not count
 
 Only spend on resources that carry the tag is counted. In this code these carry no `Project` tag, so their spend is likely missing from the scoped budget:
