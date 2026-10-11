@@ -72,6 +72,7 @@ jobs:
         working-directory: terraform
         run: |
           pattern='^[[:space:]]*# ([^ ]+\.)?(aws_s3_bucket(_[a-z0-9_]+)?|aws_kms_key|aws_dynamodb_table)\.[^ ]+ .*(will be destroyed|must be replaced|will be replaced)'
+          test -s plan.txt || { echo "::error::plan.txt missing or empty"; exit 1; }
           if grep -E "$pattern" plan.txt; then
             echo "::error::Plan deletes or replaces a protected resource (lines above). Blocked."
             exit 1
