@@ -5,6 +5,13 @@ resource "aws_budgets_budget" "this" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
+  # Count only spend tagged with the project cost allocation tag; the account is shared (SEC-038).
+  # The tag must be activated in Billing first (docs/runbooks/budget.md).
+  cost_filter {
+    name   = "TagKeyValue"
+    values = [format("user:%s$%s", var.cost_tag_key, var.cost_tag_value)]
+  }
+
   dynamic "notification" {
     for_each = var.actual_thresholds
     content {

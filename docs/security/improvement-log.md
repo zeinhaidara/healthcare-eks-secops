@@ -465,3 +465,14 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: apply succeeded, delivery confirmed, plan shows only the accepted `sns_topic_name` drift.
 - Outcome: closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up.
 - Control area: change control, access control, audit logging
+
+### SEC-038: Monthly budget scoped to the project cost allocation tag
+- Date / PR: 2026-10-11 / chore/budget-project-scope
+- Source: the Prowler triage (`docs/security/prowler-triage.md`) showed that the AWS account is shared with other teams' workloads.
+- Risk: the $75 budget had no cost filter, so it measured the whole shared account. Its alerts reflected other teams' spend, not this project's, and could fire or stay silent for reasons unrelated to the stack.
+- Before: `aws_budgets_budget` in `terraform/modules/budget` with no `cost_filter`.
+- Fix: a `cost_filter` `TagKeyValue` = `user:Project$cloudbatch818`, built from the new module variables `cost_tag_key` (default `Project`) and `cost_tag_value` (default `cloudbatch818`). The $75 limit, the `MONTHLY` period, the three actual-spend notifications (50%, 80%, 100%) and the 100% forecast notification are unchanged. In the 2026-10-10 Prowler scan, only this project's resources carry `Project=cloudbatch818`. Prerequisites and checks: `docs/runbooks/budget.md`.
+- Residual: the filter counts only tagged spend. ALBs created by the Load Balancer Controller and Fargate pod compute carry no `Project` tag in this code, so the scoped figure is a lower bound. Follow-up: set default tags on the controller's ALBs.
+- After: `terraform fmt -check` and `terraform validate` pass; Checkov 3.3.26 on `terraform/modules/budget` has no applicable check (0 passed, 0 failed). Not applied yet. The `Project` cost allocation tag must be activated in Billing (management account if this is an Organization member), which can take up to 24 hours; a $0 scoped spend right after the apply is expected.
+- Outcome: open. Close when the apply is done, the tag is active, the scoped spend matches Cost Explorer filtered on the tag, and delivery to the alert recipient is verified (the recipient is still unverified).
+- Control area: cost control, monitoring
