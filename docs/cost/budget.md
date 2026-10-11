@@ -2,6 +2,8 @@
 
 **Monthly budget: $75** (us-east-2). Alerts at 50%, 80% and 100% of actual spend, plus a 100% forecast alert, sent to `ALERT_EMAIL`. The AWS Budget itself is created in Terraform in Phase 2.
 
+Scope: the budget counts only spend tagged `Project=cloudbatch818`, because the account is shared (SEC-038). Untagged spend, such as controller-created ALBs and Fargate pod compute, is not counted. Tag activation and checks: [docs/runbooks/budget.md](../runbooks/budget.md).
+
 ## Estimates
 
 Rough on-demand estimates, not checked against current pricing. Replace with measured values in the Phase 8 cost baseline.
