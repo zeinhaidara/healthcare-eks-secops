@@ -65,6 +65,17 @@ jobs:
           # runner where that file would not exist, so record its hash and ship the exact zip with the plan.
           find modules -path '*/build/*.zip' -print0 | xargs -0 -r sha256sum > zips.sha256
           test -s zips.sha256
+      # SEC-037: fail before the plan artifact exists, so tf-apply cannot run, if the plan deletes or
+      # replaces an S3 bucket or bucket sub-resource, a KMS key or a DynamoDB table. No override: a
+      # legitimate replacement is a human decision made in a separate PR (runbooks/phase7-detective.md).
+      - name: destructive plan guard
+        working-directory: terraform
+        run: |
+          pattern='^[[:space:]]*# ([^ ]+\.)?(aws_s3_bucket(_[a-z0-9_]+)?|aws_kms_key|aws_dynamodb_table)\.[^ ]+ .*(will be destroyed|must be replaced|will be replaced)'
+          if grep -E "$pattern" plan.txt; then
+            echo "::error::Plan deletes or replaces a protected resource (lines above). Blocked."
+            exit 1
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tfplan

@@ -57,6 +57,17 @@ After the first successful apply:
 1. Remove the `import {}` block in `terraform/modules/detective/main.tf`, the `guardduty_detector_id` variable and the `data "aws_guardduty_detector"` lookup in `terraform/main.tf` (pass nothing), and commit. The resource stays in state.
 2. Know that `terraform-destroy.yml` now deletes the detector (it is managed). While no detector exists, the lookup fails at plan. If you rebuild after a destroy with the lookup still in place, remove the lookup and the import first (a fresh account or region needs neither; GuardDuty is then created normally).
 
+## Destructive plan guard
+
+`tf-plan` in `.github/workflows/terraform-apply.yml` runs a `destructive plan guard` step after `terraform plan` (SEC-037). It reads `plan.txt` and fails the job, printing the matching lines, if any `aws_s3_bucket`, `aws_s3_bucket_*` (policy, public access block, versioning, encryption, lifecycle, notification, logging and so on), `aws_kms_key` or `aws_dynamodb_table` resource `will be destroyed`, `must be replaced` or `will be replaced`. The step runs before the plan artifact is uploaded, so `tf-apply` has nothing to apply. Creates, imports and in-place updates pass. `aws_dynamodb_table_item`, `aws_kms_alias` and `aws_kms_key_policy` are not covered.
+
+There is no override input. When the guard fails:
+1. Do not re-run the workflow hoping it passes. Read the printed lines and the refresh section of the plan log: a `has been deleted` on a bucket that exists means the plan role could not read it (SEC-037), not that it is gone.
+2. Fix the cause (permissions, state, an unintended code change) and run the plan again.
+3. If the replacement is really wanted (for example a renamed bucket or a new table key), that is a human decision made in a separate PR, reviewed on its own, that states why, what data is lost or moved, and any change to the guard it needs. It is never folded into another change.
+
+The session destroy (`terraform-destroy.yml`) is a separate workflow and is not affected.
+
 ## Known gaps
 
 - The trail is single-region (us-east-2). IAM and STS events originate in us-east-1 and are not captured.

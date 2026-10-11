@@ -58,6 +58,19 @@ resource "aws_guardduty_detector_feature" "eks_audit_logs" {
 
 # ---------- CloudTrail bucket ----------
 
+# Incident repair (SEC-037): both buckets exist in AWS but fell out of state when the plan role could
+# not read them. They are adopted by import; their sub-resources are NOT imported and get created or
+# updated on the existing buckets by the next apply. Remove these two blocks after that apply.
+import {
+  to = aws_s3_bucket.trail
+  id = local.bucket_name
+}
+
+import {
+  to = aws_s3_bucket.access_logs
+  id = local.access_log_bucket_name
+}
+
 resource "aws_s3_bucket" "trail" {
   # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
   bucket        = local.bucket_name
