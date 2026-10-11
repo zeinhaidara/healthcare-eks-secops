@@ -27,7 +27,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 - CI uses GitHub OIDC; no long-lived AWS keys are stored in GitHub (SEC-011, `docs/bootstrap.md`).
 - The plan role is read-only and has no cluster access (SEC-019, SEC-037, `docs/bootstrap-policies/plan-policy.json`).
-- The apply role has project-scoped write and is EKS cluster admin, used only behind the `infra` and `infra-destroy` approvals (EXC-006, SEC-019).
+- The apply role has project-scoped write and is EKS cluster admin, behind a self-review gate on the `infra` and `infra-destroy` environments (EXC-006, SEC-019).
 - Each deploy role has `AmazonEKSEditPolicy` scoped to one namespace and read-only AWS calls (SEC-019, `docs/bootstrap-policies/deploy-dev-policy.json`).
 - The operator has `AmazonEKSViewPolicy` at cluster scope and read-only AWS access (SEC-029).
 - The operator IAM user has a long-lived access key (SEC-029 residual risk) and no MFA (Prowler triage N2; no SEC ID yet).
@@ -37,14 +37,15 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 - `prod`, `infra` and `infra-destroy` deploy only from `main` (GitHub environment branch policy, read 2026-10-11).
 - `dev` deploys only from protected branches, which are `dev` and `main` (GitHub environment branch policy and branch protection, read 2026-10-11).
-- There is no independent reviewer. Each environment's only required reviewer is the single maintainer, and self-review is allowed. This is recorded as EXC-003 (GitHub settings re-read 2026-10-11).
+- There is no independent reviewer. Each environment's only required reviewer is the single maintainer, self-review is allowed (`prevent_self_review=false`), and repo admins can bypass environment rules (`can_admins_bypass=true`). Recorded as EXC-003 (GitHub settings read 2026-10-11).
 - Required approvals on `main` are 0 because there is a single maintainer; required status checks are the compensating control (EXC-003, SEC-009).
 - Terraform runs only by manual dispatch with no inputs; `tf-apply` applies the exact plan that `tf-plan` produced (SEC-004, SEC-016).
 
 ## Security tools
 
-- **Trivy** scans dependencies, secrets and the image for HIGH and CRITICAL fixable findings, so vulnerable images cannot be pushed. The gate was fixed to honor its config, which unblocked 44 unfixable HIGH findings without an ignore file (SEC-000, SEC-012).
-- **Checkov** scans Terraform, the Dockerfile and workflows as a PR gate, which forced fixes such as pinned AZs and 365-day flow logs. Every skip has an EXC row (SEC-001, SEC-002, EXC-001 to EXC-014).
+- **Trivy** scans dependencies, secrets and the image for HIGH and CRITICAL fixable findings, so images with fixable HIGH or CRITICAL findings cannot be pushed. Unfixable findings are reported, not blocked (SEC-012). The gate was fixed to honor its config, which unblocked 44 unfixable HIGH findings without an ignore file (SEC-000, SEC-012).
+- **Checkov** scans Terraform, the Dockerfile and workflows as a PR gate, which forced fixes such as pinned AZs and 365-day flow logs. First Terraform scan: 6 fails (`evidence/security/checkov/before/terraform/summary.txt`, 2026-10-08). Latest full scan: 0 fails, 15 skipped (`evidence/security/checkov/after/detective/full-final/results_json.json`) (SEC-001, SEC-002).
+- All 14 inline `checkov:skip` comments map to a register entry with an owner and expiry (EXC-001, 002, 005, 007, 009 to 012, 014). No `.trivyignore` or Prowler mutelist exists. The full scan reports 15 skips because the pod security group skip covers two namespaces.
 - **CodeQL** (security-extended) gives semantic analysis of Python and workflows that the other tools lack; 0 findings (SEC-007).
 - **SonarCloud** enforces a quality gate on PRs; the first gate failed on coverage and reliability, both fixed (SEC-008, SEC-013, SEC-014, SEC-015).
 - **CloudTrail, GuardDuty and Security Hub** provide audit logging and threat detection for the running stack (SEC-035, SEC-036).
@@ -59,8 +60,8 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - Accepted drift, as the register states it: "Accepted as provider drift; it does not change delivery." Outcome: "closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up." (SEC-037)
 - Trail delivery was confirmed at 22:01 on 2026-10-10: log files, SNS notifications, CloudWatch Logs and digests (SEC-037).
 - GuardDuty raised three Low severity findings in the incident window (2026-10-10, 15:19 to 15:25 America/New_York): public access block disabled on both log buckets, and server access logging disabled on the trail bucket. The actor was the apply role through GitHub Actions. The findings are kept as history. (Resolved GAP: SEC-037)
-- The effective permission was NOT_PUBLIC for all three findings. The public access blocks and trail-bucket logging are back in place: operator-confirmed at 2026-10-11, console check. (Resolved GAP: SEC-037)
-- Alerting is deferred: the CloudTrail SNS topic has no subscriber (`docs/runbooks/phase7-detective.md`, known gaps). The incident was diagnosed from the failed apply run's logs (SEC-037).
+- The effective permission was NOT_PUBLIC for all three findings, per the GuardDuty findings, operator-verified 2026-10-11 (SEC-037). The public access blocks and trail-bucket logging are back in place (SEC-037).
+- Alerting is planned, not built: the CloudTrail SNS topic has no subscriber (`docs/runbooks/phase7-detective.md`, known gaps). The incident was diagnosed from the failed apply run's logs (SEC-037).
 
 ## Prowler (2026-10-10 scan)
 
@@ -83,32 +84,32 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 ## Risk register
 
-| ID | Accepted risk | Expiry | Status |
-|---|---|---|---|
-| EXC-001 | KMS key policy account-root statement | 2027-04-08 | open (SEC-005) |
-| EXC-002 | No Lambda code signing | 2027-04-08 | open (SEC-006) |
-| EXC-003 | 0 required approvals on `main`, single maintainer | 2027-04-08 | open (SEC-009) |
-| EXC-004 | Plan role trusts `pull_request` subjects | 2027-04-08 | open (SEC-011) |
-| EXC-005 | Public EKS API endpoint (0.0.0.0/0) | 2027-04-08 | open (SEC-018) |
-| EXC-006 | Apply role is EKS cluster admin | 2027-04-08 | open (SEC-019) |
-| EXC-007 | Pod security group check (CKV2_AWS_5) | 2027-04-08 | closed for dev and prod 2026-10-09 (SEC-032) |
-| EXC-008 | Terraform state AES256, not KMS | 2027-04-08 | open (SEC-026) |
-| EXC-009 | Lambda ENI actions on `*` | 2027-04-08 | open (SEC-028) |
-| EXC-010 | Single-region CloudTrail | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-011 | GuardDuty org-level check | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-012 | No cross-region replication for log buckets | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-013 | `force_destroy` on log buckets | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-014 | Access-log bucket uses SSE-S3 | 2027-04-08 | open (SEC-036) |
+| ID | Accepted risk | Owner | Expiry | Status |
+|---|---|---|---|---|
+| EXC-001 | KMS key policy account-root statement | Moulaye | 2027-04-08 | open (SEC-005) |
+| EXC-002 | No Lambda code signing | Moulaye | 2027-04-08 | open (SEC-006) |
+| EXC-003 | 0 required approvals on `main`, single maintainer | Moulaye | 2027-04-08 | open (SEC-009) |
+| EXC-004 | Plan role trusts `pull_request` subjects | Moulaye | 2027-04-08 | open (SEC-011) |
+| EXC-005 | Public EKS API endpoint (0.0.0.0/0) | Moulaye | 2027-04-08 | open (SEC-018) |
+| EXC-006 | Apply role is EKS cluster admin | Moulaye | 2027-04-08 | open (SEC-019) |
+| EXC-007 | Pod security group check (CKV2_AWS_5) | Moulaye | 2027-04-08 | closed for dev and prod 2026-10-09 (SEC-032) |
+| EXC-008 | Terraform state AES256, not KMS | Moulaye | 2027-04-08 | open (SEC-026) |
+| EXC-009 | Lambda ENI actions on `*` | Moulaye | 2027-04-08 | open (SEC-028) |
+| EXC-010 | Single-region CloudTrail | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
+| EXC-011 | GuardDuty org-level check | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
+| EXC-012 | No cross-region replication for log buckets | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
+| EXC-013 | `force_destroy` on log buckets | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
+| EXC-014 | Access-log bucket uses SSE-S3 | Moulaye | 2027-04-08 | open (SEC-036) |
 
-## Built, planned, deferred
+## Built, planned, next
 
 - **Built:** VPC with flow logs, EKS on Fargate, ECR, DynamoDB, Secrets Manager with rotation, KMS, CloudTrail, GuardDuty, Security Hub, OIDC CI/CD with scan gates, a destructive plan guard and a project-scoped budget (SEC-001 to SEC-038).
-- **Planned, not built:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033), the `sns_topic_name` drift fix and removal of the GuardDuty lookup (SEC-037), and tags on the controller's ALBs (SEC-038).
-- **Deferred:** AWS Config, WAF, Inspector, CloudWatch alarms with alert delivery, and a full incident simulation (`docs/security/controls.md` section 7, README).
+- **Next:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033, still open), the `sns_topic_name` drift fix and removal of the GuardDuty lookup (SEC-037), and tags on the controller's ALBs (SEC-038).
+- **Planned:** AWS Config, WAF, Inspector, CloudWatch alarms with alert delivery, and a full incident simulation (`docs/security/controls.md` section 7, README).
 
 ## Honest answers
 
-- The controls are HIPAA-aligned, not HIPAA-compliant, and the data is synthetic only (`docs/security/controls.md`, `docs/security/improvement-log.md`).
+- Synthetic data only. Not PHI. HIPAA-aligned, not HIPAA-compliant (`docs/security/controls.md`; SEC-026; EXC-008).
 - SEC-033: the prod DNS alias first pointed at the dev load balancer; it was caught by an HTTPS check and repointed. Nothing automated checks it yet (SEC-033).
 - No public exposure: GuardDuty reported effective permission NOT_PUBLIC for all three incident findings (SEC-037).
 - The EKS API endpoint is reachable from the internet by design, behind access-entry authentication (EXC-005).
