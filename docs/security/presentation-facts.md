@@ -36,7 +36,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 ## Environments
 
 - `prod`, `infra` and `infra-destroy` deploy only from `main` (GitHub environment branch policy, read 2026-10-11).
-- `dev` deploys only from protected branches (GitHub environment branch policy, read 2026-10-11).
+- `dev` deploys only from protected branches, which are `dev` and `main` (GitHub environment branch policy and branch protection, read 2026-10-11).
 - There is no independent reviewer. Each environment's only required reviewer is the single maintainer, and self-review is allowed. This is recorded as EXC-003 (GitHub settings re-read 2026-10-11).
 - Required approvals on `main` are 0 because there is a single maintainer; required status checks are the compensating control (EXC-003, SEC-009).
 - Terraform runs only by manual dispatch with no inputs; `tf-apply` applies the exact plan that `tf-plan` produced (SEC-004, SEC-016).
