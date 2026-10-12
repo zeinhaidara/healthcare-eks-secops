@@ -61,4 +61,4 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 1. Attach `docs/bootstrap-policies/deploy-dev-policy.json` and `deploy-prod-policy.json` to the deploy roles (adds `acm:ListCertificates`).
 2. Merging the chart to `main` triggers `cd.yml` (paths `app/**`, `helm/**`): build, scan, push, deploy dev, then prod, each behind its environment approval.
 3. The API key secret needs a value or `/ready` stays 503 and the ALB target stays unhealthy (see `docs/runbooks/deploy-check.md`).
-4. Decide how the `SecurityGroupPolicy` is created (SEC-032) before closing EXC-007.
+4. Decide how the `SecurityGroupPolicy` is created (SEC-032) before closing EXC-007. Note (2026-10-12): this step is done. EXC-007 was closed for dev and prod on 2026-10-09 (SEC-032); the `SecurityGroupPolicy` is owned by `terraform/cluster-addons`. The step is kept as the original text.
