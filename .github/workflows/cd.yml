@@ -22,6 +22,7 @@ env:
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
 
 jobs:
   build:
@@ -109,6 +110,8 @@ jobs:
       VPC_CIDR: ${{ vars.VPC_CIDR }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check PROJECT_NAME is set
+        run: test -n "$PROJECT_NAME" || { echo "PROJECT_NAME repo variable is not set"; exit 1; }
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -168,6 +171,7 @@ jobs:
             --set image.digest="$IMAGE_DIGEST" \
             --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
             --set ingress.certificateArn="$CERTIFICATE_ARN" \
+            --set ingress.projectTag="$PROJECT_NAME" \
             --set networkPolicy.vpcCidr="$VPC_CIDR" \
             --set env.apiKeySecretName="$API_KEY_SECRET_NAME" \
             --set podAnnotations.secret-version="$SECRET_VERSION" \
@@ -191,6 +195,8 @@ jobs:
       VPC_CIDR: ${{ vars.VPC_CIDR }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check PROJECT_NAME is set
+        run: test -n "$PROJECT_NAME" || { echo "PROJECT_NAME repo variable is not set"; exit 1; }
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -250,6 +256,7 @@ jobs:
             --set image.digest="$IMAGE_DIGEST" \
             --set serviceAccount.roleArn="$IRSA_ROLE_ARN" \
             --set ingress.certificateArn="$CERTIFICATE_ARN" \
+            --set ingress.projectTag="$PROJECT_NAME" \
             --set networkPolicy.vpcCidr="$VPC_CIDR" \
             --set env.apiKeySecretName="$API_KEY_SECRET_NAME" \
             --set podAnnotations.secret-version="$SECRET_VERSION" \

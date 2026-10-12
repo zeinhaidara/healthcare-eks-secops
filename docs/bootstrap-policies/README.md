@@ -4,8 +4,10 @@ IAM policies for the CI roles. They are applied by hand and are not managed by T
 
 | File | Role | Status |
 |---|---|---|
-| `plan-policy.json` | `...-gha-plan` | Copy of the live policy (2026-10-08), read-only. |
+| `plan-policy.json` | `...-gha-plan` | Read-only. Re-synced in SEC-037 (`LogBucketHead`). Note (2026-10-08): it was first recorded as a copy of the live policy. |
 | `apply-policy.json` | `...-gha-apply` | This directory. Replaces the policy currently attached. |
+| `deploy-dev-policy.json` | the deploy-dev role | New file: the live statements plus `acm:ListCertificates` (see the Helm chart and release pipeline review). |
+| `deploy-prod-policy.json` | the deploy-prod role | New file: the live statements plus `acm:ListCertificates` (see the Helm chart and release pipeline review). |
 
 The plan role needs `s3:ListBucket` on the `cloudbatch818-zein-hcsecops-logs-*` buckets (`LogBucketHead` in `plan-policy.json`); without it `HeadBucket` fails during refresh and the provider drops the buckets from state (SEC-037).
 

@@ -200,7 +200,7 @@ locals {
 }
 
 # The detector that already exists in this region (GuardDuty allows one per region). The lookup fails
-# if none exists, which is the case after a destroy removes it; see docs/runbooks/phase7-detective.md.
+# if none exists, which is the case after a destroy removes it; see docs/runbooks/detective-controls.md.
 data "aws_guardduty_detector" "existing" {}
 
 module "detective" {

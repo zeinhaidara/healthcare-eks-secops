@@ -1,5 +1,7 @@
 # Findings triage process
 
+> **Unconfirmed.** The response times below are proposals, "to be confirmed", and no confirmation is recorded. The owner is written as "zein", while `exceptions-register.md` names "Moulaye" as owner. The conflict is not resolved here.
+
 Owner of all findings: zein (single maintainer). Proposed SLAs, to be confirmed:
 
 | Severity | Triage within | Fix or accept within |
