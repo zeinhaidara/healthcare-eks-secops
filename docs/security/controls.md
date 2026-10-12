@@ -61,7 +61,7 @@ Supporting rules:
 | Destructive plan guard: `tf-plan` fails on a delete or replace of an S3 bucket or bucket setting, KMS key or DynamoDB table; fails closed on a missing plan or grep error | Live | SEC-037 | `improvement-log.md:433-475`. Not verified: the guard has not been seen blocking a real plan (only the local test run in the session) | `terraform-apply.yml:71-86` |
 | Destroy behind its own `infra-destroy` approval | Live | none | The workflow | `terraform-destroy.yml:32-43` |
 | `cd.yml` on a push to `main` that changes `app/` or `helm/`: build, scan, push, deploy dev, then prod | Live | SEC-011, SEC-031 | SEC-031 entry; SEC-033 verification | `cd.yml:6-11,27-258` |
-| GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`: one required reviewer (the maintainer), self-review allowed, repo admins can bypass; `prod`, `infra`, `infra-destroy` deploy from `main` only, `dev` from protected branches (`dev`, `main`) | Manual | EXC-003 | Settings read 2026-10-11 (read-only), recorded in `presentation-facts.md:38-40`. Discrepancy 4 below | `docs/bootstrap.md:19` |
+| GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`: one required reviewer (the maintainer), self-review allowed, repo admins can bypass; `prod`, `infra`, `infra-destroy` deploy from `main` only, `dev` from protected branches (`dev`, `main`) | Manual | EXC-003 | Settings read 2026-10-11 (read-only), recorded in `talk/presentation-facts.md:38-40`. Discrepancy 4 below | `docs/bootstrap.md:19` |
 
 CI roles (all created by hand; policies are copies kept in `docs/bootstrap-policies/`):
 
@@ -131,7 +131,7 @@ Nothing below proves the resource is running today; see "How to read this".
 | CloudTrail bucket and access-log bucket: private, versioned, TLS only; access-log bucket uses SSE-S3; `force_destroy` on | Live | SEC-036, EXC-012, EXC-013, EXC-014 | `improvement-log.md:465-472` (SEC-037 GuardDuty evidence: public access blocks and logging restored by the apply) | `terraform/modules/detective/main.tf:56-78,317-343` |
 | GuardDuty detector with S3 data events and EKS audit logs | Live | SEC-035, EXC-011 | `improvement-log.md:465-472` (SEC-037: three Low findings, 2026-10-10, kept as history) | `terraform/modules/detective/main.tf:36-52` |
 | Security Hub with the AWS Foundational Security Best Practices standard | Live | SEC-035 | `improvement-log.md:411`. Control findings need AWS Config, so expect no data until Config exists | `terraform/modules/detective/main.tf:19-28` |
-| Alert delivery: the CloudTrail SNS topic has no subscriber | Planned | SEC-037 | `docs/runbooks/phase7-detective.md` (known gaps); no `aws_sns_topic_subscription` in Terraform | none |
+| Alert delivery: the CloudTrail SNS topic has no subscriber | Planned | SEC-037 | `docs/runbooks/detective-controls.md` (known gaps); no `aws_sns_topic_subscription` in Terraform | none |
 | Prowler posture scan of the account (2026-10-10, one run, no after run) | Live | none (triage N1 to N8, proposed) | Raw output local only, gitignored: `evidence/security/prowler/`; [prowler-triage.md](prowler-triage.md) | none |
 | Amazon Inspector | **Planned, not built** | none | No `aws_inspector2` resource in Terraform (searched) | none |
 | AWS Config | **Planned, not built** | none | No `aws_config_` resource in Terraform (searched) | none |
