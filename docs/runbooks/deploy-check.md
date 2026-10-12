@@ -1,4 +1,4 @@
-# Runbook: Phase 4 deploy check
+# Runbook: deploy check (Phase 4)
 
 Run after `cd.yml` deploys a namespace. `$NS` is `cloudbatch818-healthcare-dev` or `-prod`. Region us-east-2.
 

@@ -1,4 +1,4 @@
-# Runbook: Phase 7 detective controls (Security Hub, GuardDuty, CloudTrail)
+# Runbook: detective controls (Security Hub, GuardDuty, CloudTrail), Phase 7
 
 Region us-east-2 only. Terraform module: `terraform/modules/detective`. Applied with the rest of the root by `terraform-apply.yml` (read the plan in `tf-plan`, then approve `tf-apply`).
 
@@ -76,7 +76,7 @@ The session destroy (`terraform-destroy.yml`) is a separate workflow and is not 
 ## Known gaps
 
 - The trail is single-region (us-east-2). IAM and STS events originate in us-east-1 and are not captured.
-- The SNS topic has no subscriber yet (Phase 6 wires alerts), so notifications are published but not delivered anywhere.
+- The SNS topic has no subscriber yet (alert delivery is not built; older text names Phase 6, which the tracked docs do not record), so notifications are published but not delivered anywhere.
 - The access-log bucket uses SSE-S3, not the project key, because S3 server access logging requires it (SEC-036).
 - `force_destroy` is true on both log buckets so the session destroy works, which deletes the audit logs with the stack (EXC-013).
 
