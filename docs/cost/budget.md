@@ -54,8 +54,11 @@ Rough on-demand estimates, not checked against current pricing. Replace with mea
 | ALB | about $16 | about $1 |
 | Fargate (4 pods, 0.5 vCPU and 1 GB each) | about $70 | about $4 |
 | Always-on (KMS, Secrets Manager, ECR, DynamoDB, logs) | about $5 to $10 | about $5 to $10 |
-| Security services (Config, GuardDuty, Inspector, Security Hub) | about $15 to $40 | about $15 to $40 |
-| **Total** | **about $230 to $300** | **about $35 to $60** |
+| Security services: Config and Inspector | not built (planned), not counted | not built (planned), not counted |
+| Security services: GuardDuty and Security Hub | built; no separate estimate recorded | built; no separate estimate recorded |
+| **Total of the rows with an estimate** | **about $197 to $202** | **about $16 to $21** |
+
+Note (2026-10-12): the original table had one row, "Security services (Config, GuardDuty, Inspector, Security Hub)", at about $15 to $40 in both columns, and totals of about $230 to $300 (24/7) and about $35 to $60 (destroyed after each session). The Config and Inspector part is not built (`docs/security/controls.md`, section 7), so it is out of the total. The new totals are the plain sum of the rows that have an estimate; the original totals did not equal the sum of their rows, and the cause is not recorded. GuardDuty and Security Hub are built but their share of the $15 to $40 was never split out, so they carry no estimate here.
 
 ## Rules
 - Destroy after every working session (`terraform-destroy.yml`, behind the `infra-destroy` approval).
