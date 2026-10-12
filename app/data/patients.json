@@ -15,6 +15,24 @@
     "risk_band": "low",
     "status": "stable",
     "ward": "Ward D",
+    "systolic_bp": 128,
+    "diastolic_bp": 90,
+    "heart_rate": 72,
+    "temperature_c": 36.9,
+    "hba1c_percent": 5.9,
+    "egfr_ml_min": 90,
+    "medications": [
+      "Tiotropium",
+      "Albuterol"
+    ],
+    "allergies": [],
+    "last_visit": "2026-09-03",
+    "next_visit": "2026-09-24",
+    "care_team": [
+      "primary care",
+      "pulmonology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: COPD. Next review in 16 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -34,6 +52,25 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward A",
+    "systolic_bp": 128,
+    "diastolic_bp": 86,
+    "heart_rate": 81,
+    "temperature_c": 37.0,
+    "hba1c_percent": 5.0,
+    "medications": [
+      "Tiotropium",
+      "Albuterol",
+      "Sertraline"
+    ],
+    "allergies": [],
+    "last_visit": "2026-07-06",
+    "next_visit": "2026-09-19",
+    "care_team": [
+      "primary care",
+      "pulmonology",
+      "psychiatry"
+    ],
+    "note": "Synthetic record. Care plan reviewed by psychiatry. Follow-up booked in 7 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -55,6 +92,32 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward A",
+    "systolic_bp": 126,
+    "diastolic_bp": 74,
+    "heart_rate": 79,
+    "temperature_c": 37.3,
+    "hba1c_percent": 4.8,
+    "egfr_ml_min": 41,
+    "medications": [
+      "Tiotropium",
+      "Albuterol",
+      "Acetaminophen",
+      "Sumatriptan"
+    ],
+    "allergies": [
+      "Sulfonamides",
+      "Iodine contrast"
+    ],
+    "last_visit": "2026-09-07",
+    "next_visit": "2026-12-25",
+    "care_team": [
+      "primary care",
+      "nephrology",
+      "pulmonology",
+      "orthopedics",
+      "neurology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: Chronic Kidney Disease. Next review in 11 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -76,6 +139,32 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward C",
+    "systolic_bp": 105,
+    "diastolic_bp": 64,
+    "heart_rate": 98,
+    "temperature_c": 37.1,
+    "hba1c_percent": 8.4,
+    "egfr_ml_min": 104,
+    "medications": [
+      "Metformin",
+      "Albuterol",
+      "Furosemide",
+      "Metoprolol",
+      "Apixaban"
+    ],
+    "allergies": [
+      "Iodine contrast",
+      "Penicillin"
+    ],
+    "last_visit": "2026-07-20",
+    "next_visit": "2026-11-02",
+    "care_team": [
+      "primary care",
+      "endocrinology",
+      "pulmonology",
+      "cardiology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -97,6 +186,30 @@
     "risk_band": "high",
     "status": "review",
     "ward": "Ward D",
+    "systolic_bp": 137,
+    "diastolic_bp": 98,
+    "heart_rate": 81,
+    "temperature_c": 37.1,
+    "medications": [
+      "Apixaban",
+      "Metoprolol",
+      "Sertraline",
+      "Levetiracetam",
+      "Acetaminophen"
+    ],
+    "allergies": [
+      "Peanuts"
+    ],
+    "last_visit": "2026-07-11",
+    "next_visit": "2026-11-06",
+    "care_team": [
+      "primary care",
+      "cardiology",
+      "psychiatry",
+      "neurology",
+      "orthopedics"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 12 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -115,6 +228,24 @@
     "risk_band": "moderate",
     "status": "watch",
     "ward": "Ward A",
+    "systolic_bp": 103,
+    "diastolic_bp": 66,
+    "heart_rate": 66,
+    "temperature_c": 36.7,
+    "hba1c_percent": 5.3,
+    "egfr_ml_min": 65,
+    "medications": [
+      "Atorvastatin",
+      "Aspirin"
+    ],
+    "allergies": [],
+    "last_visit": "2026-05-08",
+    "next_visit": "2026-07-22",
+    "care_team": [
+      "primary care",
+      "cardiology"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 9 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -133,6 +264,23 @@
     "risk_band": "moderate",
     "status": "watch",
     "ward": "Ward D",
+    "systolic_bp": 123,
+    "diastolic_bp": 74,
+    "heart_rate": 78,
+    "temperature_c": 37.0,
+    "hba1c_percent": 6.0,
+    "egfr_ml_min": 94,
+    "medications": [
+      "Acetaminophen"
+    ],
+    "allergies": [],
+    "last_visit": "2026-04-18",
+    "next_visit": "2026-05-28",
+    "care_team": [
+      "primary care",
+      "orthopedics"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -151,6 +299,24 @@
     "risk_band": "moderate",
     "status": "watch",
     "ward": "Ward C",
+    "systolic_bp": 123,
+    "diastolic_bp": 74,
+    "heart_rate": 80,
+    "temperature_c": 36.5,
+    "hba1c_percent": 6.0,
+    "medications": [
+      "Ferrous sulfate"
+    ],
+    "allergies": [
+      "Latex"
+    ],
+    "last_visit": "2026-08-12",
+    "next_visit": "2026-09-13",
+    "care_team": [
+      "primary care",
+      "hematology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: Anemia. Next review in 8 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -171,6 +337,26 @@
     "risk_band": "elevated",
     "status": "review",
     "ward": "Ward C",
+    "systolic_bp": 114,
+    "diastolic_bp": 70,
+    "heart_rate": 76,
+    "temperature_c": 36.6,
+    "hba1c_percent": 5.1,
+    "medications": [
+      "Levothyroxine",
+      "Sumatriptan",
+      "Methotrexate"
+    ],
+    "allergies": [],
+    "last_visit": "2026-06-22",
+    "next_visit": "2026-08-20",
+    "care_team": [
+      "primary care",
+      "endocrinology",
+      "neurology",
+      "rheumatology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -192,6 +378,31 @@
     "risk_band": "high",
     "status": "review",
     "ward": "Ward B",
+    "systolic_bp": 129,
+    "diastolic_bp": 85,
+    "heart_rate": 73,
+    "temperature_c": 37.2,
+    "hba1c_percent": 6.6,
+    "egfr_ml_min": 101,
+    "medications": [
+      "Levetiracetam",
+      "Furosemide",
+      "Metoprolol",
+      "Metformin",
+      "Sumatriptan"
+    ],
+    "allergies": [
+      "Peanuts"
+    ],
+    "last_visit": "2026-09-13",
+    "next_visit": "2027-01-11",
+    "care_team": [
+      "primary care",
+      "neurology",
+      "cardiology",
+      "endocrinology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -212,6 +423,26 @@
     "risk_band": "high",
     "status": "review",
     "ward": "Ward A",
+    "systolic_bp": 125,
+    "diastolic_bp": 83,
+    "heart_rate": 73,
+    "temperature_c": 36.5,
+    "hba1c_percent": 5.9,
+    "medications": [
+      "Levetiracetam",
+      "Atorvastatin",
+      "Aspirin"
+    ],
+    "allergies": [],
+    "last_visit": "2026-04-17",
+    "next_visit": "2026-07-03",
+    "care_team": [
+      "primary care",
+      "neurology",
+      "sleep medicine",
+      "cardiology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -232,6 +463,30 @@
     "risk_band": "high",
     "status": "review",
     "ward": "Ward B",
+    "systolic_bp": 109,
+    "diastolic_bp": 65,
+    "heart_rate": 80,
+    "temperature_c": 36.5,
+    "hba1c_percent": 6.2,
+    "egfr_ml_min": 68,
+    "medications": [
+      "Albuterol",
+      "Apixaban",
+      "Metoprolol"
+    ],
+    "allergies": [
+      "Latex",
+      "Shellfish"
+    ],
+    "last_visit": "2026-06-23",
+    "next_visit": "2026-09-05",
+    "care_team": [
+      "primary care",
+      "sleep medicine",
+      "pulmonology",
+      "cardiology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -250,6 +505,25 @@
     "risk_band": "elevated",
     "status": "review",
     "ward": "Ward D",
+    "systolic_bp": 107,
+    "diastolic_bp": 68,
+    "heart_rate": 67,
+    "temperature_c": 37.0,
+    "hba1c_percent": 5.4,
+    "medications": [
+      "Sertraline"
+    ],
+    "allergies": [
+      "Peanuts",
+      "Latex"
+    ],
+    "last_visit": "2026-07-09",
+    "next_visit": "2026-09-13",
+    "care_team": [
+      "primary care",
+      "psychiatry"
+    ],
+    "note": "Synthetic record. Care plan reviewed by psychiatry. Follow-up booked in 7 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -270,6 +544,30 @@
     "risk_band": "high",
     "status": "review",
     "ward": "Ward B",
+    "systolic_bp": 120,
+    "diastolic_bp": 79,
+    "heart_rate": 83,
+    "temperature_c": 37.1,
+    "hba1c_percent": 5.6,
+    "medications": [
+      "Sertraline",
+      "Apixaban",
+      "Metoprolol",
+      "Tiotropium",
+      "Albuterol"
+    ],
+    "allergies": [
+      "Codeine"
+    ],
+    "last_visit": "2026-09-17",
+    "next_visit": "2026-10-27",
+    "care_team": [
+      "primary care",
+      "psychiatry",
+      "cardiology",
+      "pulmonology"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 12 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -289,6 +587,26 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward B",
+    "systolic_bp": 123,
+    "diastolic_bp": 78,
+    "heart_rate": 72,
+    "temperature_c": 36.8,
+    "hba1c_percent": 8.7,
+    "egfr_ml_min": 99,
+    "medications": [
+      "Metformin"
+    ],
+    "allergies": [
+      "Latex"
+    ],
+    "last_visit": "2026-06-18",
+    "next_visit": "2026-08-12",
+    "care_team": [
+      "primary care",
+      "sleep medicine",
+      "endocrinology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -307,6 +625,25 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward C",
+    "systolic_bp": 124,
+    "diastolic_bp": 84,
+    "heart_rate": 77,
+    "temperature_c": 37.1,
+    "hba1c_percent": 9.5,
+    "egfr_ml_min": 81,
+    "medications": [
+      "Metformin"
+    ],
+    "allergies": [
+      "Penicillin"
+    ],
+    "last_visit": "2026-08-21",
+    "next_visit": "2026-10-21",
+    "care_team": [
+      "primary care",
+      "endocrinology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -325,6 +662,24 @@
     "risk_band": "elevated",
     "status": "review",
     "ward": "Ward B",
+    "systolic_bp": 110,
+    "diastolic_bp": 69,
+    "heart_rate": 66,
+    "temperature_c": 37.0,
+    "medications": [
+      "Atorvastatin",
+      "Aspirin"
+    ],
+    "allergies": [
+      "Latex"
+    ],
+    "last_visit": "2026-09-14",
+    "next_visit": "2027-01-09",
+    "care_team": [
+      "primary care",
+      "cardiology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -344,6 +699,23 @@
     "risk_band": "low",
     "status": "stable",
     "ward": "Ward C",
+    "systolic_bp": 134,
+    "diastolic_bp": 89,
+    "heart_rate": 68,
+    "temperature_c": 36.9,
+    "medications": [
+      "Sertraline",
+      "Albuterol"
+    ],
+    "allergies": [],
+    "last_visit": "2026-09-17",
+    "next_visit": "2026-10-28",
+    "care_team": [
+      "primary care",
+      "psychiatry",
+      "pulmonology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: Anxiety Disorder. Next review in 8 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -362,6 +734,25 @@
     "risk_band": "low",
     "status": "stable",
     "ward": "Ward C",
+    "systolic_bp": 132,
+    "diastolic_bp": 89,
+    "heart_rate": 76,
+    "temperature_c": 37.0,
+    "medications": [
+      "Tiotropium",
+      "Albuterol"
+    ],
+    "allergies": [
+      "Codeine",
+      "Penicillin"
+    ],
+    "last_visit": "2026-08-14",
+    "next_visit": "2026-11-03",
+    "care_team": [
+      "primary care",
+      "pulmonology"
+    ],
+    "note": "Synthetic record. Care plan reviewed by pulmonology. Follow-up booked in 14 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -383,6 +774,29 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward D",
+    "systolic_bp": 124,
+    "diastolic_bp": 73,
+    "heart_rate": 66,
+    "temperature_c": 36.7,
+    "hba1c_percent": 5.7,
+    "egfr_ml_min": 82,
+    "medications": [
+      "Acetaminophen",
+      "Atorvastatin",
+      "Aspirin",
+      "Sertraline"
+    ],
+    "allergies": [],
+    "last_visit": "2026-05-16",
+    "next_visit": "2026-06-14",
+    "care_team": [
+      "primary care",
+      "orthopedics",
+      "cardiology",
+      "psychiatry",
+      "sleep medicine"
+    ],
+    "note": "Synthetic record. Care plan reviewed by sleep medicine. Follow-up booked in 2 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -403,6 +817,29 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward B",
+    "systolic_bp": 122,
+    "diastolic_bp": 77,
+    "heart_rate": 78,
+    "temperature_c": 37.1,
+    "egfr_ml_min": 93,
+    "medications": [
+      "Levothyroxine",
+      "Methotrexate",
+      "Atorvastatin",
+      "Aspirin"
+    ],
+    "allergies": [
+      "Sulfonamides"
+    ],
+    "last_visit": "2026-06-16",
+    "next_visit": "2026-10-03",
+    "care_team": [
+      "primary care",
+      "endocrinology",
+      "rheumatology",
+      "cardiology"
+    ],
+    "note": "Synthetic record. Care plan reviewed by cardiology. Follow-up booked in 11 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -424,6 +861,28 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward A",
+    "systolic_bp": 132,
+    "diastolic_bp": 88,
+    "heart_rate": 86,
+    "temperature_c": 36.8,
+    "medications": [
+      "Furosemide",
+      "Metoprolol",
+      "Tiotropium",
+      "Albuterol",
+      "Omeprazole"
+    ],
+    "allergies": [],
+    "last_visit": "2026-07-20",
+    "next_visit": "2026-09-23",
+    "care_team": [
+      "primary care",
+      "cardiology",
+      "pulmonology",
+      "sleep medicine",
+      "gastroenterology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -443,6 +902,25 @@
     "risk_band": "moderate",
     "status": "watch",
     "ward": "Ward A",
+    "systolic_bp": 123,
+    "diastolic_bp": 78,
+    "heart_rate": 73,
+    "temperature_c": 36.8,
+    "egfr_ml_min": 50,
+    "medications": [
+      "Levothyroxine"
+    ],
+    "allergies": [
+      "Latex"
+    ],
+    "last_visit": "2026-09-18",
+    "next_visit": "2026-12-13",
+    "care_team": [
+      "primary care",
+      "nephrology",
+      "endocrinology"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -461,6 +939,25 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward A",
+    "systolic_bp": 107,
+    "diastolic_bp": 70,
+    "heart_rate": 74,
+    "temperature_c": 36.8,
+    "hba1c_percent": 5.6,
+    "egfr_ml_min": 89,
+    "medications": [
+      "Sertraline"
+    ],
+    "allergies": [
+      "Codeine"
+    ],
+    "last_visit": "2026-06-17",
+    "next_visit": "2026-08-08",
+    "care_team": [
+      "primary care",
+      "psychiatry"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 13 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -480,6 +977,26 @@
     "risk_band": "elevated",
     "status": "review",
     "ward": "Ward C",
+    "systolic_bp": 117,
+    "diastolic_bp": 76,
+    "heart_rate": 65,
+    "temperature_c": 36.8,
+    "hba1c_percent": 4.9,
+    "egfr_ml_min": 66,
+    "medications": [
+      "Methotrexate",
+      "Atorvastatin",
+      "Aspirin"
+    ],
+    "allergies": [],
+    "last_visit": "2026-06-16",
+    "next_visit": "2026-09-02",
+    "care_team": [
+      "primary care",
+      "rheumatology",
+      "cardiology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: Rheumatoid Arthritis. Next review in 5 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -500,6 +1017,31 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward C",
+    "systolic_bp": 124,
+    "diastolic_bp": 81,
+    "heart_rate": 67,
+    "temperature_c": 37.0,
+    "hba1c_percent": 6.2,
+    "egfr_ml_min": 96,
+    "medications": [
+      "Lisinopril",
+      "Amlodipine",
+      "Tiotropium",
+      "Albuterol",
+      "Furosemide",
+      "Metoprolol"
+    ],
+    "allergies": [
+      "Penicillin"
+    ],
+    "last_visit": "2026-07-24",
+    "next_visit": "2026-10-13",
+    "care_team": [
+      "primary care",
+      "cardiology",
+      "pulmonology"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 6 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -521,6 +1063,32 @@
     "risk_band": "elevated",
     "status": "watch",
     "ward": "Ward B",
+    "systolic_bp": 116,
+    "diastolic_bp": 70,
+    "heart_rate": 69,
+    "temperature_c": 37.1,
+    "hba1c_percent": 5.8,
+    "egfr_ml_min": 102,
+    "medications": [
+      "Sumatriptan",
+      "Methotrexate",
+      "Furosemide",
+      "Metoprolol",
+      "Atorvastatin"
+    ],
+    "allergies": [
+      "Aspirin",
+      "Penicillin"
+    ],
+    "last_visit": "2026-07-23",
+    "next_visit": "2026-11-01",
+    "care_team": [
+      "primary care",
+      "neurology",
+      "rheumatology",
+      "cardiology"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 3 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -540,6 +1108,24 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward D",
+    "systolic_bp": 123,
+    "diastolic_bp": 80,
+    "heart_rate": 72,
+    "temperature_c": 36.9,
+    "hba1c_percent": 6.8,
+    "medications": [
+      "Levetiracetam",
+      "Metformin"
+    ],
+    "allergies": [],
+    "last_visit": "2026-09-18",
+    "next_visit": "2026-12-01",
+    "care_team": [
+      "primary care",
+      "neurology",
+      "endocrinology"
+    ],
+    "note": "Synthetic record. No change since the last visit. Review again in 11 weeks.",
     "data_classification": "synthetic"
   },
   {
@@ -558,6 +1144,24 @@
     "risk_band": "moderate",
     "status": "watch",
     "ward": "Ward B",
+    "systolic_bp": 134,
+    "diastolic_bp": 97,
+    "heart_rate": 75,
+    "temperature_c": 37.0,
+    "hba1c_percent": 5.8,
+    "medications": [
+      "Sertraline"
+    ],
+    "allergies": [
+      "Latex"
+    ],
+    "last_visit": "2026-07-01",
+    "next_visit": "2026-08-26",
+    "care_team": [
+      "primary care",
+      "psychiatry"
+    ],
+    "note": "Synthetic record for demo use. Medicines reconciled at the last visit.",
     "data_classification": "synthetic"
   },
   {
@@ -576,6 +1180,22 @@
     "risk_band": "moderate",
     "status": "stable",
     "ward": "Ward D",
+    "systolic_bp": 126,
+    "diastolic_bp": 88,
+    "heart_rate": 83,
+    "temperature_c": 37.0,
+    "hba1c_percent": 7.5,
+    "medications": [
+      "Metformin"
+    ],
+    "allergies": [],
+    "last_visit": "2026-06-08",
+    "next_visit": "2026-06-27",
+    "care_team": [
+      "primary care",
+      "endocrinology"
+    ],
+    "note": "Synthetic record for demo use. Primary condition: Type 2 Diabetes. Next review in 6 weeks.",
     "data_classification": "synthetic"
   }
 ]

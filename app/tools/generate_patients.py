@@ -119,6 +119,69 @@ BLOOD_TYPES = [
 ]
 WARDS = ["Ward A", "Ward B", "Ward C", "Ward D"]
 
+# v2.1 fields. They come from a second random stream (see generate), so every v2 value above stays
+# byte-identical. The links below between conditions, labs, medicines and care roles only keep the
+# synthetic values plausible for a demo; they are not clinical rules and the API does not enforce
+# them (the model checks ranges and allowlists only).
+SECOND_STREAM_SALT = 1_000_003
+VISIT_WINDOW = (date(2026, 4, 1), date(2026, 9, 30))
+MEDICATIONS_FOR = {
+    "Asthma": ["Albuterol"],
+    "COPD": ["Tiotropium", "Albuterol"],
+    "Type 2 Diabetes": ["Metformin"],
+    "Hypertension": ["Lisinopril", "Amlodipine"],
+    "Atrial Fibrillation": ["Apixaban", "Metoprolol"],
+    "Chronic Kidney Disease": [],
+    "Osteoarthritis": ["Acetaminophen"],
+    "Hypothyroidism": ["Levothyroxine"],
+    "Anxiety Disorder": ["Sertraline"],
+    "Migraine": ["Sumatriptan"],
+    "Heart Failure": ["Furosemide", "Metoprolol"],
+    "Anemia": ["Ferrous sulfate"],
+    "Sleep Apnea": [],
+    "Rheumatoid Arthritis": ["Methotrexate"],
+    "Depression": ["Sertraline"],
+    "Gastroesophageal Reflux": ["Omeprazole"],
+    "Hyperlipidemia": ["Atorvastatin", "Aspirin"],
+    "Epilepsy": ["Levetiracetam"],
+}
+CARE_ROLE_FOR = {
+    "Asthma": "pulmonology",
+    "COPD": "pulmonology",
+    "Type 2 Diabetes": "endocrinology",
+    "Hypertension": "cardiology",
+    "Atrial Fibrillation": "cardiology",
+    "Chronic Kidney Disease": "nephrology",
+    "Osteoarthritis": "orthopedics",
+    "Hypothyroidism": "endocrinology",
+    "Anxiety Disorder": "psychiatry",
+    "Migraine": "neurology",
+    "Heart Failure": "cardiology",
+    "Anemia": "hematology",
+    "Sleep Apnea": "sleep medicine",
+    "Rheumatoid Arthritis": "rheumatology",
+    "Depression": "psychiatry",
+    "Gastroesophageal Reflux": "gastroenterology",
+    "Hyperlipidemia": "cardiology",
+    "Epilepsy": "neurology",
+}
+ALLERGIES = [
+    "Penicillin",
+    "Sulfonamides",
+    "Latex",
+    "Peanuts",
+    "Shellfish",
+    "Aspirin",
+    "Codeine",
+    "Iodine contrast",
+]
+NOTE_TEMPLATES = [
+    "Synthetic record for demo use. Primary condition: {condition}. Next review in {weeks} weeks.",
+    "Synthetic record. Care plan reviewed by {role}. Follow-up booked in {weeks} weeks.",
+    "Synthetic record for demo use. Medicines reconciled at the last visit.",
+    "Synthetic record. No change since the last visit. Review again in {weeks} weeks.",
+]
+
 
 class Rng:
     """Thin wrapper so every draw goes through one deterministic primitive."""
@@ -229,10 +292,85 @@ def make_record(index: int, rng: Rng, used_names: set[str]) -> dict:
     }
 
 
+def v21_fields(record: dict, rng: Rng) -> dict:
+    """Vitals, labs, medicines, allergies, visits, care team and a note for one record."""
+    conditions = record["conditions"]
+    has = set(conditions)
+
+    systolic = int(rng.normalish(122, 26)) + (10 if "Hypertension" in has else 0)
+    systolic = min(max(systolic, 96), 176)
+    gap = min(max(int(rng.normalish(42, 18)), 25), 70)
+    diastolic = min(max(systolic - gap, 56), 104)
+    heart_rate = min(
+        max(int(rng.normalish(74, 22)) + (8 if "Atrial Fibrillation" in has else 0), 52), 112
+    )
+    temperature = min(max(round(rng.normalish(36.8, 0.8), 1), 36.0), 37.8)
+
+    out = {
+        "systolic_bp": systolic,
+        "diastolic_bp": diastolic,
+        "heart_rate": heart_rate,
+        "temperature_c": temperature,
+    }
+    # Labs are not recorded for everyone, so the page has real "not recorded" cases to show.
+    if "Type 2 Diabetes" in has:
+        out["hba1c_percent"] = rng.between(66, 95) / 10
+    elif rng.below(10) < 6:
+        out["hba1c_percent"] = rng.between(48, 62) / 10
+    if "Chronic Kidney Disease" in has:
+        out["egfr_ml_min"] = rng.between(18, 55)
+    elif rng.below(10) < 5:
+        out["egfr_ml_min"] = rng.between(62, 112)
+
+    allergies = []
+    for _ in range(rng.between(0, 2)):
+        a = rng.pick(ALLERGIES)
+        if a not in allergies:
+            allergies.append(a)
+    medications = []
+    for c in conditions:
+        for m in MEDICATIONS_FOR.get(c, []):
+            if m not in medications and m not in allergies:
+                medications.append(m)
+    if out.get("egfr_ml_min", 99) < 30 and "Metformin" in medications:
+        medications.remove("Metformin")
+    roles = ["primary care"]
+    for c in conditions:
+        role = CARE_ROLE_FOR.get(c)
+        if role and role not in roles:
+            roles.append(role)
+
+    window_days = (VISIT_WINDOW[1] - VISIT_WINDOW[0]).days
+    last_visit = VISIT_WINDOW[0] + timedelta(days=rng.below(window_days + 1))
+    next_visit = last_visit + timedelta(days=rng.between(14, 120))
+    weeks = rng.between(2, 16)
+    note = rng.pick(NOTE_TEMPLATES).format(condition=conditions[0], role=roles[-1], weeks=weeks)
+
+    out.update(
+        {
+            "medications": medications[:8],
+            "allergies": allergies[:5],
+            "last_visit": last_visit.isoformat(),
+            "next_visit": next_visit.isoformat(),
+            "care_team": roles[:6],
+            "note": note,
+        }
+    )
+    return out
+
+
 def generate(seed: int = DEFAULT_SEED, count: int = DEFAULT_COUNT) -> list[dict]:
     rng = Rng(seed)
     used: set[str] = set()
-    records = [make_record(i, rng, used) for i in range(1, count + 1)]
+    base = [make_record(i, rng, used) for i in range(1, count + 1)]
+    # The v2.1 fields use their own stream: drawing them never shifts a v2 value.
+    rng2 = Rng(seed * SECOND_STREAM_SALT + 17)
+    records = []
+    for record in base:
+        extra = v21_fields(record, rng2)
+        # New keys go before data_classification so the seed file diff is additions only.
+        head = {k: v for k, v in record.items() if k != "data_classification"}
+        records.append({**head, **extra, "data_classification": record["data_classification"]})
     for record in records:
         Patient(**record)  # the same validation the API applies; a bad record stops the run
     return records

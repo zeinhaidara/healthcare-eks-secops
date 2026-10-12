@@ -1,66 +1,42 @@
-// three.js rendering for the skill tree. Everything is drawn on one canvas; the patient list
-// next to it is the accessible equivalent. No network access, no storage, no inline styles.
+// three.js rendering for the skill tree: the registry hub, one node per patient and the branches.
+// No text is drawn on the canvas; the page shows one DOM label instead, so labels never overlap.
+// No network access, no storage, no inline styles.
 import * as THREE from "./vendor/three/three.module.js";
 import { STATUS_COLORS } from "./layout.js";
 
-const BASE_SPAN = 38; // world units across the shorter side at zoom 1 (the tree is about 32 wide)
-const MIN_ZOOM = 0.5;
+const BASE_SPAN = 34; // world units across the shorter side at zoom 1 (the tree is about 28 wide)
+const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 4;
-const HUB_COLOR = "#5f86b8";
 const ROOT_COLOR = "#c7d6ea";
 const EDGE_COLOR = 0x35516f;
 const BACKGROUND = 0x0d1828;
-const RADIUS = { root: 1.5, band: 1.1, patient: 0.62, branch: 0.4 };
+const RADIUS = { root: 1.5, patient: 0.62 };
 
-function makeLabel(text, color, height) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const font = "600 34px system-ui, sans-serif";
-  ctx.font = font;
-  const width = Math.ceil(ctx.measureText(text).width) + 16;
-  canvas.width = width;
-  canvas.height = 52;
-  ctx.font = font;
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = color;
-  ctx.fillText(text, 8, 27);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set((height * width) / 52, height, 1);
-  return sprite;
-}
-
-export function createScene(container, { onSelect }) {
+export function createScene(container, { onActivate, onHover, onDraw }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "low-power" });
   } catch {
-    return null; // no WebGL: the list and the detail panel still work
+    return null; // no WebGL: the list and the card still work
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(BACKGROUND, 1);
   const canvas = renderer.domElement;
   canvas.setAttribute("aria-hidden", "true");
-  container.appendChild(canvas);
+  container.prepend(canvas);
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
   const world = new THREE.Group();
   scene.add(world);
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.82, 1.0, 40),
-    new THREE.MeshBasicMaterial({ color: 0xffffff }),
-  );
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1.0, 40), new THREE.MeshBasicMaterial({ color: 0xffffff }));
   ring.visible = false;
   ring.position.z = 0.5;
   scene.add(ring);
 
   const view = { cx: 0, cy: 0, zoom: 1 };
+  let span = BASE_SPAN; // grows when a crowded sector pushes patients further out, so none are clipped
   let nodes = [];
-  let selectedId = null;
   let pending = false;
   let disposables = [];
 
@@ -68,16 +44,8 @@ export function createScene(container, { onSelect }) {
     const w = container.clientWidth || 1;
     const h = container.clientHeight || 1;
     const aspect = w / h;
-    let halfW;
-    let halfH;
-    if (aspect >= 1) {
-      halfH = BASE_SPAN / 2 / view.zoom;
-      halfW = halfH * aspect;
-    } else {
-      halfW = BASE_SPAN / 2 / view.zoom;
-      halfH = halfW / aspect;
-    }
-    return { w, h, halfW, halfH };
+    const half = span / 2 / view.zoom;
+    return aspect >= 1 ? { w, h, halfW: half * aspect, halfH: half } : { w, h, halfW: half, halfH: half / aspect };
   }
 
   function draw() {
@@ -89,6 +57,7 @@ export function createScene(container, { onSelect }) {
     camera.bottom = view.cy - halfH;
     camera.updateProjectionMatrix();
     renderer.render(scene, camera);
+    if (onDraw) onDraw();
   }
 
   function requestDraw() {
@@ -112,17 +81,12 @@ export function createScene(container, { onSelect }) {
     world.clear();
   }
 
-  function colorFor(node) {
-    if (node.type === "root") return ROOT_COLOR;
-    if (node.type === "band") return HUB_COLOR;
-    return STATUS_COLORS[node.status] || STATUS_COLORS.watch;
-  }
-
   function setData(layout) {
     clearWorld();
     nodes = layout.nodes;
+    const reach = Math.max(0, ...nodes.map((n) => Math.hypot(n.x, n.y)));
+    span = Math.max(BASE_SPAN, 2 * (reach + 1.6));
     const byId = new Map(nodes.map((n) => [n.id, n]));
-
     const points = [];
     for (const e of layout.edges) {
       const a = byId.get(e.from);
@@ -139,31 +103,18 @@ export function createScene(container, { onSelect }) {
     for (const node of nodes) {
       const r = RADIUS[node.type];
       geometries[r] ||= new THREE.CircleGeometry(r, 28);
-      const material = new THREE.MeshBasicMaterial({ color: colorFor(node) });
+      const color = node.type === "root" ? ROOT_COLOR : STATUS_COLORS[node.status] || STATUS_COLORS.unknown;
+      const material = new THREE.MeshBasicMaterial({ color });
       const mesh = new THREE.Mesh(geometries[r], material);
       mesh.position.set(node.x, node.y, 0.1);
       world.add(mesh);
       disposables.push(material);
-
-      const big = node.type === "root" || node.type === "band";
-      if (node.dim) continue; // a nearby patient is open: keep its branches readable
-      const label = makeLabel(node.label, node.type === "branch" ? "#e6eef8" : "#cfdcee", big ? 1.0 : 0.8);
-      if (node.type === "branch") {
-        // Branch labels sit beside their node, away from the open patient.
-        const half = label.scale.x / 2;
-        label.position.set(node.x + node.side * (half + RADIUS.branch + 0.15), node.y, 0.3);
-      } else {
-        label.position.set(node.x, node.y - RADIUS[node.type] - 0.7, 0.3);
-      }
-      world.add(label);
-      disposables.push(label.material.map, label.material);
     }
     disposables.push(...Object.values(geometries));
-    setSelected(selectedId);
+    requestDraw();
   }
 
   function setSelected(id) {
-    selectedId = id;
     const node = nodes.find((n) => n.id === id && n.type === "patient");
     ring.visible = Boolean(node);
     if (node) {
@@ -174,40 +125,38 @@ export function createScene(container, { onSelect }) {
     requestDraw();
   }
 
-  function focus(id) {
+  // Screen position (CSS pixels, relative to the container) of a node, for the DOM label.
+  function screenOf(id) {
     const node = nodes.find((n) => n.id === id);
-    if (!node) return;
-    view.cx = node.x;
-    view.cy = node.y;
-    view.zoom = Math.max(view.zoom, 1.6);
-    requestDraw();
-  }
-
-  function toWorld(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const { halfW, halfH } = frustum();
-    const nx = (clientX - rect.left) / rect.width;
-    const ny = (clientY - rect.top) / rect.height;
-    return { x: view.cx - halfW + nx * 2 * halfW, y: view.cy + halfH - ny * 2 * halfH };
+    if (!node) return null;
+    const { w, h, halfW, halfH } = frustum();
+    return {
+      x: ((node.x - (view.cx - halfW)) / (2 * halfW)) * w,
+      y: ((view.cy + halfH - node.y) / (2 * halfH)) * h,
+      r: (RADIUS[node.type] / (2 * halfW)) * w,
+    };
   }
 
   function nearestPatient(clientX, clientY) {
-    const p = toWorld(clientX, clientY);
+    const rect = canvas.getBoundingClientRect();
+    const { halfW, halfH } = frustum();
+    const px = view.cx - halfW + ((clientX - rect.left) / rect.width) * 2 * halfW;
+    const py = view.cy + halfH - ((clientY - rect.top) / rect.height) * 2 * halfH;
     let best = null;
     let bestD = Infinity;
     for (const n of nodes) {
       if (n.type !== "patient") continue;
-      const d = Math.hypot(n.x - p.x, n.y - p.y);
+      const d = Math.hypot(n.x - px, n.y - py);
       if (d < bestD) {
         best = n;
         bestD = d;
       }
     }
-    // Generous hit radius so a fingertip works: about 1.4 world units at zoom 1.
-    return best && bestD <= 1.4 / Math.sqrt(view.zoom) ? best : null;
+    // Generous hit radius so a fingertip works.
+    return best && bestD <= 1.3 / Math.sqrt(view.zoom) ? best : null;
   }
 
-  // Pointer handling: drag to pan, pinch or wheel to zoom, tap to select.
+  // Pointer handling: drag to pan, pinch or wheel to zoom, tap or click to open a patient.
   const pointers = new Map();
   let moved = 0;
   let pinchStart = null;
@@ -222,7 +171,14 @@ export function createScene(container, { onSelect }) {
   };
   const onMove = (e) => {
     const prev = pointers.get(e.pointerId);
-    if (!prev) return;
+    if (!prev) {
+      if (e.pointerType === "mouse" && onHover) {
+        const hit = nearestPatient(e.clientX, e.clientY);
+        canvas.classList.toggle("over-node", Boolean(hit));
+        onHover(hit ? hit.id : null);
+      }
+      return;
+    }
     const cur = { x: e.clientX, y: e.clientY };
     pointers.set(e.pointerId, cur);
     if (pointers.size === 2 && pinchStart) {
@@ -243,21 +199,25 @@ export function createScene(container, { onSelect }) {
     const was = pointers.has(e.pointerId);
     pointers.delete(e.pointerId);
     pinchStart = null;
-    if (was && pointers.size === 0 && moved < 6) {
+    if (was && pointers.size === 0 && moved < 6 && e.type === "pointerup") {
       const hit = nearestPatient(e.clientX, e.clientY);
-      if (hit) onSelect(hit.id);
+      if (hit) onActivate(hit.id);
     }
+  };
+  const onLeave = () => {
+    canvas.classList.remove("over-node");
+    if (onHover) onHover(null);
   };
   const onWheel = (e) => {
     e.preventDefault();
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    view.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * factor));
+    view.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * Math.exp(-e.deltaY * 0.0015)));
     requestDraw();
   };
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
+  canvas.addEventListener("pointerleave", onLeave);
   canvas.addEventListener("wheel", onWheel, { passive: false });
 
   function dispose() {
@@ -266,6 +226,7 @@ export function createScene(container, { onSelect }) {
     canvas.removeEventListener("pointermove", onMove);
     canvas.removeEventListener("pointerup", onUp);
     canvas.removeEventListener("pointercancel", onUp);
+    canvas.removeEventListener("pointerleave", onLeave);
     canvas.removeEventListener("wheel", onWheel);
     clearWorld();
     ring.geometry.dispose();
@@ -275,5 +236,5 @@ export function createScene(container, { onSelect }) {
   }
 
   resize();
-  return { setData, setSelected, focus, dispose };
+  return { setData, setSelected, screenOf, dispose };
 }

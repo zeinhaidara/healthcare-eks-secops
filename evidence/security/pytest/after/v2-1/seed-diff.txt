@@ -1,0 +1,9 @@
+SEC-040 seed diff: app/data/patients.json on main (1b93780) against the regenerated file
+Records: 30 before, 30 after, same patient ids in the same order: True
+Existing values changed: none
+Fields added: allergies, care_team, diastolic_bp, egfr_ml_min, hba1c_percent, heart_rate, last_visit, medications, next_visit, note, systolic_bp, temperature_c
+Text diff: 0 lines removed, 620 lines added (new keys are written before data_classification, so the diff is additions only)
+sha256 before: 1d6a8311d9ecd932067f1349ca0ff79e62cbb00aab5968cb131eb3c45bb5c7d2
+sha256 after:  ae9546b355aea28c1d39f033a02ca90d4b4d37c64f6119db75b2518fc3826982
+Determinism: the generator gives the same sha256 on Python 3.12 (pinned image) and Python 3.13 (local); a test asserts the committed file equals the
+generator output, and another that every v2 value equals the output of the first random stream alone.
