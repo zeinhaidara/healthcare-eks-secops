@@ -31,7 +31,7 @@ resource "aws_securityhub_standards_subscription" "fsbp" {
 # ---------- GuardDuty ----------
 
 # The detector existed before this module (GuardDuty allows one per region) and was adopted by import.
-# It is in state now; the import block was removed (docs/runbooks/phase7-detective.md).
+# It is in state now; the import block was removed (docs/runbooks/detective-controls.md).
 resource "aws_guardduty_detector" "this" {
   # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account
   enable                       = true
@@ -206,7 +206,7 @@ resource "aws_cloudtrail" "this" {
 
 # ---------- SNS topic for trail and bucket notifications (fixes CKV_AWS_252, CKV2_AWS_62) ----------
 # Encrypted with the project key. Only the CloudTrail and S3 services may publish, each limited to this
-# trail or this bucket. No subscriber yet: alerts are wired in Phase 6.
+# trail or this bucket. No subscriber yet: alert delivery is not built.
 
 resource "aws_sns_topic" "trail" {
   name              = var.sns_topic_name

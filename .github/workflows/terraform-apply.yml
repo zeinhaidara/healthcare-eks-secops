@@ -67,7 +67,7 @@ jobs:
           test -s zips.sha256
       # SEC-037: fail before the plan artifact exists, so tf-apply cannot run, if the plan deletes or
       # replaces an S3 bucket or bucket sub-resource, a KMS key or a DynamoDB table. No override: a
-      # legitimate replacement is a human decision made in a separate PR (runbooks/phase7-detective.md).
+      # legitimate replacement is a human decision made in a separate PR (docs/runbooks/detective-controls.md).
       - name: destructive plan guard
         working-directory: terraform
         run: |
