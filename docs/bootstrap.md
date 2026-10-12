@@ -62,3 +62,12 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 2. Merging the chart to `main` triggers `cd.yml` (paths `app/**`, `helm/**`): build, scan, push, deploy dev, then prod, each behind its environment approval.
 3. The API key secret needs a value or `/ready` stays 503 and the ALB target stays unhealthy (see `docs/runbooks/deploy-check.md`).
 4. Decide how the `SecurityGroupPolicy` is created (SEC-032) before closing EXC-007. Note (2026-10-12): this step is done. EXC-007 was closed for dev and prod on 2026-10-09 (SEC-032); the `SecurityGroupPolicy` is owned by `terraform/cluster-addons`. The step is kept as the original text.
+
+## Known drift
+
+Observed on 2026-10-12 by reading the GitHub rulesets and environments (read-only). Each item is observed, not fixed. The live state and the policy JSON files are unchanged, and the text above is kept as written.
+
+- **`code_scanning` rule on `main`:** the `main` ruleset has a `code_scanning` rule. The "`main` ruleset settings" bullet above says the code scanning requirement was removed (SEC-010). Source: `main` ruleset, rules list.
+- **10 required checks, not 7:** the `main` ruleset requires `app-build`, `app-checkov`, `app-image-scan`, `app-test-lint`, `app-trivy`, `tf-checkov`, `tf-validate`, `sonar`, `CodeQL` and `codeql`. The bullet above lists 7. Source: `main` ruleset, `required_status_checks`.
+- **`dev` ruleset not described:** a `dev` ruleset is active. It targets `refs/heads/dev`, restricts deletion, blocks force push and requires a pull request with 0 approvals. It has no required status checks. This document does not mention it. Source: `dev` ruleset.
+- **`dev` environment allows protected branches:** the `dev` environment's deployment branch policy is "protected branches". The Environments bullet above says each environment is limited to `main`. `infra`, `infra-destroy` and `prod` use custom branch policies. Source: environments API, `deployment_branch_policy`.
