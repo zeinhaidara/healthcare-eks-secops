@@ -18,7 +18,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 - GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`, each requiring approval and limited to `main`. `infra` and `infra-destroy` each hold `AWS_ROLE_ARN` (the apply role). The apply role's trust policy must allow the `environment:infra` and `environment:infra-destroy` subjects.
 - IAM policies for the CI roles are in `docs/bootstrap-policies/` and are applied by hand, never by Terraform.
-- GitHub variables (repo and environment level) as listed in the design plan.
+- GitHub variables (repo and environment level).
 
 ## Set manually after Terraform apply
 
@@ -42,9 +42,9 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 - `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
 - Merge method: merge commits only (no squash, no rebase).
 
-## Phase 3 (EKS) manual steps
+## EKS on Fargate manual steps (Phase 3)
 
-1. Attach the updated `docs/bootstrap-policies/apply-policy.json` to the apply role (adds the `eks-fargate.amazonaws.com` service-linked role) before the first Phase 3 apply.
+1. Attach the updated `docs/bootstrap-policies/apply-policy.json` to the apply role (adds the `eks-fargate.amazonaws.com` service-linked role) before the first EKS apply (Phase 3).
 2. Keep `docs/bootstrap-policies/plan-policy.json` in sync with the live plan role (it includes `budgets:ListTagsForResource`).
 3. Run `terraform-apply`: read the plan in `tf-plan`, approve `tf-apply` (environment `infra`).
 4. After `tf-apply`, read the add-ons plan in `addons-plan`, then approve `addons-apply` (second `infra` approval).
@@ -56,7 +56,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 - Role ARNs, account ID and bucket name are never hardcoded; they arrive as variables.
 - `terraform init` uses `-backend-config="bucket=$TF_STATE_BUCKET"`.
 
-## Phase 4 (Helm deploy) manual steps
+## Helm chart and release pipeline manual steps (Phase 4)
 
 1. Attach `docs/bootstrap-policies/deploy-dev-policy.json` and `deploy-prod-policy.json` to the deploy roles (adds `acm:ListCertificates`).
 2. Merging the chart to `main` triggers `cd.yml` (paths `app/**`, `helm/**`): build, scan, push, deploy dev, then prod, each behind its environment approval.

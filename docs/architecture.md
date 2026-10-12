@@ -43,10 +43,10 @@ flowchart TB
     alb --> appdev
     alb --> appprod
     lbc -. "manages" .-> alb
-    appdev -- "IRSA, read only" --> ddb
-    appprod -- "IRSA, read only" --> ddb
-    appdev -- "IRSA, read secret" --> sm
-    appprod -- "IRSA, read secret" --> sm
+    appdev -- "IRSA, read only, via NAT" --> ddb
+    appprod -- "IRSA, read only, via NAT" --> ddb
+    appdev -- "IRSA, read secret, via NAT" --> sm
+    appprod -- "IRSA, read secret, via NAT" --> sm
     ecr -- "image pinned by digest" --> appdev
     ecr -- "image pinned by digest" --> appprod
     rot -- "rotates every 30 days" --> sm
@@ -62,6 +62,8 @@ flowchart TB
     kms -. "encrypts" .-> cwl
     kms -. "encrypts" .-> trailbucket
 ```
+
+Network path: pods reach DynamoDB and Secrets Manager through the single NAT gateway, because no VPC endpoints are built. Pod security groups are owned by `terraform/cluster-addons` (SEC-032). The EKS API endpoint stays public (EXC-005).
 
 References: SEC-001, SEC-002 (network and flow logs), SEC-021, SEC-030, SEC-032 (pod isolation and Pod Security), SEC-003, SEC-027, SEC-034 (rotation), SEC-022, SEC-023 (read-only seeded table), SEC-035 to SEC-037 (detective controls). The access-log bucket uses SSE-S3, not the project key (EXC-014). AWS Config, WAF and Inspector are not part of the stack (deferred, see the README).
 

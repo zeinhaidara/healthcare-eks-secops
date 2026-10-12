@@ -1,6 +1,6 @@
 # Security controls
 
-Controls are HIPAA-aligned, not HIPAA compliant. Data is synthetic only. Verified against the repository on 2026-10-12 (branch `docs/control-updates`, from `dev`). Every row names its source as `file:line`.
+Controls are HIPAA-aligned, not HIPAA compliant. Data is synthetic only. Verified against the repository on 2026-10-12 (branch `docs/control-updates`, from `dev`, since merged). Every row names its source as `file:line`.
 
 ## How to read this
 
@@ -27,7 +27,7 @@ Where the page disagrees with another document, the row says so in the open. The
 | Code ownership file | Live | none | The file itself; the rulesets do not require code-owner review, so it names owners but does not force review | `.github/CODEOWNERS:1-5` |
 | Dependabot: weekly updates for pip, Docker and GitHub Actions | Live | none | The config file. Not verified: whether update PRs are being opened (no PR history checked) | `.github/dependabot.yml:3-14` |
 | No secrets in git: env files, keys, local instructions, Prowler output and the local deck are ignored; Trivy scans for committed secrets | Live | SEC-000, SEC-012 | `evidence/security/trivy/` | `.gitignore:2,19-22,41,44`; `security/trivy/trivy.yaml` |
-| Every change and every accepted risk is recorded | Live | SEC-000 to SEC-038, EXC-001 to EXC-014 | The two registers themselves | `docs/security/improvement-log.md`, `docs/security/exceptions-register.md` |
+| Every change and every accepted risk is recorded | Live | SEC-000 to SEC-041, EXC-001 to EXC-014 | The two registers themselves | `docs/security/improvement-log.md`, `docs/security/exceptions-register.md` |
 
 ## 2. PR gate (no AWS access, no OIDC)
 
@@ -144,7 +144,7 @@ Nothing below proves the resource is running today; see "How to read this".
 | Control | Status | ID | Evidence | Source |
 |---|---|---|---|---|
 | Monthly budget of $75 with four alerts (actual spend at 50, 80 and 100 percent, forecast at 100 percent), set in Terraform | Live | SEC-038 | `improvement-log.md` SEC-038 (operator-confirmed 2026-10-11) | `terraform/variables.tf:50-53`; `terraform/main.tf:47-53`; `terraform/modules/budget/main.tf:4,6,15-30`; `terraform/modules/budget/variables.tf:16,22` |
-| Budget filtered to the cost tag `Project=cloudbatch818`; spend shown is a lower bound (untagged load balancers and Fargate are excluded) | Live | SEC-038 | SEC-038 update: $9.80 of $75 for October 2026 (operator-confirmed) | `terraform/modules/budget/main.tf:10-13`; `terraform/modules/budget/variables.tf:28,34` |
+| Budget filtered to the cost tag `Project=cloudbatch818`; the ALB carries the same tag (PR #56; operator-checked 2026-10-12, not verified from the repo); Fargate attribution is not confirmed, so the spend shown may be a lower bound | Live | SEC-038, SEC-041 | SEC-038 update: $9.80 of $75 for October 2026 (operator-confirmed) | `terraform/modules/budget/main.tf:10-13`; `terraform/modules/budget/variables.tf:28,34` |
 | Budget alert recipient receives alerts | Not verified | SEC-038 | The operator identity cannot view the notification settings; no alert has been recorded | `terraform/modules/budget/main.tf:15-30` |
 | Destroy the stack after every working session | Manual | EXC-013 | `docs/cost/budget.md` rules; whether the stack is up today was not checked | `terraform-destroy.yml` |
 

@@ -79,12 +79,12 @@ All CI roles are created by hand ([docs/bootstrap.md](docs/bootstrap.md)) and as
 ## Security documentation
 
 - [Exceptions register](docs/security/exceptions-register.md): every accepted risk with owner and expiry (EXC-001 to EXC-014; EXC-007 closed).
-- [Improvement log](docs/security/improvement-log.md): every change with source, before, fix and evidence (SEC-000 to SEC-037).
+- [Improvement log](docs/security/improvement-log.md): every change with source, before, fix and evidence (SEC-000 to SEC-041).
 - [Prowler triage](docs/security/prowler-triage.md): the 2026-10-10 scan against the register, with proposed new items N1 to N8.
 - [Security controls](docs/security/controls.md), [triage process](docs/security/triage-process.md), [findings report](docs/security/findings-report.md), [RBAC review](docs/security/rbac-review.md).
 - Scan evidence: `evidence/security/` (Checkov, Trivy, CodeQL, Sonar). Raw Prowler output stays local and is gitignored.
 
-## Deferred (planned, not built)
+## Planned (not built)
 
 | Item | Status |
 |---|---|

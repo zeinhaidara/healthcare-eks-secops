@@ -1,6 +1,6 @@
 # Findings report
 
-Status: skeleton, completed in Phase 8. Controls are HIPAA-aligned, not HIPAA compliant.
+Status: skeleton, not completed. It was meant to be completed in the wrap-up (Phase 8). Controls are HIPAA-aligned, not HIPAA compliant.
 
 1. Executive summary: findings before and after, headline numbers.
 2. Scope and method: what was scanned, tool versions, how before and after were measured.
@@ -11,9 +11,9 @@ Status: skeleton, completed in Phase 8. Controls are HIPAA-aligned, not HIPAA co
 7. Residual risk and what Tier 2 would add.
 8. Lessons learned.
 
-## Control notes collected so far (Phase 3)
+## Control notes collected so far (EKS on Fargate, Phase 3)
 
-- **Pod Security:** both app namespaces are labelled `restricted` for enforce, audit and warn (`terraform/cluster-addons/main.tf`). A privileged or root pod is rejected at admission; the rejection test is a Phase 4 evidence item.
+- **Pod Security:** both app namespaces are labelled `restricted` for enforce, audit and warn (`terraform/cluster-addons/main.tf`). A privileged or root pod is rejected at admission; no evidence of the rejection test exists (`evidence/security/podsecurity/` does not exist).
 - **IRSA scoping:** each app namespace has its own role, trusted only for `system:serviceaccount:<namespace>:healthcare-api` with audience `sts.amazonaws.com` (`StringEquals`). Permissions: read the patients table, read one secret, decrypt with one key. The controller role is trusted only for `kube-system/aws-load-balancer-controller`.
 - **Cluster-admin exception:** the apply role is the only cluster admin, by explicit access entry (EXC-006). Deploy roles are namespace-scoped `AmazonEKSEditPolicy`. The plan role has no cluster access.
 - **Fargate network isolation:** security groups for pods, not NetworkPolicy (SEC-021).
