@@ -41,7 +41,7 @@ def test_terraform_seed_encodes_every_field_type_and_keeps_the_guard():
 
     numbers, lists = default_of("number_attributes"), default_of("list_attributes")
     for key in {k for r in SEED for k in r}:
-        sample = next(r[key] for r in SEED)
+        sample = next(r[key] for r in SEED if key in r)
         if isinstance(sample, (int, float)) and not isinstance(sample, bool):
             assert key in numbers, f"{key} would be stored as a string"
         elif isinstance(sample, list):
@@ -51,3 +51,15 @@ def test_terraform_seed_encodes_every_field_type_and_keeps_the_guard():
     assert "sensitive(jsonencode(" in main  # SEC-025: the whole record stays sensitive
     assert 'data_classification, "") == "synthetic"' in main  # plan stops on an unmarked record
     assert 'default     = "synthetic"' in variables
+
+
+def test_seed_has_no_identifier_like_field():
+    keys = {k for r in SEED for k in r}
+    forbidden = ("ssn", "mrn", "insurance", "phone", "address", "email", "postcode", "zip")
+    assert not [k for k in keys if any(f in k for f in forbidden)]
+
+
+def test_seed_notes_and_lists_are_from_the_fixed_templates_and_allowlists():
+    for r in SEED:
+        assert r["note"].startswith("Synthetic record")
+        assert len(r["medications"]) <= 8 and len(r["allergies"]) <= 5 and len(r["care_team"]) <= 6

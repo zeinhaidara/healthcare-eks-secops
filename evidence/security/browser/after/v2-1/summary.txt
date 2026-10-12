@@ -1,0 +1,14 @@
+SEC-040 after: branch app/v2-1
+Date: 2026-10-12
+Result: 70 passed, 0 failed. Covers, at both widths: card opens by mouse on a node and on a list row, by keyboard on the tree (arrow + Enter)
+and on a focused row (Enter); closes by Escape, the Close button and a backdrop click; focus moves into the card and returns to the tree or the row;
+the card fits the viewport; one DOM label at most (hover, focus or selection), inside the tree, so no overlapping labels; a missing optional field reads
+"not recorded"; legend line present; no placeholder note for the real status mix; with v1-shaped records the note "status is a placeholder in this dataset"
+shows, missing status counts as "not recorded" (never "watch"); no horizontal scroll; localStorage, sessionStorage and cookies empty; no key in the URL or
+any request URL; only /patients routes requested; no Content Security Policy violations; no console errors (the deliberate wrong-key 403 is filtered).
+Not covered: other browsers, real GPU rendering, screen readers.
+Tool: mcr.microsoft.com/playwright@sha256:019b822658965bf5f6d509472802797554360f2940e677b2afb0f17748d0d0e3 (tag v1.49.1-jammy), playwright 1.49.1, Chromium bundled with it, headless, software WebGL (SwiftShader)
+App: the real FastAPI app in python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f (the Dockerfile base image), two instances: the committed seed, and v1-shaped records (SEED_FILE, no status and no v2 fields)
+Key: a throwaway key generated per run, passed in the environment, never written to any file (the result files contain 0 occurrences)
+Viewports: 375x812 (phone, touch) and 1280x800 (desktop)
+Command: bash run_browser_v21.sh <app source> <result file>  (same script and checks for before and after)

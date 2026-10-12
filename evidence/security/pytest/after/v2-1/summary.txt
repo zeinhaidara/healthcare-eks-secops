@@ -1,0 +1,14 @@
+SEC-040 after (branch app/v2-1)
+Date: 2026-10-12
+Result: ruff clean; pytest 124 passed, 1 skipped (the Node wrapper); Node tests 19 passed, 0 failed; Checkov 3 passed, 0 failed, 0 skipped;
+Trivy 0 findings; terraform fmt and validate pass. Seed diff: see seed-diff.txt.
+New tests: every v2.1 range, allowlist, size and duplicate check (valid passes, out of range fails), the cross-field checks (blood pressure pair,
+allergy vs medication, visit order, note patterns), no identifier-like field in the model or the seed, generator determinism and v2 values unchanged,
+the card rows ("not recorded"), the legend line, the status summary, and the page flow with open, Close, Escape, backdrop, focus return and keyboard.
+Commands (same for before and after; scripts kept outside the repo):
+  pytest, ruff: pinned python image above with app/requirements.txt and app/requirements-dev.txt; `ruff check .`, `ruff format --check .`,
+                `python -m pytest -p no:cacheprovider -q` on a copy of app/ and terraform/modules/dynamodb
+  node tests:   node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392, `node --test tests/js/*.test.mjs` (no packages)
+  checkov:      bridgecrew/checkov:3.3.26 `-d terraform/modules/dynamodb --framework terraform --config-file security/checkov/terraform.yaml`
+  trivy:        aquasec/trivy:0.75.0 `fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed app/`
+  terraform:    fmt -check -recursive, init -backend=false, validate (local Terraform v1.15.8; CI uses 1.16.5). No plan, no apply, no AWS.

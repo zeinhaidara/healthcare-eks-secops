@@ -96,7 +96,7 @@ def test_api_sets_no_cookie_and_returns_only_synthetic_records(client, auth):
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is not installed here")
 def test_page_logic_passes_its_node_tests():
     files = sorted(str(p) for p in JS_TESTS.glob("*.test.mjs"))
-    assert len(files) == 3, files
+    assert len(files) == 4, files
     result = subprocess.run(
         ["node", "--test", *files], capture_output=True, text=True, timeout=120, check=False
     )
@@ -115,3 +115,19 @@ def test_every_static_module_is_served_as_javascript_and_every_import_resolves(c
             assert (path.parent / target).is_file(), f"{path.name} imports missing {target}"
     html = read(STATIC / "index.html")
     assert '<script type="module" src="/static/app.js"></script>' in html
+
+
+def test_page_has_a_native_card_dialog_a_legend_and_a_status_note():
+    html = read(STATIC / "index.html")
+    assert '<dialog id="card"' in html and 'aria-labelledby="card-title"' in html
+    assert 'id="card-close"' in html and 'aria-label="Close patient card"' in html
+    assert 'id="legend"' in html and 'id="status-note"' in html and 'id="node-label"' in html
+    assert html.count("SYNTHETIC DATA") == 2  # the page banner and the card banner
+    assert 'tabindex="0"' in html  # the tree can take keyboard focus
+
+
+def test_missing_status_is_never_shown_as_watch():
+    layout = read(STATIC / "layout.js")
+    app = read(STATIC / "app.js")
+    assert '|| "watch"' not in layout and '|| "watch"' not in app
+    assert '"unknown"' in layout

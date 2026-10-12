@@ -1,0 +1,73 @@
+PASS  phone-375: banner visible
+PASS  phone-375: 30 patients listed
+PASS  phone-375: WebGL canvas created
+PASS  phone-375: legend line shown under the graph  | Centre: the patient registry. Branches: one per synthetic patient, grouped by ri
+PASS  phone-375: no placeholder note for the real status mix
+PASS  phone-375: at login only the focused patient may be labelled  | P001 Kira Tanaka
+PASS  phone-375: click on a node opens the card
+PASS  phone-375: focus moves into the card
+PASS  phone-375: card fits the viewport, no horizontal scroll
+PASS  phone-375: Escape closes the card
+PASS  phone-375: focus returns to the tree after Escape
+PASS  phone-375: the selected node shows its label
+PASS  phone-375: keyboard (arrow + Enter) on the tree opens the next patient
+PASS  phone-375: focus returns to the tree after keyboard use
+PASS  phone-375: list row opens the card
+PASS  phone-375: Close button closes and focus returns to the row
+PASS  phone-375: Enter on a focused row opens the card
+PASS  phone-375: backdrop click closes and focus returns to the row
+PASS  phone-375: missing optional field shows "not recorded"  | P005
+PASS  phone-375: card shows the new vitals and lists
+PASS  phone-375: at most one visible label, inside the tree (so no overlap)  | [{"inside":true}]
+PASS  phone-375: no horizontal scroll
+PASS  phone-375: localStorage and sessionStorage empty
+PASS  phone-375: no cookies
+PASS  phone-375: no key in the URL or any request URL  | http://v21app:8080/
+PASS  phone-375: no CSP violations
+PASS  phone-375: data only through /patients  | http://v21app:8080/patients, http://v21app:8080/patients
+PASS  phone-375: no console errors or warnings
+PASS  phone-375: Lock returns to the gate
+PASS  desktop-1280: banner visible
+PASS  desktop-1280: 30 patients listed
+PASS  desktop-1280: WebGL canvas created
+PASS  desktop-1280: legend line shown under the graph  | Centre: the patient registry. Branches: one per synthetic patient, grouped by ri
+PASS  desktop-1280: no placeholder note for the real status mix
+PASS  desktop-1280: at login only the focused patient may be labelled  | P001 Kira Tanaka
+PASS  desktop-1280: hover shows exactly one label, for the hovered patient  | P010 Ines Lindqvist
+PASS  desktop-1280: leaving the node drops the hover label  | P001 Kira Tanaka
+PASS  desktop-1280: click on a node opens the card
+PASS  desktop-1280: focus moves into the card
+PASS  desktop-1280: card fits the viewport, no horizontal scroll
+PASS  desktop-1280: Escape closes the card
+PASS  desktop-1280: focus returns to the tree after Escape
+PASS  desktop-1280: the selected node shows its label
+PASS  desktop-1280: keyboard (arrow + Enter) on the tree opens the next patient
+PASS  desktop-1280: focus returns to the tree after keyboard use
+PASS  desktop-1280: list row opens the card
+PASS  desktop-1280: Close button closes and focus returns to the row
+PASS  desktop-1280: Enter on a focused row opens the card
+PASS  desktop-1280: backdrop click closes and focus returns to the row
+PASS  desktop-1280: missing optional field shows "not recorded"  | P005
+PASS  desktop-1280: card shows the new vitals and lists
+PASS  desktop-1280: at most one visible label, inside the tree (so no overlap)  | [{"inside":true}]
+PASS  desktop-1280: no horizontal scroll
+PASS  desktop-1280: localStorage and sessionStorage empty
+PASS  desktop-1280: no cookies
+PASS  desktop-1280: no key in the URL or any request URL  | http://v21app:8080/
+PASS  desktop-1280: no CSP violations
+PASS  desktop-1280: data only through /patients  | http://v21app:8080/patients, http://v21app:8080/patients
+PASS  desktop-1280: no console errors or warnings
+PASS  desktop-1280: Lock returns to the gate
+PASS  phone-375-v1-shape: v1-shaped data shows the placeholder note  | Note: status is a placeholder in this dataset.
+PASS  phone-375-v1-shape: missing status is counted as not recorded, never as watch
+PASS  phone-375-v1-shape: card shows "not recorded" and never "watch"
+PASS  phone-375-v1-shape: no horizontal scroll
+PASS  phone-375-v1-shape: no console errors or warnings
+PASS  desktop-1280-v1-shape: v1-shaped data shows the placeholder note  | Note: status is a placeholder in this dataset.
+PASS  desktop-1280-v1-shape: missing status is counted as not recorded, never as watch
+PASS  desktop-1280-v1-shape: card shows "not recorded" and never "watch"
+PASS  desktop-1280-v1-shape: no horizontal scroll
+PASS  desktop-1280-v1-shape: no console errors or warnings
+
+70 passed, 0 failed
+exit=0

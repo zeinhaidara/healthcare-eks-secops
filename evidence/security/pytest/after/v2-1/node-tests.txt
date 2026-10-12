@@ -1,0 +1,126 @@
+v22.23.3
+TAP version 13
+# Subtest: the card shows every field of a full record, with units
+ok 1 - the card shows every field of a full record, with units
+  ---
+  duration_ms: 2.05544
+  type: 'test'
+  ...
+# Subtest: every label in every card has a value: missing reads 'not recorded', never blank
+ok 2 - every label in every card has a value: missing reads 'not recorded', never blank
+  ---
+  duration_ms: 3.784557
+  type: 'test'
+  ...
+# Subtest: a v1 record: new fields and status read 'not recorded', never 'watch'
+ok 3 - a v1 record: new fields and status read 'not recorded', never 'watch'
+  ---
+  duration_ms: 0.327323
+  type: 'test'
+  ...
+# Subtest: blood pressure needs both values; empty lists read 'not recorded'
+ok 4 - blood pressure needs both values; empty lists read 'not recorded'
+  ---
+  duration_ms: 0.73515
+  type: 'test'
+  ...
+# Subtest: status summary: the seed's mix is real; one status or none is a placeholder
+ok 5 - status summary: the seed's mix is real; one status or none is a placeholder
+  ---
+  duration_ms: 1.02627
+  type: 'test'
+  ...
+# Subtest: the legend line names the hub, the branches, every colour and that bands are illustrative
+ok 6 - the legend line names the hub, the branches, every colour and that bands are illustrative
+  ---
+  duration_ms: 0.562738
+  type: 'test'
+  ...
+# Subtest: one-decimal fields keep their decimal even when JSON drops it
+ok 7 - one-decimal fields keep their decimal even when JSON drops it
+  ---
+  duration_ms: 0.752852
+  type: 'test'
+  ...
+# Subtest: only the registry hub and one node per patient, each joined to the hub
+ok 8 - only the registry hub and one node per patient, each joined to the hub
+  ---
+  duration_ms: 17.980724
+  type: 'test'
+  ...
+# Subtest: patients are grouped in one sector per risk band
+ok 9 - patients are grouped in one sector per risk band
+  ---
+  duration_ms: 1.149078
+  type: 'test'
+  ...
+# Subtest: patient nodes do not overlap, for the real data and for the worst case
+ok 10 - patient nodes do not overlap, for the real data and for the worst case
+  ---
+  duration_ms: 2.682783
+  type: 'test'
+  ...
+# Subtest: a missing status is 'unknown', never one of the real statuses
+ok 11 - a missing status is 'unknown', never one of the real statuses
+  ---
+  duration_ms: 0.492034
+  type: 'test'
+  ...
+# Subtest: layout is deterministic
+ok 12 - layout is deterministic
+  ---
+  duration_ms: 3.241921
+  type: 'test'
+  ...
+# Subtest: page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder, lock; nothing stored
+ok 13 - page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder, lock; nothing stored
+  ---
+  duration_ms: 183.654106
+  type: 'test'
+  ...
+# Subtest: a good key logs in; the key is only sent to /patients and never stored or put in a URL
+ok 14 - a good key logs in; the key is only sent to /patients and never stored or put in a URL
+  ---
+  duration_ms: 5.8662
+  type: 'test'
+  ...
+# Subtest: a wrong key is rejected and nothing is kept
+ok 15 - a wrong key is rejected and nothing is kept
+  ---
+  duration_ms: 1.830824
+  type: 'test'
+  ...
+# Subtest: an empty key never reaches the network
+ok 16 - an empty key never reaches the network
+  ---
+  duration_ms: 0.906262
+  type: 'test'
+  ...
+# Subtest: only well-formed patient ids are requested
+ok 17 - only well-formed patient ids are requested
+  ---
+  duration_ms: 2.742087
+  type: 'test'
+  ...
+# Subtest: logout forgets the key
+ok 18 - logout forgets the key
+  ---
+  duration_ms: 1.070173
+  type: 'test'
+  ...
+# Subtest: a network failure is reported as unavailable, not as a bad key
+ok 19 - a network failure is reported as unavailable, not as a bad key
+  ---
+  duration_ms: 2.011337
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 329.010404
+node test exit=0
