@@ -61,7 +61,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - Trail delivery was confirmed at 22:01 on 2026-10-10: log files, SNS notifications, CloudWatch Logs and digests (SEC-037).
 - GuardDuty raised three Low severity findings in the incident window (2026-10-10, 15:19 to 15:25 America/New_York): public access block disabled on both log buckets, and server access logging disabled on the trail bucket. The actor was the apply role through GitHub Actions. The findings are kept as history. (Resolved GAP: SEC-037)
 - The effective permission was NOT_PUBLIC for all three findings, per the GuardDuty findings, operator-verified 2026-10-11 (SEC-037). The public access blocks and trail-bucket logging are back in place (SEC-037).
-- Alerting is planned, not built: the CloudTrail SNS topic has no subscriber (`docs/runbooks/phase7-detective.md`, known gaps). The incident was diagnosed from the failed apply run's logs (SEC-037).
+- Alerting is planned, not built: the CloudTrail SNS topic has no subscriber (`docs/runbooks/detective-controls.md`, known gaps). The incident was diagnosed from the failed apply run's logs (SEC-037).
 
 ## Prowler (2026-10-10 scan)
 
@@ -77,7 +77,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - The budget is filtered to the `Project=cloudbatch818` cost tag (SEC-038).
 - The filter was applied on 2026-10-11 (SEC-038, operator-confirmed).
 - October 2026 tagged spend is $9.80 of $75. This is a lower bound, because untagged load balancers and Fargate cost are excluded (SEC-038).
-- The scoped-spend history shows $0 before October 2026. That reflects the filter and tag activation, not zero project cost before then (SEC-038, `docs/runbooks/budget.md`).
+- The scoped-spend history shows $0 before October 2026. That reflects the filter and tag activation, not zero project cost before then (SEC-038, `docs/cost/budget.md`).
 - The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member (SEC-038, operator-confirmed).
 - **GAP:** the alert subscriber is unverified, so no alert delivery has been confirmed. The operator identity lacks permission to view the notification settings (SEC-038).
 - **GAP (explanation only):** the spend shown before the scope change was the whole shared account, not this project (SEC-038).
