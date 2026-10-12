@@ -14,6 +14,9 @@ metadata:
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.probes.liveness.path }}
     alb.ingress.kubernetes.io/certificate-arn: {{ required "ingress.certificateArn is required (set at deploy time)" .Values.ingress.certificateArn | quote }}
+    # Tags the load balancer (the AWS Load Balancer Controller adds them to the existing ALB).
+    # The budget filters on this tag (terraform/modules/budget).
+    alb.ingress.kubernetes.io/tags: "Project={{ .Values.ingress.projectTag }}"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
