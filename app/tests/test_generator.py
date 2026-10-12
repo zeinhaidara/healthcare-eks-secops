@@ -21,7 +21,9 @@ def gen():
 
 
 def test_same_seed_gives_identical_output(gen):
-    assert gen.render(gen.generate(123)) == gen.render(gen.generate(123))
+    first = gen.render(gen.generate(123))
+    second = gen.render(gen.generate(123))
+    assert first == second
 
 
 def test_different_seed_gives_different_output(gen):
