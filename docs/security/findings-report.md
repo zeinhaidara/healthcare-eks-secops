@@ -1,5 +1,7 @@
 # Findings report
 
+> **Template.** This is an outline, not a report. No findings, numbers or evidence links have been written into it. The wrap-up it was meant for (Phase 8, see `docs/phase-map.md`) did not complete it.
+
 Status: skeleton, not completed. It was meant to be completed in the wrap-up (Phase 8). Controls are HIPAA-aligned, not HIPAA compliant.
 
 1. Executive summary: findings before and after, headline numbers.
