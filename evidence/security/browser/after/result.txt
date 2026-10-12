@@ -1,0 +1,40 @@
+PASS  phone-375: banner visible on the gate
+PASS  phone-375: gate visible, tree hidden
+PASS  phone-375: wrong key is refused
+PASS  phone-375: 30 patients listed
+PASS  phone-375: banner still visible on the tree view
+PASS  phone-375: WebGL canvas created
+PASS  phone-375: selecting a patient fills the detail panel
+PASS  phone-375: tapping a neighbouring node on the canvas selects it  | expected P002
+PASS  phone-375: no horizontal scroll  | {"scrollW":375,"innerW":375,"bodyScrollW":375}
+PASS  phone-375: localStorage empty
+PASS  phone-375: sessionStorage empty
+PASS  phone-375: document.cookie empty
+PASS  phone-375: URL has no key or query  | http://v2app:8080/
+PASS  phone-375: no CSP violations
+PASS  phone-375: no key in any request URL
+PASS  phone-375: data only through /patients  | http://v2app:8080/patients, http://v2app:8080/patients
+PASS  phone-375: browser holds no cookies for the site  | []
+PASS  phone-375: no console errors or warnings
+PASS  phone-375: Lock returns to the gate
+PASS  desktop-1280: banner visible on the gate
+PASS  desktop-1280: gate visible, tree hidden
+PASS  desktop-1280: wrong key is refused
+PASS  desktop-1280: 30 patients listed
+PASS  desktop-1280: banner still visible on the tree view
+PASS  desktop-1280: WebGL canvas created
+PASS  desktop-1280: selecting a patient fills the detail panel
+PASS  desktop-1280: tapping a neighbouring node on the canvas selects it  | expected P002
+PASS  desktop-1280: no horizontal scroll  | {"scrollW":1280,"innerW":1280,"bodyScrollW":1280}
+PASS  desktop-1280: localStorage empty
+PASS  desktop-1280: sessionStorage empty
+PASS  desktop-1280: document.cookie empty
+PASS  desktop-1280: URL has no key or query  | http://v2app:8080/
+PASS  desktop-1280: no CSP violations
+PASS  desktop-1280: no key in any request URL
+PASS  desktop-1280: data only through /patients  | http://v2app:8080/patients, http://v2app:8080/patients
+PASS  desktop-1280: browser holds no cookies for the site  | []
+PASS  desktop-1280: no console errors or warnings
+PASS  desktop-1280: Lock returns to the gate
+
+38 passed, 0 failed

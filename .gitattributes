@@ -1,0 +1,2 @@
+# three.js is vendored unmodified; line-ending conversion would change its recorded hashes.
+app/static/vendor/** -text
