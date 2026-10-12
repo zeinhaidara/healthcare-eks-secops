@@ -1,0 +1,11 @@
+SEC-039 before (dev, before any change)
+Date: 2026-10-12
+Result: ruff check passed, ruff format passed, pytest 16 passed. No JavaScript tests existed. Checkov dynamodb module 3 passed, 0 failed. Trivy app/ 0 findings.
+Commands, run from the repo root with scripts kept outside the repo (see SEC-039):
+  pytest, ruff:  docker run python:3.12-slim (pinned digest above) with app/requirements.txt and app/requirements-dev.txt installed;
+                 `ruff check .`, `ruff format --check .`, `python -m pytest -p no:cacheprovider -q` in a copy of app/ (and terraform/modules/dynamodb for the seed test)
+  node tests:    docker run node:22-slim `node --test tests/js/*.test.mjs` (Node built-in runner, no packages)
+  terraform:     terraform fmt -check -recursive; terraform init -backend=false; terraform validate (local Terraform v1.15.8; CI uses 1.16.5). No plan, no apply, no AWS.
+  checkov:       bridgecrew/checkov:3.3.26 `-d terraform/modules/dynamodb --framework terraform --config-file security/checkov/terraform.yaml`
+  trivy:         aquasec/trivy:0.75.0 `fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed app/`
+Note: the before run mounted only app/, so the Terraform-seed test (added later) was not part of it.

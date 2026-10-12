@@ -1,0 +1,26 @@
+Python 3.12.15
+--- pip freeze (direct)
+boto3==1.43.108
+fastapi==0.142.2
+httpx==0.28.1
+pydantic==2.13.5
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.16.10
+uvicorn==0.54.0
+--- ruff check
+All checks passed!
+ruff check exit=0
+--- ruff format --check
+9 files already formatted
+ruff format exit=0
+--- pytest
+................                                                         [100%]
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+16 passed, 1 warning in 0.62s
+pytest exit=0

@@ -1,0 +1,2 @@
+{"rows":30,"sessionStorageEntries":1,"keyFoundInSessionStorage":true,"localStorageEntries":0,"cookie":"","syntheticBannerOnPage":false}
+FAIL  key is kept in sessionStorage after login (v1 behaviour)

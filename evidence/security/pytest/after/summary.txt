@@ -1,0 +1,13 @@
+SEC-039 after (branch app/v2)
+Date: 2026-10-12
+Result: ruff check passed, ruff format passed, pytest 60 passed 1 skipped (the skipped test is the Node wrapper; the Python image has no Node), Node tests 13 passed, 0 failed.
+terraform fmt and validate pass. Checkov dynamodb module 3 passed, 0 failed, 0 skipped. Trivy app/ 0 findings (it reads requirements.txt; it does not analyse the vendored three.js).
+New tests: model validation (bad values rejected), generator reproducibility, every record synthetic, API 403 without a valid key, page leaves storage and cookies empty (Node, real app.js on a DOM shim), static-page checks (no inline script, no storage APIs, CSP unchanged, vendored hashes).
+Mutation check (not saved as a run): adding sessionStorage.setItem to session.js made 2 Node tests fail, as intended.
+Commands, run from the repo root with scripts kept outside the repo (see SEC-039):
+  pytest, ruff:  docker run python:3.12-slim (pinned digest above) with app/requirements.txt and app/requirements-dev.txt installed;
+                 `ruff check .`, `ruff format --check .`, `python -m pytest -p no:cacheprovider -q` in a copy of app/ (and terraform/modules/dynamodb for the seed test)
+  node tests:    docker run node:22-slim `node --test tests/js/*.test.mjs` (Node built-in runner, no packages)
+  terraform:     terraform fmt -check -recursive; terraform init -backend=false; terraform validate (local Terraform v1.15.8; CI uses 1.16.5). No plan, no apply, no AWS.
+  checkov:       bridgecrew/checkov:3.3.26 `-d terraform/modules/dynamodb --framework terraform --config-file security/checkov/terraform.yaml`
+  trivy:         aquasec/trivy:0.75.0 `fs --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed app/`

@@ -1,0 +1,8 @@
+three.js (vendored, unmodified)
+version: 0.186.1
+license: MIT (see LICENSE)
+source: npm package three@0.186.1, https://registry.npmjs.org/three/-/three-0.186.1.tgz
+npm tarball integrity: sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==
+three.module.js sha256: 9052042d676cb0fdc1ddfefe193053f34b7ac0513a616fdac4535d49987812ea
+three.core.js sha256: 9edde002b066a9a05676a6127f67735b62baf399bdea529f2f7e31657da769e6
+Copied from package/build/. No CDN is used at runtime; the CSP allows scripts from this origin only.
