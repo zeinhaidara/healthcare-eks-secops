@@ -28,14 +28,21 @@
 
   <main id="app" hidden>
     <section class="stage" aria-label="Skill tree of synthetic patients">
-      <div id="canvas-host" class="canvas-host"></div>
-      <p id="no-webgl" class="muted" hidden>The 3D view is not available in this browser. Use the list below.</p>
-      <ul class="legend" aria-label="Status colours">
+      <div id="canvas-host" class="canvas-host" tabindex="0" role="application"
+           aria-label="Skill tree. Arrow keys move between patients. Enter opens the patient card."
+           aria-describedby="legend">
+        <div id="node-label" class="node-label" hidden></div>
+      </div>
+      <p id="no-webgl" class="muted" hidden>The 3D view is not available in this browser. Use the list of patients.</p>
+      <p id="legend" class="legend-line"></p>
+      <p id="status-note" class="status-note" role="note" hidden></p>
+      <ul class="legend" aria-label="Patients per status">
         <li><span class="chip chip-stable">stable</span> <span id="n-stable">0</span></li>
         <li><span class="chip chip-watch">watch</span> <span id="n-watch">0</span></li>
         <li><span class="chip chip-review">review</span> <span id="n-review">0</span></li>
+        <li><span class="chip chip-unknown">not recorded</span> <span id="n-unknown">0</span></li>
       </ul>
-      <p class="muted small">Drag to move, scroll or pinch to zoom, tap a node to open it. Risk bands are illustrative labels.</p>
+      <p class="muted small">Drag to move, scroll or pinch to zoom. Click or tap a patient to open the card.</p>
     </section>
 
     <aside class="side">
@@ -43,13 +50,19 @@
         <h2 id="list-title">Patients <span id="count" class="pill">0</span></h2>
         <ul id="patient-list" class="plist"></ul>
       </section>
-      <section id="detail" class="detail" aria-live="polite" aria-labelledby="detail-title">
-        <h2 id="detail-title">Details</h2>
-        <p id="detail-empty" class="muted">Select a patient to see its branches.</p>
-        <dl id="detail-body" class="facts" hidden></dl>
-      </section>
     </aside>
   </main>
+
+  <dialog id="card" class="card" aria-labelledby="card-title">
+    <div class="card-inner">
+      <div class="card-head">
+        <h2 id="card-title">Patient</h2>
+        <button id="card-close" type="button" class="ghost" aria-label="Close patient card">Close</button>
+      </div>
+      <p class="card-banner">SYNTHETIC DATA &middot; illustrative only &middot; not clinical advice</p>
+      <div id="card-body" class="card-body"></div>
+    </div>
+  </dialog>
 
   <script type="module" src="/static/app.js"></script>
 </body>
