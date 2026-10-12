@@ -37,11 +37,22 @@ resource "aws_dynamodb_table_item" "seed" {
   # The record body is marked sensitive so plan/apply output and plan.txt show "(sensitive value)".
   # The key stays visible in the resource address: seed["P001"]. sensitive() only marks the value
   # inside Terraform; the JSON sent to DynamoDB is unchanged.
+  # All fields, including the v2 display fields, are inside this one sensitive() value (SEC-025).
   item = sensitive(jsonencode({
-    for k, v in each.value : k => contains(var.number_attributes, k) ? { N = tostring(v) } : { S = tostring(v) }
+    for k, v in each.value : k => (
+      contains(var.number_attributes, k) ? { N = tostring(v) } :
+      contains(var.list_attributes, k) ? { L = [for e in v : { S = tostring(e) }] } :
+      { S = tostring(v) }
+    )
   }))
 
   lifecycle {
     ignore_changes = []
+
+    # Synthetic data only: a seed record that is not marked synthetic stops the plan (SEC-039).
+    precondition {
+      condition     = try(each.value.data_classification, "") == "synthetic"
+      error_message = "Every seed record must have data_classification = \"synthetic\"."
+    }
   }
 }

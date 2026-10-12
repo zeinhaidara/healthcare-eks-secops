@@ -1,0 +1,12 @@
+SEC-039 after: the v2 page in a real headless browser
+Date: 2026-10-12
+Tool: mcr.microsoft.com/playwright@sha256:019b822658965bf5f6d509472802797554360f2940e677b2afb0f17748d0d0e3 (tag v1.49.1-jammy), playwright 1.49.1; Chromium bundled with it, headless, software WebGL (SwiftShader)
+Target: the v2 app (branch app/v2), real FastAPI app in python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f (the Dockerfile base image), throwaway key
+Viewports: 375x812 (phone, touch) and 1280x800 (desktop)
+Result: 38 passed, 0 failed (19 checks per viewport), see result.txt. Covers: banner on the gate and the tree view, wrong key refused,
+30 patients listed, WebGL canvas created, tap on a canvas node selects a patient, no horizontal scroll (scrollWidth equals innerWidth),
+localStorage and sessionStorage empty, document.cookie empty, no cookies held by the browser, no key in the URL or any request URL,
+only /patients routes requested, no Content Security Policy violation events, no console errors (the one expected 403 is the deliberate wrong-key attempt, filtered), Lock returns to the gate.
+Not covered: other browsers (only Chromium), real GPU rendering, screen readers.
+Screenshots were looked at but are not saved here.
+Command: BROWSER_TEST_KEY=<throwaway> node browser_check.mjs   (run in the Playwright image against the v2 container)

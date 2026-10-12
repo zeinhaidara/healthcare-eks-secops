@@ -12,9 +12,15 @@ variable "hash_key" {
 }
 
 variable "number_attributes" {
-  description = "Seed attributes stored as DynamoDB numbers (N); all others are strings (S)."
+  description = "Seed attributes stored as DynamoDB numbers (N). Attributes in neither list are strings (S)."
   type        = list(string)
-  default     = ["age"]
+  default     = ["age", "height_cm", "weight_kg"]
+}
+
+variable "list_attributes" {
+  description = "Seed attributes stored as DynamoDB lists of strings (L of S)."
+  type        = list(string)
+  default     = ["conditions"]
 }
 
 # Must stay "synthetic". Do not set "phi" anywhere until the Phase 7 items are closed (state
