@@ -488,6 +488,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member.
   - October 2026 tagged spend is $9.80 of $75. This is a lower bound: untagged load balancers and Fargate cost are excluded.
   - The alert recipient is still unverified. The operator identity lacks permission to view the budget's notification settings.
+- Note (2026-10-12): the ALB `Project` tag landed in PR #56 (commit `5e10018`); see SEC-041. The Residual and Update lines above are the 2026-10-11 state and are kept as written. The `docs/runbooks/budget.md` named in the Fix line moved into `docs/cost/budget.md` in PR #58.
 - Outcome: open. Close when the scoped spend has been checked against Cost Explorer filtered on the tag, and delivery to the alert recipient is verified.
 - Control area: cost control, monitoring
 
@@ -505,6 +506,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Expected plan (not run): 30 `aws_dynamodb_table_item.seed[...]` updated in place (the item body changes; ids P001 to P030 are unchanged), no creates, no deletes, no replacements, no change to the table. A "will be destroyed" or "must be replaced" on any item or on the table is a stop. The destructive plan guard covers tables but not table items, so read the plan.
 - Rollout order: deploy the v2 image first (merge to `main`, `cd.yml`), then run the infra workflow to seed. The v1 model rejects unknown fields, so v1 pods would fail on `/patients` once the table holds the new fields.
 - Not verified: the Terraform plan and the in-place update behaviour (provider schema not checked, no plan run); other browsers than Chromium; real GPU rendering; screen readers; Dependabot does not track the vendored three.js, so a version bump is a manual task. The risk bands are an illustrative formula, not clinical advice.
+- Note (2026-10-12): the tested commit was `db14812`; the Sonar test fix is `a7925a0` (PR #52, merged).
 - Outcome: open (code complete on the branch; close after review, merge, deploy, the infra seed run and a plan that matches the expectation above)
 - Control area: secrets management, data protection, supply chain
 
@@ -523,5 +525,18 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - After: `evidence/security/browser/after/v2-1/` (70 of 70 checks at 375px and 1280px: card by mouse, keyboard and Escape, focus return, backdrop close, at most one label and inside the tree, no horizontal scroll, no Content Security Policy violation, no key in storage, cookies or URLs, placeholder note on v1-shaped records), `evidence/security/pytest/after/v2-1/` (124 passed, 1 skipped; 19 Node tests; ruff clean), `evidence/security/checkov/after/v2-1/` (0 failed), `evidence/security/trivy/after/v2-1/` (0 findings), `evidence/security/terraform/after/v2-1/` (fmt and validate pass).
 - Expected plan (not run): the 30 `aws_dynamodb_table_item.seed[...]` updated in place with the new attributes; nothing created, destroyed or replaced; no change to the table. Read the plan before approving: the destructive plan guard does not cover table items.
 - Not verified: the Terraform plan; the state of the live table; browsers other than Chromium; real GPU rendering; screen readers.
+- Note (2026-10-12): PR #54 was merged to `dev` and then to `main` (`3eb5795` on `main` via #54; #55 and #57 carried it forward). The "not merged" in the Date / PR line is the state when the entry was written.
 - Outcome: open (code complete on the branch; close after review, merge, deploy, the infra seed run and a plan that matches the expectation above)
 - Control area: data integrity, data protection, secrets management
+
+### SEC-041: ALB carries the Project cost allocation tag
+- Date / PR: 2026-10-12 / PR #56 (commit `5e10018`)
+- Source: SEC-038 Residual: the ALB created by the Load Balancer Controller carried no `Project` tag, so the scoped budget could not count it.
+- Risk: spend on the ALB was outside the budget filter, so the scoped figure under-reported project cost.
+- Before: no ALB tag was set (SEC-038 Residual).
+- Fix: the Helm chart sets the annotation `alb.ingress.kubernetes.io/tags` with the value `cloudbatch818` for the `Project` key. This satisfies the budget filter `Project$cloudbatch818` (SEC-038), which also matches `PROJECT_NAME` = `cloudbatch818`.
+- After: the operator checked the ALB tag on 2026-10-12. This was not verified from the repo.
+- Not verified: Fargate cost attribution (check Cost Explorer); the tag lookup itself is not in the repo yet.
+- Evidence: TODO, operator to add tag lookup output under evidence/security/
+- Outcome: open (close when the tag lookup evidence is added and the scoped spend is checked against Cost Explorer)
+- Control area: cost control, monitoring

@@ -1,4 +1,4 @@
-# Presentation facts (Phase 8)
+# Presentation facts (wrap-up, Phase 8)
 
 One fact per line, each with its source: a SEC or EXC ID, or a file or setting where no ID exists. **GAP** marks anything not confirmed in the repo or in a setting that was read. No account IDs, ARNs, emails or hostnames. Status as of 2026-10-11.
 
@@ -76,7 +76,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - The budget is `cloudbatch818-zein-hcsecops-monthly`: $75 a month, with four alerts (actual spend at 50, 80 and 100 percent, forecast at 100 percent), all set in Terraform (SEC-038, `terraform/modules/budget`).
 - The budget is filtered to the `Project=cloudbatch818` cost tag (SEC-038).
 - The filter was applied on 2026-10-11 (SEC-038, operator-confirmed).
-- October 2026 tagged spend is $9.80 of $75. This is a lower bound, because untagged load balancers and Fargate cost are excluded (SEC-038).
+- October 2026 tagged spend is $9.80 of $75. This is the 2026-10-11 reading and a possible lower bound: Fargate attribution is not confirmed (check Cost Explorer). The tags match (`PROJECT_NAME` = `cloudbatch818`) and the ALB carries the same tag since PR #56 (checked by the operator on 2026-10-12, not verified from the repo) (SEC-038, SEC-041).
 - The scoped-spend history shows $0 before October 2026. That reflects the filter and tag activation, not zero project cost before then (SEC-038, `docs/cost/budget.md`).
 - The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member (SEC-038, operator-confirmed).
 - **GAP:** the alert subscriber is unverified, so no alert delivery has been confirmed. The operator identity lacks permission to view the notification settings (SEC-038).
@@ -103,8 +103,8 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 ## Built, planned, next
 
-- **Built:** VPC with flow logs, EKS on Fargate, ECR, DynamoDB, Secrets Manager with rotation, KMS, CloudTrail, GuardDuty, Security Hub, OIDC CI/CD with scan gates, a destructive plan guard and a project-scoped budget (SEC-001 to SEC-038).
-- **Next:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033, still open), the `sns_topic_name` drift fix and removal of the GuardDuty lookup (SEC-037), and tags on the controller's ALBs (SEC-038).
+- **Built:** VPC with flow logs, EKS on Fargate, ECR, DynamoDB, Secrets Manager with rotation, KMS, CloudTrail, GuardDuty, Security Hub, OIDC CI/CD with scan gates, a destructive plan guard and a project-scoped budget (SEC-001 to SEC-041).
+- **Next:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033, still open), the `sns_topic_name` drift fix and removal of the GuardDuty lookup (SEC-037), and the ALB tag lookup evidence (SEC-041, TODO).
 - **Planned:** AWS Config, WAF, Inspector, CloudWatch alarms with alert delivery, and a full incident simulation (`docs/security/controls.md` section 7, README).
 
 ## Honest answers

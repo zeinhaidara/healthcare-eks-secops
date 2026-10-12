@@ -1,8 +1,8 @@
 # Budget
 
-**Monthly budget: $75** (us-east-2). Alerts at 50%, 80% and 100% of actual spend, plus a 100% forecast alert, sent to `ALERT_EMAIL`. The AWS Budget itself is created in Terraform in Phase 2.
+**Monthly budget: $75** (us-east-2). Alerts at 50%, 80% and 100% of actual spend, plus a 100% forecast alert, sent to `ALERT_EMAIL`. The AWS Budget itself is created in Terraform (Terraform foundation, Phase 2; see the [phase map](../phase-map.md)).
 
-Scope: the budget counts only spend tagged `Project=cloudbatch818`, because the account is shared (SEC-038). Untagged spend, such as controller-created ALBs and Fargate pod compute, is not counted. Tag activation and checks are in this page, under [Prerequisite: activate the cost allocation tag](#prerequisite-activate-the-cost-allocation-tag).
+Scope: the budget counts only spend tagged `Project=cloudbatch818`, because the account is shared (SEC-038). Untagged spend is not counted. The tags match: CI sets `project_name` from the `PROJECT_NAME` repo variable (`cloudbatch818`), and the filter is `Project$cloudbatch818`. The controller-created ALB carries the same tag (PR #56, SEC-041; checked by the operator on 2026-10-12, not verified from the repo). Fargate pod compute attribution is not confirmed; check Cost Explorer. Tag activation and checks are in this page, under [Prerequisite: activate the cost allocation tag](#prerequisite-activate-the-cost-allocation-tag).
 
 The monthly AWS Budget (`terraform/modules/budget`, $75, alerts at 50%, 80% and 100% of actual spend and a 100% forecast alert) counts only spend tagged `Project=cloudbatch818` (SEC-038). The account is shared with other teams, so an unfiltered budget would track their spend too. Estimates and rules are at the end of this page, under [Estimates](#estimates) and [Rules](#rules).
 
@@ -32,13 +32,12 @@ The filter matches nothing until `Project` is an **active user-defined cost allo
 
 ## What the filter does not count
 
-Only spend on resources that carry the tag is counted. In this code these carry no `Project` tag, so their spend is likely missing from the scoped budget:
+Only spend on resources that carry the tag is counted. These may be missing from the scoped budget:
 
-- ALBs created by the AWS Load Balancer Controller (no default tags configured on the controller or the Ingress).
 - Fargate pod compute (pods carry no AWS tags), unless EKS split cost allocation data is enabled in Billing; whether it is was not checked.
 - Charges not tied to a tagged resource, such as some data transfer and account-level service charges.
 
-Treat the scoped budget as a lower bound. For a full view during a session, look at the unfiltered Cost Explorer view for the services in the [Estimates](#estimates) table. Tagging the controller's ALBs is a follow-up (SEC-038).
+Treat the scoped budget as a lower bound. For a full view during a session, look at the unfiltered Cost Explorer view for the services in the [Estimates](#estimates) table. The ALB tag landed in PR #56 (SEC-041).
 
 ## Alert recipient
 
@@ -46,7 +45,7 @@ Alerts go to the email in the `ALERT_EMAIL` GitHub variable (passed as `alert_em
 
 ## Estimates
 
-Rough on-demand estimates, not checked against current pricing. Replace with measured values in the Phase 8 cost baseline.
+Rough on-demand estimates, not checked against current pricing. Replace with measured values in the cost baseline (wrap-up, Phase 8).
 
 | Item | Running 24/7 | Destroyed after each session (about 40 hours a month) |
 |---|---|---|
@@ -61,4 +60,4 @@ Rough on-demand estimates, not checked against current pricing. Replace with mea
 ## Rules
 - Destroy after every working session (`terraform-destroy.yml`, behind the `infra-destroy` approval).
 - A forgotten cluster costs roughly $8 to $10 a day; the 80% alert is the signal to check.
-- Re-check this table at the end of Phase 5 (security services) and update the budget if needed.
+- Re-check this table once the security services are in place (older text: Phase 5; see the [phase map](../phase-map.md)) and update the budget if needed.
