@@ -59,6 +59,8 @@ ingress:
   className: alb
   host: "" # required, set per environment
   certificateArn: "" # required, set at deploy time
+  # Must match the PROJECT_NAME repo variable. Budget filter uses this value.
+  projectTag: cloudbatch818
 
 # Needs metrics-server, which is not installed on this cluster yet. Off until it is (follow-up).
 autoscaling:
