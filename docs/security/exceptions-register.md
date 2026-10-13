@@ -18,6 +18,7 @@ Every suppression (`checkov:skip`, `.trivyignore`, Prowler mutelist) needs an in
 | EXC-012 | Checkov 3.3.26 `CKV_AWS_144` | `module.detective.aws_s3_bucket.trail` (`terraform/modules/detective/main.tf`) and `module.detective.aws_s3_bucket.access_logs` (added 2026-10-10) | No cross-region replication for logs in a stack destroyed after each session. Inline skip on the trail bucket only. Also covers the access-log bucket, for the same reason (inline skip on that bucket only). | Moulaye | 2027-04-08 | SEC-035, SEC-036 |
 | EXC-013 | Process control (not a scanner suppression) | `force_destroy = true` on the trail bucket and the access-log bucket (`terraform/modules/detective`) | The session destroy deletes the CloudTrail audit logs and their access logs together with the stack, so no audit history survives a destroy. Accepted because the stack is destroyed after each working session and holds synthetic data only. | Moulaye | 2027-04-08 | SEC-035, SEC-036 |
 | EXC-014 | Checkov 3.3.26 `CKV_AWS_145` | `module.detective.aws_s3_bucket.access_logs` (`terraform/modules/detective/main.tf`) | S3 server access logging requires the target bucket to use SSE-S3 default encryption; SSE-KMS on the target stops log delivery. The bucket holds only access logs of the trail bucket, is private, versioned and TLS-only. Inline skip on that bucket only. | Moulaye | 2027-04-08 | SEC-036 |
+| EXC-015 | Process control (not a scanner suppression) | Single-AZ NAT gateway `aws_nat_gateway.this` (`terraform/modules/network/main.tf:56-70`) | Single NAT gateway, accepted availability risk. One NAT in `us-east-2a` serves both private subnets, so an outage of that AZ stops outbound calls to DynamoDB, Secrets Manager, KMS and ECR from pods in both AZs. Accepted for cost. Compensating: the table is regional, the pods run in two AZs, and the fixes (a NAT and private route table per AZ, a DynamoDB gateway endpoint, interface endpoints) are documented as planned, not built. | Moulaye | 2027-04-08 | [architecture.md, single NAT gateway](../architecture.md#availability-single-nat-gateway) |
 
 ## EXC-007 closure evidence (2026-10-09)
 
@@ -25,7 +26,7 @@ Closed for dev and prod. Method: pod IPs from `kubectl get pods -n <namespace> -
 
 | Environment | Pod IP | Network interface | AZ | Pod security group | Cluster security group |
 |---|---|---|---|---|---|
-| dev | 10.60.12.210 | eni-06d1c48cb8cf3e52f | us-east-2b | sg-0353f22520e90e937 | sg-0d6e7fdf604dac005 |
-| dev | 10.60.11.44 | eni-0487d3ffacc78eeac | us-east-2a | sg-0353f22520e90e937 | sg-0d6e7fdf604dac005 |
-| prod | 10.60.12.205 | eni-0679d07ddd7e26a25 | us-east-2b | sg-0dbf04b151e5d70ac | sg-0d6e7fdf604dac005 |
-| prod | 10.60.11.28 | eni-0f994eb491e8d0306 | us-east-2a | sg-0dbf04b151e5d70ac | sg-0d6e7fdf604dac005 |
+| dev | <pod-ip-dev-1> | eni-<dev-pod-1> | us-east-2b | sg-<pod-dev> | sg-<cluster-default> |
+| dev | <pod-ip-dev-2> | eni-<dev-pod-2> | us-east-2a | sg-<pod-dev> | sg-<cluster-default> |
+| prod | <pod-ip-prod-1> | eni-<prod-pod-1> | us-east-2b | sg-<pod-prod> | sg-<cluster-default> |
+| prod | <pod-ip-prod-2> | eni-<prod-pod-2> | us-east-2a | sg-<pod-prod> | sg-<cluster-default> |

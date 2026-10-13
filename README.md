@@ -96,7 +96,7 @@ All CI roles are created by hand ([docs/bootstrap.md](docs/bootstrap.md)) and as
 
 ## Terraform layout
 
-Two roots, each with its own state: `terraform/` (modules `network`, `kms`, `ecr`, `secrets`, `secret-rotation`, `dynamodb`, `budget`, `eks`, `irsa`, `acm`, `detective`) and `terraform/cluster-addons/` (namespaces, the AWS Load Balancer Controller and the `SecurityGroupPolicy` objects). Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`. Destroy the stack after every session.
+Two roots, each with its own state: `terraform/` (modules `network`, `kms`, `ecr`, `secrets`, `secret-rotation`, `dynamodb`, `budget`, `eks`, `irsa`, `acm`, `detective`) and `terraform/cluster-addons/` (namespaces, the AWS Load Balancer Controller and the `SecurityGroupPolicy` objects that attach the pod security groups, which `terraform/modules/eks` creates). Values come from GitHub variables as `TF_VAR_*`; nothing account-specific is hardcoded. The state bucket and region reach `terraform init` through `-backend-config`. Destroy the stack after every session.
 
 ## Run locally
 
