@@ -538,6 +538,11 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Fix: the Helm chart sets the annotation `alb.ingress.kubernetes.io/tags` with the value `cloudbatch818` for the `Project` key. This satisfies the budget filter `Project$cloudbatch818` (SEC-038), which also matches `PROJECT_NAME` = `cloudbatch818`.
 - After: the operator checked the ALB tag on 2026-10-12. This was not verified from the repo.
 - Not verified: Fargate cost attribution (check Cost Explorer); the tag lookup itself is not in the repo yet.
-- Evidence: TODO, operator to add tag lookup output under evidence/security/
+- Evidence (2026-10-13):
+  - Ingress: `healthcare-api` in the namespaces `cloudbatch818-healthcare-dev` and `cloudbatch818-healthcare-prod`.
+  - Both ALBs carry `Project=cloudbatch818` (checked in the EC2 console, Tags tab, 2026-10-13).
+  - Both ALBs were created 2026-10-09. No recreation since, so the tag change was applied in place.
+  - Cost Explorer: the ELB line first appears 2026-10-12. Reconciliation pending; see the watch items in `docs/cost/budget.md`.
+  - Raw CLI output: `evidence/security/alb-tags-2026-10-13.txt` (to be added by the operator; not in the repo yet).
 - Outcome: open (close when the tag lookup evidence is added and the scoped spend is checked against Cost Explorer)
 - Control area: cost control, monitoring
