@@ -43,6 +43,34 @@ Treat the scoped budget as a lower bound. For a full view during a session, look
 
 Alerts go to the email in the `ALERT_EMAIL` GitHub variable (passed as `alert_email`). Delivery to that address has not been verified (open in SEC-038). To verify, confirm the address in the budget's alert settings in the Budgets console and record the first alert email that arrives.
 
+## Observed spend, 2026-10-08 to 2026-10-12
+
+Source: Cost Explorer, unblended cost, all services, read from the chart (accuracy about ±$0.05 a day). This is the whole account view, not the tag-scoped budget view.
+
+| Day | Spend |
+|---|---|
+| Oct 1 to 7 | about $0.02 a day |
+| Oct 8 | about $1.27 (ramp-up) |
+| Oct 9 | about $4.13 |
+| Oct 10 | about $4.16 |
+| Oct 11 | about $4.23 |
+| Oct 12 | about $4.60 |
+| Oct 13 | partial day, excluded |
+
+Oct 12 split, approximate:
+
+| Service | Spend | Note |
+|---|---|---|
+| EKS | about $2.40 | matches the control plane at $0.10 an hour |
+| EC2-Other | about $1.10 | consistent with one NAT gateway at $0.045 an hour (about $1.08 a day); not confirmed by usage type |
+| CloudWatch | about $0.80 | high; needs a source check |
+| ELB | about $0.25 | |
+| Other | about $0.05 | |
+
+Run-rate: about $4.40 a day, roughly $130 a month, before data transfer and tax.
+
+Not estimated: Fargate pod compute (not a separate line in this view), GuardDuty and Security Hub. They do not appear as named series in the chart and may sit in "Others".
+
 ## Estimates
 
 Rough on-demand estimates, not checked against current pricing. Replace with measured values in the cost baseline (wrap-up, Phase 8).
@@ -57,6 +85,8 @@ Rough on-demand estimates, not checked against current pricing. Replace with mea
 | Security services: Config and Inspector | not built (planned), not counted | not built (planned), not counted |
 | Security services: GuardDuty and Security Hub | built; no separate estimate recorded | built; no separate estimate recorded |
 | **Total of the rows with an estimate** | **about $197 to $202** | **about $16 to $21** |
+
+Note (2026-10-13): the figures in this table, including the NAT gateway line of about $33 a month, are the original estimates. The observed run-rate is in [Observed spend, 2026-10-08 to 2026-10-12](#observed-spend-2026-10-08-to-2026-10-12).
 
 Note (2026-10-12): the original table had one row, "Security services (Config, GuardDuty, Inspector, Security Hub)", at about $15 to $40 in both columns, and totals of about $230 to $300 (24/7) and about $35 to $60 (destroyed after each session). The Config and Inspector part is not built (`docs/security/controls.md`, section 7), so it is out of the total. The new totals are the plain sum of the rows that have an estimate; the original totals did not equal the sum of their rows, and the cause is not recorded. GuardDuty and Security Hub are built but their share of the $15 to $40 was never split out, so they carry no estimate here.
 
