@@ -157,7 +157,8 @@ resource "aws_iam_openid_connect_provider" "this" {
 
 # ---------- pod security groups (D3) ----------
 # VPC CNI network policies do not apply to Fargate. Security groups for pods do, through a
-# SecurityGroupPolicy in each namespace (Phase 4 chart), together with the cluster security group.
+# SecurityGroupPolicy in each namespace, together with the cluster security group. The policy is owned
+# by terraform/cluster-addons; the chart fails if it renders one (helm/healthcare-api/templates/securitygrouppolicy.yaml:7).
 
 resource "aws_security_group" "pods" {
   # checkov:skip=CKV2_AWS_5:Attached by SecurityGroupPolicy in Phase 4, which Checkov cannot evaluate; Phase 4 must verify attachment or remove this skip. owner Moulaye, expires 2027-04-08. EXC-007
