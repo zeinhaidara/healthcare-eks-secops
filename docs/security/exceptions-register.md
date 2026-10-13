@@ -26,7 +26,7 @@ Closed for dev and prod. Method: pod IPs from `kubectl get pods -n <namespace> -
 
 | Environment | Pod IP | Network interface | AZ | Pod security group | Cluster security group |
 |---|---|---|---|---|---|
-| dev | 10.60.12.210 | eni-06d1c48cb8cf3e52f | us-east-2b | sg-0353f22520e90e937 | sg-0d6e7fdf604dac005 |
-| dev | 10.60.11.44 | eni-0487d3ffacc78eeac | us-east-2a | sg-0353f22520e90e937 | sg-0d6e7fdf604dac005 |
-| prod | 10.60.12.205 | eni-0679d07ddd7e26a25 | us-east-2b | sg-0dbf04b151e5d70ac | sg-0d6e7fdf604dac005 |
-| prod | 10.60.11.28 | eni-0f994eb491e8d0306 | us-east-2a | sg-0dbf04b151e5d70ac | sg-0d6e7fdf604dac005 |
+| dev | <pod-ip-dev-1> | eni-<dev-pod-1> | us-east-2b | sg-<pod-dev> | sg-<cluster-default> |
+| dev | <pod-ip-dev-2> | eni-<dev-pod-2> | us-east-2a | sg-<pod-dev> | sg-<cluster-default> |
+| prod | <pod-ip-prod-1> | eni-<prod-pod-1> | us-east-2b | sg-<pod-prod> | sg-<cluster-default> |
+| prod | <pod-ip-prod-2> | eni-<prod-pod-2> | us-east-2a | sg-<pod-prod> | sg-<cluster-default> |

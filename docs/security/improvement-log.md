@@ -354,8 +354,8 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
 - Outcome (2026-10-07 to 2026-10-09): in progress while EXC-007 stayed open until the pods were checked.
 - Control area: network segmentation, least privilege
 - Verification (2026-10-09): pod IPs from `kubectl get pods -n <namespace> -o wide` matched to pod-group ENIs in EC2 (us-east-2). Every pod interface carries the pod group and the cluster group.
-  - dev: pod IPs 10.60.12.210 (eni-06d1c48cb8cf3e52f, us-east-2b) and 10.60.11.44 (eni-0487d3ffacc78eeac, us-east-2a); pod group sg-0353f22520e90e937, cluster group sg-0d6e7fdf604dac005.
-  - prod: pod IPs 10.60.12.205 (eni-0679d07ddd7e26a25, us-east-2b) and 10.60.11.28 (eni-0f994eb491e8d0306, us-east-2a); pod group sg-0dbf04b151e5d70ac, cluster group sg-0d6e7fdf604dac005.
+  - dev: pod IPs <pod-ip-dev-1> (eni-<dev-pod-1>, us-east-2b) and <pod-ip-dev-2> (eni-<dev-pod-2>, us-east-2a); pod group sg-<pod-dev>, cluster group sg-<cluster-default>.
+  - prod: pod IPs <pod-ip-prod-1> (eni-<prod-pod-1>, us-east-2b) and <pod-ip-prod-2> (eni-<prod-pod-2>, us-east-2a); pod group sg-<pod-prod>, cluster group sg-<cluster-default>.
 - Outcome (final): resolved for dev and prod. EXC-007 closed on 2026-10-09 (row kept, with the evidence table below the register).
 
 ### SEC-033: Prod DNS alias pointed at the dev load balancer
