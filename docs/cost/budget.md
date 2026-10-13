@@ -49,13 +49,17 @@ Source: Cost Explorer, unblended cost, all services, read from the chart (accura
 
 | Day | Spend |
 |---|---|
-| Oct 1 to 7 | about $0.02 a day |
-| Oct 8 | about $1.27 (ramp-up) |
-| Oct 9 | about $4.13 |
-| Oct 10 | about $4.16 |
-| Oct 11 | about $4.23 |
-| Oct 12 | about $4.60 |
-| Oct 13 | partial day, excluded |
+| Oct 1 to 5 | $0.03 each day |
+| Oct 6 | $0.02 |
+| Oct 7 | $0.00 |
+| Oct 8 | $1.27 (ramp-up) |
+| Oct 9 | $4.15 |
+| Oct 10 | $4.17 |
+| Oct 11 | $4.24 |
+| Oct 12 | $4.60 |
+| Oct 13 | $0.92 (partial, read at 13:30 ET; excluded from the run-rate) |
+
+Month to date: $19.53 through Oct 13 (partial day).
 
 Oct 12 split, approximate:
 
@@ -67,7 +71,12 @@ Oct 12 split, approximate:
 | ELB | about $0.25 | |
 | Other | about $0.05 | |
 
-Run-rate: about $4.40 a day, roughly $130 a month, before data transfer and tax.
+Run-rate: the Oct 9 to Oct 12 average is $4.29 a day, about $129 a month, before data transfer and tax.
+
+Watch items:
+- CloudWatch is rising daily: $0.16, $0.59, $0.64, $0.71 and $0.81 (Oct 8 to Oct 12). The cause is not identified.
+- The load balancer was first billed on Oct 12 ($0.23; Oct 13 partial $0.18). Confirm whether the ALB was created then or recreated by the PR #67 deploy.
+- The EKS line equals the control plane only ($2.40 a day). Fargate pod compute is not visible; confirm by usage type.
 
 Not estimated: Fargate pod compute (not a separate line in this view), GuardDuty and Security Hub. They do not appear as named series in the chart and may sit in "Others".
 
