@@ -28,19 +28,6 @@ The App was created and installed on this repo only, by hand. Its App ID, instal
 - `kubectl top pods -A` returns numbers (metrics-server works).
 - UI, only when needed: `kubectl -n argocd port-forward svc/argocd-server 8443:443`. Settings, Repositories shows the repo as Successful.
 
-## Existing ServiceAccounts
-
-If the chart already created a `healthcare-api` ServiceAccount in an app namespace (Helm owns it), the add-ons apply fails with "already exists" for that namespace. Import it into state before applying, for example `terraform import 'kubernetes_service_account_v1.app["dev"]' <namespace>/healthcare-api`, then plan again. The chart stops creating it in the next change.
-
-## Import workflow
-
-The workflow `terraform-import-addons` (`.github/workflows/terraform-import-addons.yml`) imports the two `healthcare-api` ServiceAccounts into the add-ons state. It is one-time and safe to re-run: an address already in state is skipped. It changes state only and never creates, changes or destroys anything in the cluster.
-
-1. Open the Actions tab, choose `terraform-import-addons`, and run it on the `main` branch. The `infra` environment accepts only `main` and waits for reviewer approval.
-2. Open the run summary. Success looks like a plan summary of `Plan: 3 to add, 0 to change, 0 to destroy` and `ServiceAccount creates in the plan: 0`.
-3. Run the normal Terraform pipeline for the add-ons apply after reviewing that plan.
-4. Remove the workflow once the import is confirmed.
-
 ## Fargate notes
 
 - Each Argo and External Secrets component is one Fargate pod sized from its requests, so the stack costs more while it runs. The session destroy removes it.
