@@ -1,7 +1,8 @@
-# Argo CD on Fargate. Git is read with a deploy key in the Secret "healthcare-repo", created by hand
-# (docs/runbooks/argocd-bootstrap.md). Argo has no AWS role. No Ingress: the UI is reached with
-# kubectl port-forward. Dex and notifications are off. Requests are set because Fargate sizes a pod
-# from them.
+# Argo CD on Fargate. Git is read as a GitHub App. External Secrets builds the repository Secret
+# "healthcare-repo" in this namespace from Secrets Manager (terraform/cluster-addons, the
+# argocd-repo-secret release), so nothing about the App is in these values. Argo has no AWS role.
+# No Ingress: the UI is reached with kubectl port-forward. Dex and notifications are off. Requests are
+# set because Fargate sizes a pod from them.
 global:
   domain: argocd.local
 

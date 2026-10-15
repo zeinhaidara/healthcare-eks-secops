@@ -96,6 +96,7 @@ CI roles (all created by hand; policies are copies kept in `docs/bootstrap-polic
 | Network isolation of pods: per-namespace security groups, attached by `SecurityGroupPolicy`; verified on dev and prod pods | Live | SEC-021, SEC-032, EXC-007 (closed) | `improvement-log.md:355-357` | `terraform/cluster-addons/main.tf:63-108` |
 | Kubernetes NetworkPolicy (default deny plus allow rules) | Not enforced | SEC-021 | Written in the chart for intent only; the network policy agent does not run on Fargate | `helm/healthcare-api/values.yaml:74-80`; `helm/healthcare-api/templates/networkpolicy.yaml:2` |
 | Pod disruption budget (minimum 1 available) | Live | none | The chart template; not verified on a running cluster | `helm/healthcare-api/values.yaml:70-72`; `helm/healthcare-api/templates/poddisruptionbudget.yaml` |
+| Argo CD reads this repo as a GitHub App (Contents and Metadata, read-only), not an SSH key. The private key is in Secrets Manager and is synced into the `argocd` namespace by External Secrets, whose role can read only that one secret | Planned | none | Code is in the PR that adds it; not applied, so there is no evidence yet. The operator's role has no wildcard and no static keys | `terraform/cluster-addons/main.tf` (`irsa_external_secrets`, `argocd_repo_secret`); `terraform/cluster-addons/charts/argocd-repo-secret/` |
 | Horizontal autoscaling | Planned | none | Chart supports it but it is off: needs metrics-server, which is not installed | `helm/healthcare-api/values.yaml:63-67` |
 | HTTPS only: public ALB per environment, port 80 redirects to 443, ACM certificate | Live | SEC-033 | SEC-033 entry (HTTPS check, `/health` and `/ready` return 200) | `helm/healthcare-api/templates/ingress.yaml:10-16`; `terraform/main.tf:111-116` |
 | Public EKS API endpoint (0.0.0.0/0 and private), access by IAM access entries only | Live | SEC-018, EXC-005 | SEC-018 entry | `terraform/modules/eks/main.tf:39-40,51-54,60-61` |
@@ -161,6 +162,7 @@ Discrepancies between this page's sources (not fixed here, because the other doc
 
 Not verified, with the reason:
 
+- EKS secrets encryption (KMS): `encryption_config` is set in code (`terraform/modules/eks/main.tf:65-70`), but no check shows it active on the live cluster. This stays **open**. The GitHub App private key is held in a Kubernetes Secret in `argocd`, so the check matters.
 - Role trust policies (plan, apply, ecr-push, deploy-dev, deploy-prod): created by hand, not in the repo.
 - Which role each GitHub environment's `AWS_ROLE_ARN` holds: variable values were not read.
 - The `ecr-push` role's permissions: no policy file in the repo.
