@@ -88,14 +88,21 @@ flowchart LR
     prdev -. "runs" .-> ci
     prmain -. "runs" .-> ci
 
-    subgraph cd["cd.yml (push to main changing app or helm)"]
+    subgraph cd["cd.yml (push to main changing app, or a manual run)"]
         build["build and Trivy image scan, no credentials"]
-        push["push to ECR, ECR push role"]
-        ddev["deploy-dev: environment dev, deploy-dev role, Helm by digest, smoke test"]
-        dprod["deploy-prod: environment prod, deploy-prod role, Helm by digest, smoke test"]
-        build --> push --> ddev --> dprod
+        push["push to ECR by commit SHA, ECR push role"]
+        bump["bump-image: PR into dev that sets the image tag and digest"]
+        build --> push --> bump
     end
     mainbr --> build
+    bump --> prdev
+
+    subgraph argo["Argo CD in the cluster, no AWS role"]
+        adev["healthcare-api-dev: tracks dev, automatic sync"]
+        aprod["healthcare-api-prod: tracks main, sync approved by hand"]
+    end
+    devbr -. "deploys from Git" .-> adev
+    mainbr -. "deploys from Git" .-> aprod
 
     subgraph tf["terraform-apply.yml (manual, no inputs)"]
         plan["tf-plan: plan role, read only"]
@@ -111,7 +118,7 @@ flowchart LR
     operator["Operator"] -- "workflow_dispatch" --> plan
 ```
 
-`terraform-destroy.yml` is separate: manual, no inputs, behind its own `infra-destroy` approval. Environment approvals are configured by hand in GitHub (documented in [security/controls.md](security/controls.md)). References: SEC-011 (ci and cd split), SEC-031 (deploy by digest), SEC-037 (destructive plan guard), EXC-003 (0 required approvals on `main`).
+`terraform-destroy.yml` is separate: manual, no inputs, behind its own `infra-destroy` approval. Environment approvals are configured by hand in GitHub (documented in [security/controls.md](security/controls.md)). Deploys come from Git through Argo CD; no workflow runs Helm or kubectl against the cluster ([runbooks/gitops-deploy.md](runbooks/gitops-deploy.md)). References: SEC-011 (ci and cd split), SEC-031 (deploy by digest), SEC-037 (destructive plan guard), EXC-003 (0 required approvals on `main`).
 
 ## 3. Access model
 

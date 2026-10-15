@@ -68,7 +68,7 @@ ingress:
   # is separate and must be changed in the same PR if PROJECT_NAME changes.
   projectTag: cloudbatch818
 
-# Needs metrics-server, which is not installed on this cluster yet. Off until it is (follow-up).
+# Needs metrics-server, which Terraform installs in terraform/cluster-addons. Autoscaling stays off until it is turned on here.
 autoscaling:
   enabled: false
   minReplicas: 2

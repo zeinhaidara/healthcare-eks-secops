@@ -35,20 +35,14 @@ kubectl logs -n kube-system deployment/aws-load-balancer-controller | grep -i er
 kubectl get ns cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod --show-labels
 ```
 
-## 5. Each deploy role sees only its own namespace
+## 5. Argo CD can deploy only to the app namespaces
 
-Assume the deploy-dev role (for example in a manual run of the deploy job, or with `aws sts assume-role` if your trust policy allows it), then:
+The Argo CD `AppProject` `healthcare` (`terraform/cluster-addons/charts/argocd-apps/templates/appproject.yaml`) allows one source repository, two destinations (the dev and prod app namespaces in this cluster), no cluster-scoped objects, and only the object kinds the chart creates. An Application that points anywhere else is refused by Argo CD with "application destination ... is not permitted in project". Check it in the Argo CD UI (Settings, Projects, `healthcare`), or with an identity that can read Argo CD objects:
 
 ```sh
-kubectl auth can-i create deployments -n cloudbatch818-healthcare-dev    # yes
-kubectl auth can-i create deployments -n cloudbatch818-healthcare-prod   # no
-kubectl auth can-i list secrets -n kube-system                           # no
-kubectl auth can-i create namespaces                                     # no
-aws eks list-associated-access-policies --cluster-name "$CLUSTER_NAME" \
-  --principal-arn <deploy-dev role ARN>                                  # AmazonEKSEditPolicy, namespace scope
+kubectl -n argocd get appproject healthcare -o jsonpath='{.spec.destinations}'   # only the two app namespaces
+kubectl -n argocd get appproject healthcare -o jsonpath='{.spec.clusterResourceWhitelist}'   # empty
 ```
-
-Repeat for deploy-prod with the namespaces swapped.
 
 ## 6. Patients table is seeded
 
