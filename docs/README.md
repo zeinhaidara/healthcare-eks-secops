@@ -16,7 +16,6 @@ Everything under `docs/`, grouped by purpose, one line each. The project overvie
 
 ## Security
 - [security/controls.md](security/controls.md): every control by layer, with its status, owner ID, evidence and source line.
-- [security/commit-message-check.md](security/commit-message-check.md): the pull request check that blocks co-author and attribution lines in commit messages, how to set `ALLOWED_COAUTHOR`, how to fix a failing commit.
 - [security/improvement-log.md](security/improvement-log.md): one entry per security change (SEC IDs), with before and after evidence.
 - [security/exceptions-register.md](security/exceptions-register.md): every accepted risk (EXC IDs) with owner and expiry.
 - [security/prowler-triage.md](security/prowler-triage.md): the 2026-10-10 Prowler scan triaged against the register.
@@ -30,7 +29,6 @@ Everything under `docs/`, grouped by purpose, one line each. The project overvie
 - [runbooks/argocd-github-app-rotation.md](runbooks/argocd-github-app-rotation.md): rotating the GitHub App private key that Argo CD uses, synced by External Secrets.
 - [runbooks/gitops-deploy.md](runbooks/gitops-deploy.md): how an image reaches dev and prod through Argo CD, the prod approval, rollback with `git revert`, forcing a sync.
 - [runbooks/cluster-access.md](runbooks/cluster-access.md): checks that the cluster, Fargate, namespaces and roles are as designed.
-- [runbooks/deploy-check.md](runbooks/deploy-check.md): what to check after a deploy: pods, `/ready`, the load balancer, HTTPS, pod security groups, rollback.
 - [runbooks/detective-controls.md](runbooks/detective-controls.md): Security Hub, GuardDuty and CloudTrail: enable order, imports, the destructive plan guard, known gaps.
 - [runbooks/eks-operator-import.md](runbooks/eks-operator-import.md): how the operator's read-only cluster access was brought under Terraform.
 - [runbooks/failed-deploy.md](runbooks/failed-deploy.md): known failure messages and what they mean.

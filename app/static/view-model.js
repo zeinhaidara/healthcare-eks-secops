@@ -97,3 +97,42 @@ export function cardSections(p) {
     },
   ];
 }
+
+// ---------- Graphics for the card. Pure data, so they can be tested without a browser. ----------
+// A fraction is where a value sits on the model's allowed range (app/src/models.py), clamped to 0..1.
+// These describe the synthetic value only. They are not targets, scores or clinical advice.
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const fractionOf = (v, lo, hi) => (present(v) && Number.isFinite(Number(v)) ? clamp01((Number(v) - lo) / (hi - lo)) : null);
+
+// Ring gauges for the vitals: the label, the same text the card shows, and the ring fill.
+export function vitalGauges(p) {
+  const rows = Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
+  return [
+    { label: "Blood pressure", text: rows["Blood pressure"], fraction: present(p.diastolic_bp) ? fractionOf(p.systolic_bp, 70, 220) : null },
+    { label: "Heart rate", text: rows["Heart rate"], fraction: fractionOf(p.heart_rate, 30, 200) },
+    { label: "Temperature", text: rows.Temperature, fraction: fractionOf(p.temperature_c, 34, 42) },
+  ];
+}
+
+// Range bars for the labs: the value's position on the model range and an illustrative reference band.
+export const LAB_RANGES = {
+  HbA1c: { field: "hba1c_percent", lo: 4, hi: 15, band: [4, 5.6] },
+  eGFR: { field: "egfr_ml_min", lo: 5, hi: 150, band: [90, 150] },
+};
+export function labBars(p) {
+  const rows = Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
+  return Object.entries(LAB_RANGES).map(([label, r]) => ({
+    label,
+    text: rows[label],
+    position: fractionOf(p[r.field], r.lo, r.hi),
+    band: [(r.band[0] - r.lo) / (r.hi - r.lo), (r.band[1] - r.lo) / (r.hi - r.lo)],
+  }));
+}
+
+// Initials for a care-team role, e.g. "primary care" -> "PC", "cardiology" -> "CA".
+export function initials(role) {
+  const words = String(role || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}

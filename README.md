@@ -122,4 +122,4 @@ ruff check . && ruff format --check .
 - [Architecture diagrams](docs/architecture.md)
 - [Bootstrap (manual one-time setup)](docs/bootstrap.md), [CI role policies](docs/bootstrap-policies/README.md)
 - [Budget](docs/cost/budget.md)
-- Runbooks: [API key rotation](docs/runbooks/rotation.md), [cluster access](docs/runbooks/cluster-access.md), [failed deploy](docs/runbooks/failed-deploy.md), [deploy check](docs/runbooks/deploy-check.md), [detective controls](docs/runbooks/detective-controls.md), [operator import](docs/runbooks/eks-operator-import.md)
+- Runbooks: [API key rotation](docs/runbooks/rotation.md), [cluster access](docs/runbooks/cluster-access.md), [failed deploy](docs/runbooks/failed-deploy.md), [deploy check](docs/runbooks/gitops-deploy.md#check-a-deploy), [detective controls](docs/runbooks/detective-controls.md), [operator import](docs/runbooks/eks-operator-import.md)

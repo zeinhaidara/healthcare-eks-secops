@@ -116,6 +116,12 @@ export function installDom(serve) {
       created.push(e);
       return e;
     },
+    // SVG elements, for the gauge rings (the page sets only attributes on them).
+    createElementNS(_ns, tag) {
+      const e = new FakeElement(tag);
+      created.push(e);
+      return e;
+    },
     querySelectorAll(sel) {
       const cls = sel.replace(/^\./, "");
       return created.filter((e) => e.className.split(" ").includes(cls));

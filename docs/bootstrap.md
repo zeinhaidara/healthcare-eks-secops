@@ -60,7 +60,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 1. Attach `docs/bootstrap-policies/deploy-dev-policy.json` and `deploy-prod-policy.json` to the deploy roles (adds `acm:ListCertificates`).
 2. A merge to `main` that changes `app/` triggers `cd.yml`: build, scan, push, then a pull request to `dev` that sets the image tag. Argo CD deploys; prod needs a sync approved in Argo CD (`docs/runbooks/gitops-deploy.md`). The deploy roles and the `dev` and `prod` GitHub environments are no longer used by `cd.yml`.
-3. The API key secret needs a value or `/ready` stays 503 and the ALB target stays unhealthy (see `docs/runbooks/deploy-check.md`).
+3. The API key secret needs a value or `/ready` stays 503 and the ALB target stays unhealthy (see `docs/runbooks/gitops-deploy.md`, Check a deploy).
 4. Decide how the `SecurityGroupPolicy` is created (SEC-032) before closing EXC-007. Note (2026-10-12): this step is done. EXC-007 was closed for dev and prod on 2026-10-09 (SEC-032); the `SecurityGroupPolicy` is owned by `terraform/cluster-addons`. The step is kept as the original text.
 
 ## Known drift

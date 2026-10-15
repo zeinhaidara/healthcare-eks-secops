@@ -7,5 +7,5 @@ serviceAccount:
   name: healthcare-api
 # The only values cd.yml changes: it opens a pull request that sets the pushed commit SHA and digest.
 image:
-  tag: "e0146d4abda4dc5552734c36a14a8be6747768a9"
-  digest: "sha256:db8e7a9f62f5f17f2eb8026666fc57ecac4699c9687bbcc56d068c3b4f792793"
+  tag: "faa70cc5a880d2451122a64c0b095c91846a4e70"
+  digest: "sha256:4071b961bcc668d8f3deb1c32abba1bc3004960607d86087f3317e55f0cc3c45"

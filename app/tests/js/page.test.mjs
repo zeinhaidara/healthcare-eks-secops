@@ -53,6 +53,15 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.equal($("status-note").hidden, true, "real status mix: no placeholder note");
   assert.equal($("n-unknown").textContent, "0");
 
+  // Dark redesign: status counts are glass chips over the network, the hub label needs the 3D scene
+  // (absent under Node, so it stays hidden and the text fallback shows), and the list is all 30.
+  const counts = ["stable", "watch", "review", "unknown"].map((k) => Number($(`n-${k}`).textContent));
+  assert.equal(counts.reduce((a, b) => a + b, 0), 30, "the four chips add up to every patient");
+  assert.equal($("hub-label").hidden, true, "no WebGL here: no hub label");
+  assert.equal($("no-webgl").hidden, false, "no WebGL here: the text fallback shows");
+  assert.equal($("count").textContent, "30");
+  assert.ok(buttons()[0].getAttribute("data-tip").startsWith(SEED[0].status), "the hover tip names the status");
+
   // 1. Open by mouse from a list row; focus moves into the card.
   const first = buttons()[0];
   first.handlers.click[0]();
@@ -61,11 +70,32 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.equal(active(), $("card-close"), "focus moves to the card's Close button");
   assert.match($("card-body").textContent, /Blood pressure/);
   assert.match($("card-body").textContent, /synthetic/);
+  assert.match($("card-body").textContent, /reference band \(illustrative\)/, "labs are drawn as range bars");
+  assert.match($("card-body").textContent, /Heart rate/, "vitals are drawn as ring gauges");
+  const gradients = dom.created.filter((e) => e.tagName === "LINEARGRADIENT");
+  assert.ok(gradients.length >= 3, "each ring gauge has its own SVG gradient");
+  assert.ok(new Set(gradients.map((g) => g.getAttribute("id"))).size === gradients.length, "gradient ids are unique");
+  assert.ok(gradients.every((g) => Object.keys(g.style).length === 0), "SVG parts set attributes only, never a style");
 
   // 2. Close button: card closes, focus returns to the row that opened it.
   $("card-close").handlers.click[0]();
   assert.equal($("card").open, false);
   assert.equal(active(), first);
+
+  // 2b. The bottom sheet's drag handle: a short drag springs back, a long drag down closes it.
+  const handle = $("sheet-handle");
+  first.handlers.click[0]();
+  handle.fire("pointerdown", { clientY: 100 });
+  handle.fire("pointermove", { clientY: 130 });
+  assert.equal($("card").style.transform, "translateY(30px)", "the sheet follows the drag");
+  handle.fire("pointerup", { clientY: 130 });
+  assert.equal($("card").open, true, "a short drag does not close it");
+  assert.equal($("card").style.transform, "", "and it springs back");
+  handle.fire("pointerdown", { clientY: 100 });
+  handle.fire("pointermove", { clientY: 260 });
+  handle.fire("pointerup", { clientY: 260 });
+  assert.equal($("card").open, false, "a long drag down closes it");
+  assert.equal(active(), first, "focus returns to the row");
 
   // 3. Escape: the browser closes the dialog (close event); focus returns.
   const second = buttons()[1];
