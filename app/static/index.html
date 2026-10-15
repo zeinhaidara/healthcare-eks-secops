@@ -3,55 +3,92 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Patient skill tree (synthetic data)</title>
+  <title>Patient registry (synthetic data)</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <div class="banner" role="note">SYNTHETIC DATA &middot; illustrative only &middot; not clinical advice</div>
+  <div class="shell">
+    <div class="rail" aria-hidden="true">
+      <span class="rail-logo"></span>
+      <span class="rail-icon rail-icon-active"></span>
+      <span class="rail-icon"></span>
+      <span class="rail-icon"></span>
+      <span class="rail-icon"></span>
+    </div>
 
-  <header class="top">
-    <h1>Patient skill tree</h1>
-    <button id="lock" type="button" class="ghost" hidden>Lock</button>
-  </header>
+    <div class="frame">
+      <header class="top">
+        <h1 class="brand">Patient registry</h1>
+        <label class="search" id="search-wrap" hidden>
+          <span class="sr-only">Search patients by ID, name or ward</span>
+          <input id="search" type="search" placeholder="Search patients" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="banner" role="note">SYNTHETIC DATA &middot; illustrative only &middot; not clinical advice</div>
+        <button id="lock" type="button" class="ghost" hidden>Lock</button>
+      </header>
 
-  <section id="gate" class="gate" aria-labelledby="gate-title">
-    <h2 id="gate-title">Enter the API key</h2>
-    <p class="muted">The key stays in this tab's memory only. It is not saved, not put in the address bar, and cleared when you lock or reload.</p>
-    <form id="gate-form" autocomplete="off">
-      <label for="key">API key</label>
-      <input id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
-      <button type="submit">Unlock</button>
-    </form>
-    <p id="gate-msg" class="msg" role="status" aria-live="polite"></p>
-  </section>
-
-  <main id="app" hidden>
-    <section class="stage" aria-label="Skill tree of synthetic patients">
-      <div id="canvas-host" class="canvas-host" tabindex="0" role="application"
-           aria-label="Skill tree. Arrow keys move between patients. Enter opens the patient card."
-           aria-describedby="legend">
-        <div id="node-label" class="node-label" hidden></div>
-      </div>
-      <p id="no-webgl" class="muted" hidden>The 3D view is not available in this browser. Use the list of patients.</p>
-      <p id="legend" class="legend-line"></p>
-      <p id="status-note" class="status-note" role="note" hidden></p>
-      <ul class="legend" aria-label="Patients per status">
-        <li><span class="chip chip-stable">stable</span> <span id="n-stable">0</span></li>
-        <li><span class="chip chip-watch">watch</span> <span id="n-watch">0</span></li>
-        <li><span class="chip chip-review">review</span> <span id="n-review">0</span></li>
-        <li><span class="chip chip-unknown">not recorded</span> <span id="n-unknown">0</span></li>
-      </ul>
-      <p class="muted small">Drag to move, scroll or pinch to zoom. Click or tap a patient to open the card.</p>
-    </section>
-
-    <aside class="side">
-      <section aria-labelledby="list-title">
-        <h2 id="list-title">Patients <span id="count" class="pill">0</span></h2>
-        <ul id="patient-list" class="plist"></ul>
+      <section id="gate" class="gate glass" aria-labelledby="gate-title">
+        <h2 id="gate-title">Enter the API key</h2>
+        <p class="muted">The key stays in this tab's memory only. It is not saved, not put in the address bar, and cleared when you lock or reload.</p>
+        <form id="gate-form" autocomplete="off">
+          <label for="key">API key</label>
+          <input id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          <button type="submit">Unlock</button>
+        </form>
+        <p id="gate-msg" class="msg" role="status" aria-live="polite"></p>
       </section>
-    </aside>
-  </main>
+
+      <main id="app" hidden>
+        <div class="tabs glass" role="tablist" aria-label="Views">
+          <button id="tab-overview" class="tab" type="button" role="tab" aria-selected="true" aria-controls="view-overview">Overview</button>
+          <button id="tab-tree" class="tab" type="button" role="tab" aria-selected="false" aria-controls="view-tree" tabindex="-1">Tree</button>
+        </div>
+
+        <div id="view-overview" class="overview" role="tabpanel" aria-labelledby="tab-overview">
+          <section class="glass hero" aria-labelledby="hero-name">
+            <div id="hero-canvas" class="hero-canvas"></div>
+            <div class="hero-info">
+              <p class="eyebrow">Selected patient</p>
+              <h2 id="hero-name">No patient selected</h2>
+              <p class="hero-line"><span id="hero-status" class="chip chip-unknown">not recorded</span> <span id="hero-ward" class="muted"></span></p>
+              <p class="hero-line muted">Next visit: <span id="hero-next" class="hero-value">not recorded</span></p>
+              <button id="hero-open" type="button" hidden>Open patient card</button>
+              <p id="hero-hint" class="muted small" aria-live="polite">Tap a ring around the heart to open that patient.</p>
+              <p id="hero-fallback" class="muted small" hidden>The 3D heart is not available in this browser. Use the list of patients.</p>
+            </div>
+          </section>
+
+          <section class="glass cohort" aria-labelledby="cohort-title">
+            <h2 id="cohort-title">Cohort <span id="cohort-total" class="pill">0</span></h2>
+            <ul class="rings" aria-label="Patients per status">
+              <li class="ring-item"><div id="ring-stable" class="ring ring-stable"><span id="n-stable" class="ring-count">0</span></div><span class="ring-label">stable</span></li>
+              <li class="ring-item"><div id="ring-watch" class="ring ring-watch"><span id="n-watch" class="ring-count">0</span></div><span class="ring-label">watch</span></li>
+              <li class="ring-item"><div id="ring-review" class="ring ring-review"><span id="n-review" class="ring-count">0</span></div><span class="ring-label">review</span></li>
+              <li class="ring-item"><div id="ring-unknown" class="ring ring-unknown"><span id="n-unknown" class="ring-count">0</span></div><span class="ring-label">not recorded</span></li>
+            </ul>
+            <p id="status-note" class="status-note" role="note" hidden></p>
+          </section>
+
+          <section class="glass plist-panel" aria-labelledby="list-title">
+            <h2 id="list-title">Patients <span id="count" class="pill">0</span></h2>
+            <ul id="patient-list" class="plist"></ul>
+          </section>
+        </div>
+
+        <section id="view-tree" class="glass tree" role="tabpanel" aria-labelledby="tab-tree" hidden>
+          <div id="canvas-host" class="canvas-host" tabindex="0" role="application"
+               aria-label="Skill tree. Arrow keys move between patients. Enter opens the patient card."
+               aria-describedby="legend">
+            <div id="node-label" class="node-label" hidden></div>
+          </div>
+          <p id="no-webgl" class="muted" hidden>The 3D view is not available in this browser. Use the list of patients.</p>
+          <p id="legend" class="legend-line"></p>
+          <p class="muted small">Drag to move, scroll or pinch to zoom. Click or tap a patient to open the card.</p>
+        </section>
+      </main>
+    </div>
+  </div>
 
   <dialog id="card" class="card" aria-labelledby="card-title">
     <div class="card-inner">

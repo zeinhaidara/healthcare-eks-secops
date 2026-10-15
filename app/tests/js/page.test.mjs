@@ -53,6 +53,35 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.equal($("status-note").hidden, true, "real status mix: no placeholder note");
   assert.equal($("n-unknown").textContent, "0");
 
+  // Redesign: the hero shows the selected patient, the cohort rings are filled, search filters the
+  // list, the tabs switch views, and without WebGL (as here) the hero falls back to text.
+  const listButtons = buttons();
+  assert.match($("hero-name").textContent, /^P001 /, "unlock focuses the first row, which selects it");
+  assert.match($("hero-status").className, /^chip chip-(stable|watch|review)$/);
+  assert.equal($("hero-open").hidden, false);
+  assert.equal($("cohort-total").textContent, "30");
+  for (const key of ["stable", "watch", "review", "unknown"]) {
+    assert.match($(`ring-${key}`).style.background, /^conic-gradient\(/, `ring-${key} is drawn`);
+  }
+  assert.equal($("search-wrap").hidden, false, "search shows after unlock");
+  $("search").value = "P01";
+  $("search").fire("input");
+  assert.equal($("patient-list").children.filter((li) => !li.hidden).length, 10, "P010 to P019");
+  assert.equal($("count").textContent, "10 of 30");
+  $("search").value = "";
+  $("search").fire("input");
+  assert.equal($("patient-list").children.filter((li) => li.hidden).length, 0);
+  assert.equal($("count").textContent, "30");
+  $("tab-tree").handlers.click[0]();
+  assert.equal($("view-tree").hidden, false);
+  assert.equal($("view-overview").hidden, true);
+  assert.equal($("tab-tree").getAttribute("aria-selected"), "true");
+  $("tab-tree").fire("keydown", { key: "ArrowLeft" });
+  assert.equal($("view-overview").hidden, false, "arrow keys move between tabs");
+  assert.equal($("tab-overview").getAttribute("aria-selected"), "true");
+  await until(() => $("hero-fallback").hidden === false);
+  assert.equal(listButtons.length, 30);
+
   // 1. Open by mouse from a list row; focus moves into the card.
   const first = buttons()[0];
   first.handlers.click[0]();
@@ -61,6 +90,7 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.equal(active(), $("card-close"), "focus moves to the card's Close button");
   assert.match($("card-body").textContent, /Blood pressure/);
   assert.match($("card-body").textContent, /synthetic/);
+  assert.match($("card-body").textContent, /reference band \(illustrative\)/, "labs are drawn as range bars");
 
   // 2. Close button: card closes, focus returns to the row that opened it.
   $("card-close").handlers.click[0]();

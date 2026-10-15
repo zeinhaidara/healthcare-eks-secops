@@ -7,7 +7,7 @@ import { STATUS_COLORS } from "./layout.js";
 const BASE_SPAN = 34; // world units across the shorter side at zoom 1 (the tree is about 28 wide)
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 4;
-const ROOT_COLOR = "#0f8f8a";
+const ROOT_COLOR = "#0c7d78";
 const EDGE_COLOR = 0x9aa9b8;
 const BACKGROUND = 0xf7f9fb;
 const SELECTION_COLOR = 0x1d2a38;
@@ -16,12 +16,12 @@ const RADIUS = { root: 1.5, patient: 0.62 };
 export function createScene(container, { onActivate, onHover, onDraw }) {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "low-power" });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   } catch {
     return null; // no WebGL: the list and the card still work
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(BACKGROUND, 1);
+  renderer.setClearColor(BACKGROUND, 0); // transparent: the tree sits on its glass panel
   const canvas = renderer.domElement;
   canvas.setAttribute("aria-hidden", "true");
   container.prepend(canvas);

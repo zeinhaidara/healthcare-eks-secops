@@ -5,7 +5,7 @@
 export const BANDS = ["low", "moderate", "elevated", "high"];
 export const STATUSES = ["stable", "watch", "review"];
 // "unknown" is a missing status. It is never shown as one of the real statuses.
-export const STATUS_COLORS = { stable: "#1f9d6b", watch: "#b57700", review: "#d64545", unknown: "#6f7f90" };
+export const STATUS_COLORS = { stable: "#0e8a70", watch: "#a96a00", review: "#c4354f", unknown: "#627287" };
 
 const SECTOR_CENTER = { low: 45, moderate: 135, elevated: 225, high: 315 }; // degrees
 const SECTOR_WIDTH = 78;
