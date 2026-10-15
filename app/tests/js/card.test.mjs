@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NOT_RECORDED, PLACEHOLDER_NOTE, cardSections, legendText, statusSummary } from "../../static/view-model.js";
+import { NOT_RECORDED, PLACEHOLDER_NOTE, cardSections, initials, labBars, legendText, statusSummary, vitalGauges } from "../../static/view-model.js";
 import { SEED } from "./dom_shim.mjs";
 
 const rowsOf = (p) => Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
@@ -78,4 +78,37 @@ test("one-decimal fields keep their decimal even when JSON drops it", () => {
   assert.equal(rows.Temperature, "37.0 °C");
   assert.equal(rows.HbA1c, "5.0 %");
   assert.equal(rowsOf({ ...V1, temperature_c: 36.8 }).Temperature, "36.8 °C");
+});
+
+test("vital gauges reuse the card text and place each value on the model range, or show none", () => {
+  const full = SEED.find((p) => "temperature_c" in p);
+  const rows = rowsOf(full);
+  const g = Object.fromEntries(vitalGauges(full).map((x) => [x.label, x]));
+  assert.deepEqual(Object.keys(g), ["Blood pressure", "Heart rate", "Temperature"]);
+  assert.equal(g["Blood pressure"].text, rows["Blood pressure"]);
+  assert.equal(g.Temperature.text, rows.Temperature);
+  for (const x of Object.values(g)) assert.ok(x.fraction >= 0 && x.fraction <= 1, x.label);
+  assert.equal(vitalGauges({ heart_rate: 200 })[1].fraction, 1, "top of the model range is a full ring");
+  for (const x of vitalGauges(V1)) {
+    assert.equal(x.fraction, null, `${x.label}: no value, no ring`);
+    assert.equal(x.text, NOT_RECORDED);
+  }
+});
+
+test("lab bars: a marker only when there is a value, and a fixed illustrative band", () => {
+  const bars = Object.fromEntries(labBars({ ...V1, hba1c_percent: 4, egfr_ml_min: 150 }).map((b) => [b.label, b]));
+  assert.equal(bars.HbA1c.position, 0);
+  assert.equal(bars.eGFR.position, 1);
+  for (const b of Object.values(bars)) assert.ok(b.band[0] >= 0 && b.band[1] <= 1 && b.band[0] < b.band[1], b.label);
+  for (const b of labBars(V1)) {
+    assert.equal(b.position, null);
+    assert.equal(b.text, NOT_RECORDED);
+  }
+});
+
+test("care-team initials", () => {
+  assert.equal(initials("primary care"), "PC");
+  assert.equal(initials("cardiology"), "CA");
+  assert.equal(initials("sleep medicine"), "SM");
+  assert.equal(initials(""), "?");
 });
