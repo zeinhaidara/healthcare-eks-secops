@@ -1,0 +1,11 @@
+# All values are set by terraform/cluster-addons (helm_release.argocd_apps). Nothing here is
+# account-specific; the account-dependent chart values arrive in "chartParameters" at plan time.
+repoUrl: ""
+server: https://kubernetes.default.svc
+chartPath: helm/healthcare-api
+releaseName: healthcare-api
+# One entry per environment. branch is the Git revision Argo tracks; automated turns on automatic sync.
+environments: []
+# Helm parameters for every Application, set from Terraform (image repository, certificate, VPC CIDR,
+# project tag, secret name). They live in the cluster, not in Git.
+chartParameters: {}

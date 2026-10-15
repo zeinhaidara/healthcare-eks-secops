@@ -1,0 +1,36 @@
+# Two Applications, one per environment. dev tracks the dev branch and syncs automatically.
+# prod tracks main and has no automated block, so it syncs only when someone approves in Argo CD.
+# The release name must stay healthcare-api: the SecurityGroupPolicy selects pods by that label.
+{{- range .Values.environments }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ printf "healthcare-api-%s" .name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  project: healthcare
+  source:
+    repoURL: {{ required "repoUrl is required" $.Values.repoUrl | quote }}
+    targetRevision: {{ .branch | quote }}
+    path: {{ $.Values.chartPath | quote }}
+    helm:
+      releaseName: {{ $.Values.releaseName | quote }}
+      valueFiles:
+        - {{ printf "values-%s.yaml" .name | quote }}
+      parameters:
+        {{- range $key, $value := $.Values.chartParameters }}
+        - name: {{ $key | quote }}
+          value: {{ $value | quote }}
+          forceString: true
+        {{- end }}
+  destination:
+    server: {{ $.Values.server | quote }}
+    namespace: {{ .namespace | quote }}
+  {{- if .automated }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+  {{- end }}
+{{- end }}
