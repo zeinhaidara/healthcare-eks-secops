@@ -9,5 +9,3 @@ serviceAccount:
 image:
   tag: "e0146d4abda4dc5552734c36a14a8be6747768a9"
   digest: "sha256:db8e7a9f62f5f17f2eb8026666fc57ecac4699c9687bbcc56d068c3b4f792793"
-podAnnotations:
-  rollback-drill: "v1"
