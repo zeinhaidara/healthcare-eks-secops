@@ -11,6 +11,10 @@ IAM policies for the CI roles. They are applied by hand and are not managed by T
 
 The plan role needs `s3:ListBucket` on the `cloudbatch818-zein-hcsecops-logs-*` buckets (`LogBucketHead` in `plan-policy.json`); without it `HeadBucket` fails during refresh and the provider drops the buckets from state (SEC-037).
 
+## ECR push role trust
+
+The ECR push role (used by the `push` job in `cd.yml`) trusts exactly two refs of this repository: `refs/heads/main` and `refs/heads/dev`. The condition matches the GitHub OIDC subject of the repository, written with its ID-based form, and the audience `sts.amazonaws.com`. The role is created and changed by hand and its policy is not tracked in this repo, so this note is the only record of the two refs. The repository ID and the account ID are not written here.
+
 ## Applying
 
 The files use `<ACCOUNT_ID>` instead of a real account ID. Substitute it, then put the result on the role as the inline policy `apply-policy`:

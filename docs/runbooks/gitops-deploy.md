@@ -4,11 +4,11 @@ CI builds, scans and pushes the image. It never runs `helm` or `kubectl` against
 
 ## The flow
 
-1. A pull request that changes `app/` is merged to `dev`, then released to `main` (a pull request from `dev`, merge commit).
-2. The push to `main` runs `cd.yml`: build, Trivy scan (blocks on HIGH or CRITICAL), push to ECR by commit SHA, then read the pushed digest. `cd.yml` also runs by hand (Actions tab, Run workflow on `main`): use it for the first build, or to bump to the current `main` again.
-3. The `bump-image` job opens a pull request **to `dev`** that sets `image.tag` (the commit SHA) and `image.digest` in `helm/healthcare-api/values-dev.yaml` and `values-prod.yaml`, and turns on auto-merge. Auto-merge waits for the required checks.
-4. **dev:** the Argo CD Application `healthcare-api-dev` tracks the `dev` branch and syncs automatically (prune and self-heal on). When the bump merges to `dev`, dev deploys.
-5. **prod:** the Application `healthcare-api-prod` tracks `main` and has no automated sync. The bump reaches `main` only when you release `dev` to `main`. Then prod shows OutOfSync until someone approves: in the Argo CD UI, open `healthcare-api-prod`, review the diff, and choose Sync. The release to `main` is a separate, owner-driven step. `cd.yml` does not run for a values-only change, so a release that only carries a bump does not build again.
+1. A pull request that changes `app/` is merged to `dev`.
+2. The merge to `dev` runs `cd.yml`: build, Trivy scan (blocks on HIGH or CRITICAL), push to ECR by commit SHA, then read the pushed digest. `cd.yml` also runs by hand (Actions tab, Run workflow on `dev`): use it for the first build, or to bump to the current `dev` again.
+3. The `bump-image` job sets `image.tag` (the commit SHA) and `image.digest` in `helm/healthcare-api/values-dev.yaml` and `values-prod.yaml` and commits them straight to `dev`. A merge to `dev` builds and bumps dev.
+4. **dev:** the Argo CD Application `healthcare-api-dev` tracks the `dev` branch and syncs automatically (prune and self-heal on). When the bump commit lands on `dev`, dev deploys.
+5. **prod:** the Application `healthcare-api-prod` tracks `main` and has no automated sync. A release from `dev` to `main` promotes the same digest to prod. Then prod shows OutOfSync until someone approves: in the Argo CD UI, open `healthcare-api-prod`, review the diff, and choose Sync. Prod syncs by hand in Argo CD. The release to `main` is a separate, owner-driven step and does not build again.
 
 The image repository, the ACM certificate, the VPC CIDR, the project tag and the API key secret name are not in Git. Terraform (`terraform/cluster-addons`) looks them up and gives them to the Applications as Helm parameters. The ServiceAccount and its IRSA role annotation are owned by Terraform; the chart only refers to it by name (`serviceAccount.create: false`).
 

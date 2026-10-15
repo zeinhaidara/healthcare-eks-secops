@@ -1,13 +1,10 @@
 name: cd
 
-# Build, scan and push the image, then open a pull request to dev that sets the image tag and digest in
-# the environment values files. CI never deploys: Argo CD does, from Git (docs/runbooks/gitops-deploy.md).
-# Runs after a merge to main that changes app/, or by hand to build the current main (the first run, or
-# a re-bump). Only app/ triggers it: a values-only change, such as this job's own bump reaching main in
-# a release, must not build and bump again. Not a required check, so the paths filter is fine.
+# Builds on merge to dev. The bump commit goes straight to dev. Prod values change on dev but reach prod
+# only when dev is released to main, because prod syncs from main.
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - "app/**"
   workflow_dispatch:
@@ -16,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cd
+  group: "cd-${{ github.ref }}"
   cancel-in-progress: false
 
 env:
@@ -104,46 +101,42 @@ jobs:
           case "$digest" in sha256:*) ;; *) echo "::error::No digest for tag $GITHUB_SHA"; exit 1 ;; esac
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
-  # Opens one pull request to dev that sets the pushed tag and digest in both environment values files.
-  # dev syncs it automatically once it merges. prod tracks main, so it moves only when the owner releases
-  # dev to main and approves the sync in Argo CD. Needs the repository settings "Allow GitHub Actions to
-  # create and approve pull requests" and "Allow auto-merge". Auto-merge waits for the required checks.
+  # Sets the pushed tag and digest in both environment values files and commits them to dev. dev syncs
+  # automatically. prod tracks main, so it moves only when dev is released to main and the sync is approved
+  # in Argo CD. The commit changes only helm values, so the app/** filter does not match it, and a push made
+  # with the workflow token does not start workflows anyway: it cannot trigger another build.
   bump-image:
     name: bump-image
     needs: push
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     env:
       IMAGE_DIGEST: ${{ needs.push.outputs.digest }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: dev
-      - name: Set the image tag and digest in both values files
+      - name: Set the image tag and digest in both values files and push to dev
         run: |
           short="${GITHUB_SHA::7}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "bump/image-${short}"
           for env in dev prod; do
-            IMAGE_TAG="$GITHUB_SHA" yq -i '.image.tag = strenv(IMAGE_TAG) | .image.digest = strenv(IMAGE_DIGEST)' \
-              "helm/healthcare-api/values-${env}.yaml"
+            IMAGE_TAG="$GITHUB_SHA" yq -i '.image.tag = strenv(IMAGE_TAG) | .image.digest = strenv(IMAGE_DIGEST)'               "helm/healthcare-api/values-${env}.yaml"
           done
           if git diff --quiet; then
             echo "Tag and digest already set; nothing to bump"
             exit 0
           fi
           git commit -am "chore: bump image to ${short}"
-          git push origin "bump/image-${short}"
-          echo "BUMP_BRANCH=bump/image-${short}" >> "$GITHUB_ENV"
-      - name: Open the pull request to dev and enable auto-merge
-        if: env.BUMP_BRANCH != ''
-        run: |
-          url=$(gh pr create --base dev --head "$BUMP_BRANCH" \
-            --title "chore: bump image to ${GITHUB_SHA::7}" \
-            --body "Sets image.tag and image.digest for dev and prod to the build of ${GITHUB_SHA}. Built and scanned in run ${GITHUB_RUN_ID}. dev syncs after this merges; prod moves only when dev is released to main and the sync is approved in Argo CD.")
-          echo "$url"
-          gh pr merge --auto --merge "$url"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin dev && git push origin HEAD:dev; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            echo "Push to dev was rejected (attempt ${attempt} of 3); pulling and retrying"
+            sleep $((attempt * 3))
+          done
+          echo "::error::Could not push the image bump to dev after 3 attempts. Check the dev ruleset and whether dev changed the same lines."
+          exit 1
