@@ -1,0 +1,52 @@
+# Argo CD on Fargate. Git is read with a deploy key in the Secret "healthcare-repo", created by hand
+# (docs/runbooks/argocd-bootstrap.md). Argo has no AWS role. No Ingress: the UI is reached with
+# kubectl port-forward. Dex and notifications are off. Requests are set because Fargate sizes a pod
+# from them.
+global:
+  domain: argocd.local
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+controller:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+
+server:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+
+applicationSet:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 128Mi

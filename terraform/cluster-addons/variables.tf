@@ -43,3 +43,15 @@ variable "app_name" {
   type        = string
   default     = "healthcare-api"
 }
+
+variable "argocd_chart_version" {
+  description = "argo-cd Helm chart (argo-helm)."
+  type        = string
+  default     = "10.10.5"
+}
+
+variable "metrics_server_chart_version" {
+  description = "metrics-server Helm chart (kubernetes-sigs)."
+  type        = string
+  default     = "3.14.0"
+}

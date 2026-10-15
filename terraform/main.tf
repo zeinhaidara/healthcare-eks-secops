@@ -85,7 +85,7 @@ module "eks" {
   subnet_ids         = module.network.private_subnet_ids
   kms_key_arn        = module.kms.key_arn
   log_retention_days = var.log_retention_days
-  fargate_namespaces = concat(["kube-system"], var.app_namespaces)
+  fargate_namespaces = concat(["kube-system", "argocd"], var.app_namespaces)
   app_namespaces     = var.app_namespaces
   coredns_version    = var.coredns_version
 

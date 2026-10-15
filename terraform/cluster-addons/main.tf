@@ -106,3 +106,79 @@ resource "kubernetes_manifest" "security_group_policy" {
 
   depends_on = [kubernetes_namespace_v1.app]
 }
+
+# ---------- metrics-server (kubectl top, and the HPA when it is enabled) ----------
+# Runs on Fargate in kube-system; the values file moves it off port 10250, which Fargate reserves.
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = var.metrics_server_chart_version
+  namespace  = "kube-system"
+  atomic     = true
+  wait       = true
+  timeout    = 600
+
+  values = [file("${path.module}/values/metrics-server.yaml")]
+}
+
+# ---------- Argo CD ----------
+# Argo has no AWS role. It reads Git with a read-only deploy key held in the Secret "healthcare-repo",
+# which is created by hand and never by Terraform (docs/runbooks/argocd-bootstrap.md). It deploys with
+# the in-cluster RBAC from its own install. The "argocd" Fargate profile is created in the root.
+resource "kubernetes_namespace_v1" "argocd" {
+  metadata {
+    name = "argocd"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  version    = var.argocd_chart_version
+  namespace  = kubernetes_namespace_v1.argocd.metadata[0].name
+  atomic     = true
+  wait       = true
+  timeout    = 900
+
+  values = [file("${path.module}/values/argocd.yaml")]
+}
+
+# ---------- app ServiceAccounts (IRSA) ----------
+# Terraform owns the ServiceAccount and its role annotation; the chart refers to it by name and never
+# sets a role ARN. The role is created in the root (module.irsa_app) and looked up by name here.
+locals {
+  app_env_namespaces = {
+    dev  = var.app_namespaces[0]
+    prod = var.app_namespaces[1]
+  }
+}
+
+data "aws_iam_role" "app" {
+  for_each = local.app_env_namespaces
+
+  name = "${var.name_prefix}-app-${each.key}"
+}
+
+resource "kubernetes_service_account_v1" "app" {
+  for_each = local.app_env_namespaces
+
+  metadata {
+    name      = var.app_name
+    namespace = each.value
+    annotations = {
+      "eks.amazonaws.com/role-arn" = data.aws_iam_role.app[each.key].arn
+    }
+  }
+
+  # The IRSA webhook adds its own projected token; the default API token is not needed.
+  automount_service_account_token = false
+
+  depends_on = [kubernetes_namespace_v1.app]
+}
