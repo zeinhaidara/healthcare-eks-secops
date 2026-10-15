@@ -123,9 +123,9 @@ resource "helm_release" "metrics_server" {
 }
 
 # ---------- Argo CD ----------
-# Argo has no AWS role. It reads Git with a read-only deploy key held in the Secret "healthcare-repo",
-# which is created by hand and never by Terraform (docs/runbooks/argocd-bootstrap.md). It deploys with
-# the in-cluster RBAC from its own install. The "argocd" Fargate profile is created in the root.
+# Argo has no AWS role. It reads Git as a GitHub App; the Secret "healthcare-repo" is built by External
+# Secrets below (docs/runbooks/argocd-bootstrap.md). It deploys with the in-cluster RBAC from its own
+# install. The "argocd" Fargate profile is created in the root.
 resource "kubernetes_namespace_v1" "argocd" {
   metadata {
     name = "argocd"
@@ -181,4 +181,90 @@ resource "kubernetes_service_account_v1" "app" {
   automount_service_account_token = false
 
   depends_on = [kubernetes_namespace_v1.app]
+}
+
+# ---------- External Secrets Operator (GitHub App credential for Argo CD) ----------
+# Argo CD reads this repo as a GitHub App. The App ID, installation ID and private key exist only in
+# the Secrets Manager secret var.github_app_secret_name (created by hand). External Secrets copies
+# them into the Secret "healthcare-repo" in the argocd namespace. Nothing about the App is in Git.
+resource "kubernetes_namespace_v1" "external_secrets" {
+  metadata {
+    name = "external-secrets"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+    }
+  }
+}
+
+data "aws_iam_openid_connect_provider" "cluster" {
+  url = data.aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+# Found by name; the ARN never appears in Git.
+data "aws_secretsmanager_secret" "github_app" {
+  name = var.github_app_secret_name
+}
+
+data "aws_iam_policy_document" "external_secrets" {
+  statement {
+    sid       = "ReadArgoGithubApp"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [data.aws_secretsmanager_secret.github_app.arn]
+  }
+}
+
+# Trust is pinned to the cluster's OIDC provider and the service account external-secrets/external-secrets.
+module "irsa_external_secrets" {
+  source = "../modules/irsa"
+
+  name              = "${var.name_prefix}-external-secrets"
+  oidc_provider_arn = data.aws_iam_openid_connect_provider.cluster.arn
+  oidc_issuer       = replace(data.aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")
+  namespace         = kubernetes_namespace_v1.external_secrets.metadata[0].name
+  service_account   = "external-secrets"
+  policy_json       = data.aws_iam_policy_document.external_secrets.json
+}
+
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  version    = var.external_secrets_chart_version
+  namespace  = kubernetes_namespace_v1.external_secrets.metadata[0].name
+  atomic     = true
+  wait       = true
+  timeout    = 900
+
+  values = [
+    file("${path.module}/values/external-secrets.yaml"),
+    yamlencode({
+      serviceAccount = {
+        annotations = {
+          "eks.amazonaws.com/role-arn" = module.irsa_external_secrets.role_arn
+        }
+      }
+    }),
+  ]
+}
+
+# ClusterSecretStore and ExternalSecret are custom resources whose CRDs the release above installs.
+# kubernetes_manifest needs the CRD at plan time, so they are delivered by a small local chart:
+# Helm only needs the CRD when it installs, which is after helm_release.external_secrets is ready.
+resource "helm_release" "argocd_repo_secret" {
+  name      = "argocd-repo-secret"
+  chart     = "${path.module}/charts/argocd-repo-secret"
+  namespace = kubernetes_namespace_v1.argocd.metadata[0].name
+  atomic    = true
+  wait      = true
+  timeout   = 300
+
+  values = [yamlencode({
+    region     = var.aws_region
+    secretName = var.github_app_secret_name
+    repoUrl    = var.argocd_repo_url
+  })]
+
+  depends_on = [helm_release.external_secrets, helm_release.argocd]
 }

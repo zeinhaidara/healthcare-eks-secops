@@ -51,6 +51,15 @@
       "Resource": "arn:aws:secretsmanager:us-east-2:<ACCOUNT_ID>:secret:cloudbatch818-zein-hcsecops-*"
     },
     {
+      "Sid": "SecretsGithubAppRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetResourcePolicy"
+      ],
+      "Resource": "arn:aws:secretsmanager:us-east-2:<ACCOUNT_ID>:secret:healthcare/argocd/github-app-??????"
+    },
+    {
       "Sid": "S3LogBucketsOnly",
       "Effect": "Allow",
       "Action": "s3:*",

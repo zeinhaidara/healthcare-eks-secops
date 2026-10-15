@@ -1,0 +1,5 @@
+apiVersion: v2
+name: argocd-repo-secret
+description: ClusterSecretStore and ExternalSecret that give Argo CD its GitHub App repository credential
+type: application
+version: 0.1.0
