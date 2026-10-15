@@ -13,21 +13,17 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const session = createSession((...args) => fetch(...args));
-const STATUS_KEYS = ["stable", "watch", "review", "unknown"];
 
 let patients = [];
-let order = []; // patient ids in list order, for keyboard movement on the tree
+let order = []; // patient ids in list order, for keyboard movement on the network
 let selectedId = null;
 let hoverId = null;
-let scene = null; // the skill tree, created the first time the Tree tab opens
-let heart = null; // the hero heart, created after unlock
-let trigger = null; // the element that opened the card; focus returns here
-const rowButton = new Map(); // patient id -> its list button
+let scene = null; // set after the 3D module loads
+let trigger = null; // the element that opened the detail panel; focus returns here
 
-// Reduced motion and frame timing, guarded so the page also runs where they do not exist.
+// Reduced motion, guarded so the page also runs where matchMedia does not exist.
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const raf = (fn) => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : null);
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -42,18 +38,28 @@ function showGate(message = "") {
   if ($("card").open) $("card").close();
   $("app").hidden = true;
   $("lock").hidden = true;
-  $("search-wrap").hidden = true;
   $("gate").hidden = false;
   $("gate-msg").textContent = message;
   $("key").value = "";
   $("key").focus();
 }
 
-// ---------- Selection, hero and the tree label ----------
-
-// One DOM label on the tree, for the hovered patient or else the selected one. Positioned through
-// CSSOM (element.style), which the Content Security Policy allows; no inline style attributes.
+// Two DOM labels over the network, positioned through CSSOM (element.style), which the Content
+// Security Policy allows; no inline style attributes. The hub label sits under the orb. The node label
+// is for the hovered patient or else the selected one.
 function placeLabel() {
+  const host = $("canvas-host");
+  const hubPos = scene ? scene.screenOf("root") : null;
+  const hub = $("hub-label");
+  if (hubPos) {
+    $("hub-count").textContent = `${patients.length} patients`;
+    hub.hidden = false;
+    const hw = hub.offsetWidth || 0;
+    hub.style.left = `${Math.max(4, hubPos.x - hw / 2)}px`;
+    hub.style.top = `${hubPos.y + hubPos.r + 34}px`;
+  } else {
+    hub.hidden = true;
+  }
   const label = $("node-label");
   const id = hoverId || selectedId;
   const pos = id && scene ? scene.screenOf(id) : null;
@@ -64,33 +70,13 @@ function placeLabel() {
   }
   label.textContent = `${p.patient_id} ${p.name}`;
   label.hidden = false;
-  const host = $("canvas-host");
   const w = label.offsetWidth || 0;
   const h = label.offsetHeight || 0;
   const maxLeft = Math.max(4, (host.clientWidth || 0) - w - 4);
-  let top = pos.y + pos.r + 6;
-  if (top + h > (host.clientHeight || 0) - 4) top = pos.y - pos.r - h - 6;
+  let top = pos.y + pos.r + 8;
+  if (top + h > (host.clientHeight || 0) - 4) top = pos.y - pos.r - h - 8;
   label.style.left = `${Math.min(Math.max(pos.x - w / 2, 4), maxLeft)}px`;
   label.style.top = `${Math.max(top, 4)}px`;
-}
-
-function renderHero(p) {
-  if (!p) {
-    $("hero-name").textContent = "No patient selected";
-    $("hero-status").className = "chip chip-unknown";
-    $("hero-status").textContent = NOT_RECORDED;
-    $("hero-ward").textContent = "";
-    $("hero-next").textContent = NOT_RECORDED;
-    $("hero-open").hidden = true;
-    return;
-  }
-  const key = statusKey(p);
-  $("hero-name").textContent = `${p.patient_id} ${p.name}`;
-  $("hero-status").className = `chip chip-${key}`;
-  $("hero-status").textContent = STATUS_LABELS[key];
-  $("hero-ward").textContent = p.ward || "";
-  $("hero-next").textContent = p.next_visit || NOT_RECORDED;
-  $("hero-open").hidden = false;
 }
 
 function select(id) {
@@ -99,12 +85,10 @@ function select(id) {
     b.setAttribute("aria-pressed", String(b.dataset.id === selectedId));
   }
   if (scene) scene.setSelected(selectedId);
-  if (heart) heart.setSelected(selectedId);
-  renderHero(byId(selectedId));
   placeLabel();
 }
 
-// ---------- The patient card (a side sheet on wide screens, a bottom sheet on phones) ----------
+// ---------- The detail panel (a tall glass side panel on wide screens, a bottom sheet on phones) ----------
 
 function factList(rows) {
   const dl = el("dl", "facts");
@@ -114,9 +98,10 @@ function factList(rows) {
   return dl;
 }
 
-function ringFill(node, fraction, colorVar) {
+// A ring gauge fill, set through CSSOM. The fraction is where the value sits on the model's range.
+function ringFill(node, fraction) {
   const deg = Math.round(Math.max(0, Math.min(1, fraction)) * 360);
-  node.style.background = `conic-gradient(var(${colorVar}) 0deg ${deg}deg, var(--ring-track) ${deg}deg 360deg)`;
+  node.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ring-track) ${deg}deg 360deg)`;
 }
 
 function gauges(p) {
@@ -125,7 +110,7 @@ function gauges(p) {
     const item = el("div", "gauge-item");
     const ring = el("div", g.fraction === null ? "gauge gauge-empty" : "gauge");
     ring.append(el("span", "gauge-value", g.fraction === null ? "-" : g.text.split(" ")[0]));
-    ringFill(ring, g.fraction || 0, "--accent");
+    ringFill(ring, g.fraction || 0);
     item.append(ring, el("span", "gauge-label", g.label), el("span", g.fraction === null ? "gauge-text not-recorded" : "gauge-text", g.text));
     wrap.append(item);
   }
@@ -195,9 +180,8 @@ function renderCard(p) {
     block.append(el("h3", "", section.title));
     const rows = Object.fromEntries(section.rows);
     if (section.title === "Status") {
-      const key = statusKey(p);
       const line = el("p", "status-line");
-      line.append(el("span", `chip chip-${key}`, rows.Status));
+      line.append(el("span", `chip chip-${statusKey(p)}`, rows.Status));
       block.append(line, factList([["Risk band (illustrative)", rows["Risk band (illustrative)"]]]));
     } else if (section.title === "Body and vitals") {
       block.append(factList(section.rows.filter(([t]) => ["Height", "Weight", "Blood type"].includes(t))), gauges(p));
@@ -217,19 +201,19 @@ function renderCard(p) {
 function openCard(id, from) {
   const p = byId(id);
   if (!p) return;
-  trigger = from || rowButton.get(id) || null;
+  trigger = from || [...document.querySelectorAll(".pbtn")].find((b) => b.dataset.id === id) || null;
   select(id);
   renderCard(p);
+  $("card").style.transform = "";
   $("card").showModal();
   $("card-close").focus();
 }
 
-// ---------- List, search and cohort ----------
+// ---------- List and cohort ----------
 
 function renderList() {
   const list = $("patient-list");
   list.replaceChildren();
-  rowButton.clear();
   for (const p of patients) {
     const li = el("li");
     const b = el("button", "pbtn");
@@ -247,66 +231,37 @@ function renderList() {
     b.addEventListener("focus", () => select(p.patient_id));
     li.append(b);
     list.append(li);
-    rowButton.set(p.patient_id, b);
   }
-  applySearch();
+  $("count").textContent = String(patients.length);
 }
 
-function applySearch() {
-  const q = String($("search").value || "").trim().toLowerCase();
-  let shown = 0;
-  for (const li of $("patient-list").children) {
-    const p = byId(li.children[0].dataset.id);
-    const match = !q || [p.patient_id, p.name, p.ward || ""].some((v) => String(v).toLowerCase().includes(q));
-    li.hidden = !match;
-    if (match) shown += 1;
-  }
-  $("count").textContent = q ? `${shown} of ${patients.length}` : String(patients.length);
-}
-
-let ringFrame = null;
 function renderSummary() {
   const summary = statusSummary(patients);
-  const total = patients.length || 1;
-  for (const key of STATUS_KEYS) $(`n-${key}`).textContent = String(summary.counts[key]);
-  $("cohort-total").textContent = String(patients.length);
+  for (const key of ["stable", "watch", "review", "unknown"]) {
+    $(`n-${key}`).textContent = String(summary.counts[key]);
+  }
   $("legend").textContent = legendText();
   $("status-note").textContent = summary.note;
   $("status-note").hidden = !summary.placeholder;
-  // Ring gauges grow in once, unless the user asks for reduced motion.
-  const target = Object.fromEntries(STATUS_KEYS.map((k) => [k, summary.counts[k] / total]));
-  const paint = (t) => {
-    for (const k of STATUS_KEYS) ringFill($(`ring-${k}`), target[k] * t, `--${k}`);
-  };
-  if (reducedMotion() || typeof requestAnimationFrame !== "function") {
-    paint(1);
-    return;
-  }
-  const start = performance.now();
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / 700);
-    paint(1 - (1 - t) ** 3);
-    ringFrame = t < 1 ? raf(step) : null;
-  };
-  paint(0);
-  ringFrame = raf(step);
 }
 
-// ---------- Tabs ----------
-
-function showTab(name) {
-  const tree = name === "tree";
-  $("tab-overview").setAttribute("aria-selected", String(!tree));
-  $("tab-tree").setAttribute("aria-selected", String(tree));
-  $("tab-overview").tabIndex = tree ? -1 : 0;
-  $("tab-tree").tabIndex = tree ? 0 : -1;
-  $("view-overview").hidden = tree;
-  $("view-tree").hidden = !tree;
-  if (tree) ensureTree();
+function moveSelection(step) {
+  if (order.length === 0) return;
+  const at = order.indexOf(selectedId);
+  const next = at < 0 ? 0 : (at + step + order.length) % order.length;
+  select(order[next]);
 }
 
-async function ensureTree() {
-  if (scene) return;
+async function showTree(data) {
+  patients = data;
+  order = patients.map((p) => p.patient_id);
+  selectedId = null;
+  hoverId = null;
+  $("gate").hidden = true;
+  $("app").hidden = false;
+  $("lock").hidden = false;
+  renderList();
+  renderSummary();
   try {
     const { createScene } = await import("./scene.js");
     scene = createScene($("canvas-host"), {
@@ -316,56 +271,14 @@ async function ensureTree() {
         placeLabel();
       },
       onDraw: placeLabel,
+      reducedMotion: reducedMotion(),
     });
   } catch {
     scene = null;
   }
   $("no-webgl").hidden = Boolean(scene);
-  if (scene) {
-    scene.setData(layoutTree(patients));
-    scene.setSelected(selectedId);
-  }
-}
-
-async function ensureHeart() {
-  try {
-    const { createHeart } = await import("./heart.js");
-    heart = createHeart($("hero-canvas"), {
-      onActivate: (id) => openCard(id),
-      onHover: (id) => {
-        const p = id ? byId(id) : null;
-        $("hero-hint").textContent = p ? `${p.patient_id} ${p.name}: ${STATUS_LABELS[statusKey(p)]}` : "Tap a ring around the heart to open that patient.";
-      },
-      reducedMotion: reducedMotion(),
-    });
-  } catch {
-    heart = null;
-  }
-  $("hero-fallback").hidden = Boolean(heart);
-  $("hero-hint").hidden = !heart;
-  if (heart) {
-    heart.setData(patients);
-    heart.setSelected(selectedId);
-  }
-}
-
-// ---------- Unlock and lock ----------
-
-async function showTree(data) {
-  patients = data;
-  order = patients.map((p) => p.patient_id);
-  selectedId = null;
-  hoverId = null;
-  $("search").value = "";
-  $("gate").hidden = true;
-  $("app").hidden = false;
-  $("lock").hidden = false;
-  $("search-wrap").hidden = false;
-  showTab("overview");
-  renderList();
-  renderSummary();
-  renderHero(null);
-  await ensureHeart();
+  if (scene) scene.setData(layoutTree(patients));
+  placeLabel();
   $("patient-list").querySelector("button")?.focus();
 }
 
@@ -381,32 +294,7 @@ $("gate-form").addEventListener("submit", async (e) => {
   }
 });
 
-$("search").addEventListener("input", applySearch);
-
-for (const [id, name] of [["tab-overview", "overview"], ["tab-tree", "tree"]]) {
-  $(id).addEventListener("click", () => showTab(name));
-  $(id).addEventListener("keydown", (e) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-    const next = name === "overview" ? "tree" : "overview";
-    const to = e.key === "Home" ? "overview" : e.key === "End" ? "tree" : next;
-    showTab(to);
-    $(to === "tree" ? "tab-tree" : "tab-overview").focus();
-    e.preventDefault();
-  });
-}
-
-$("hero-open").addEventListener("click", () => {
-  if (selectedId) openCard(selectedId, $("hero-open"));
-});
-
-function moveSelection(step) {
-  if (order.length === 0) return;
-  const at = order.indexOf(selectedId);
-  const next = at < 0 ? 0 : (at + step + order.length) % order.length;
-  select(order[next]);
-}
-
-// Keyboard on the tree: arrows move between patients, Enter or Space opens the card.
+// Keyboard on the network: arrows move between patients, Enter or Space opens the detail panel.
 $("canvas-host").addEventListener("keydown", (e) => {
   if (["ArrowRight", "ArrowDown"].includes(e.key)) moveSelection(1);
   else if (["ArrowLeft", "ArrowUp"].includes(e.key)) moveSelection(-1);
@@ -421,7 +309,7 @@ $("canvas-host").addEventListener("focus", () => {
   else placeLabel();
 });
 
-// The card: Close button, backdrop click and Escape (native) all close it; focus goes back.
+// The panel: Close button, backdrop click and Escape (native) all close it; focus goes back.
 $("card-close").addEventListener("click", () => $("card").close());
 $("card").addEventListener("click", (e) => {
   if (e.target === $("card")) $("card").close(); // a click on the backdrop targets the dialog itself
@@ -429,8 +317,33 @@ $("card").addEventListener("click", (e) => {
 $("card").addEventListener("close", () => {
   const back = trigger;
   trigger = null;
+  $("card").style.transform = "";
   if (back) back.focus();
 });
+
+// The bottom sheet's drag handle: drag down past a threshold to close it, else it springs back.
+{
+  const handle = $("sheet-handle");
+  let startY = null;
+  const DISMISS_PX = 90;
+  handle.addEventListener("pointerdown", (e) => {
+    startY = e.clientY;
+    if (handle.setPointerCapture && e.pointerId !== undefined) handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener("pointermove", (e) => {
+    if (startY === null) return;
+    $("card").style.transform = `translateY(${Math.max(0, e.clientY - startY)}px)`;
+  });
+  const end = (e) => {
+    if (startY === null) return;
+    const dy = e.clientY - startY;
+    startY = null;
+    if (dy > DISMISS_PX) $("card").close();
+    else $("card").style.transform = "";
+  };
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
 
 $("lock").addEventListener("click", () => {
   session.logout();
@@ -438,12 +351,10 @@ $("lock").addEventListener("click", () => {
   order = [];
   selectedId = null;
   hoverId = null;
-  if (ringFrame && typeof cancelAnimationFrame === "function") cancelAnimationFrame(ringFrame);
   if (scene) scene.dispose();
   scene = null;
-  if (heart) heart.dispose();
-  heart = null;
   $("node-label").hidden = true;
+  $("hub-label").hidden = true;
   $("patient-list").replaceChildren();
   showGate("Locked. Enter the key to continue.");
 });
