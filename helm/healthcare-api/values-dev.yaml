@@ -1,14 +1,11 @@
 replicaCount: 2
-
 ingress:
   host: dev.cloudbatch818.click
-
 # Terraform owns the ServiceAccount (terraform/cluster-addons).
 serviceAccount:
   create: false
   name: healthcare-api
-
 # The only values cd.yml changes: it opens a pull request that sets the pushed commit SHA and digest.
 image:
-  tag: ""
-  digest: ""
+  tag: "e0146d4abda4dc5552734c36a14a8be6747768a9"
+  digest: "sha256:db8e7a9f62f5f17f2eb8026666fc57ecac4699c9687bbcc56d068c3b4f792793"
