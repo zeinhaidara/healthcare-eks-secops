@@ -7,9 +7,10 @@ import { STATUS_COLORS } from "./layout.js";
 const BASE_SPAN = 34; // world units across the shorter side at zoom 1 (the tree is about 28 wide)
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 4;
-const ROOT_COLOR = "#c7d6ea";
-const EDGE_COLOR = 0x35516f;
-const BACKGROUND = 0x0d1828;
+const ROOT_COLOR = "#0f8f8a";
+const EDGE_COLOR = 0x9aa9b8;
+const BACKGROUND = 0xf7f9fb;
+const SELECTION_COLOR = 0x1d2a38;
 const RADIUS = { root: 1.5, patient: 0.62 };
 
 export function createScene(container, { onActivate, onHover, onDraw }) {
@@ -29,7 +30,7 @@ export function createScene(container, { onActivate, onHover, onDraw }) {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
   const world = new THREE.Group();
   scene.add(world);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1.0, 40), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1.0, 40), new THREE.MeshBasicMaterial({ color: SELECTION_COLOR }));
   ring.visible = false;
   ring.position.z = 0.5;
   scene.add(ring);
