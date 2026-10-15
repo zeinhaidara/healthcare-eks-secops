@@ -8,6 +8,7 @@ This page lists what protects the system and how we know. Read it row by row.
 
 - **Status** says what state the control is in:
   - **Live**: it exists in the repository and a record shows it works (see Evidence).
+  - **Implemented**: the code is in the repository but has not run in CI yet, so no record shows it works. It becomes Live once a run is recorded.
   - **Manual**: someone set it by hand in GitHub or AWS, outside the code. It is described in [bootstrap.md](../bootstrap.md).
   - **Planned**: not built yet. Nothing here claims it protects anything today.
   - **Not verified**: it is described somewhere, but I could not confirm it. The reason is in the row.
@@ -55,6 +56,7 @@ Supporting rules:
 | Control | Status | ID | Evidence | Source |
 |---|---|---|---|---|
 | No stored AWS keys in CI: GitHub OIDC only, one role per purpose | Live | SEC-011 | `docs/bootstrap.md:19`. Not verified: the role trust policies (created by hand, not in the repo) | `cd.yml:78,114,196`; `terraform-apply.yml`; `terraform-destroy.yml:43` |
+| Commit messages on pull requests into `dev` cannot credit anyone but the owner: a `Co-authored-by:` line (unless it matches the owner-set variable `ALLOWED_COAUTHOR`), a "Generated with" line or a session trailer fails the check. It is not a required check until the owner adds it to the `dev` ruleset | Implemented | none | Run locally against the last 5 commits on `dev` (passed) and against synthetic commits with each blocked line (failed as expected). Not yet run in CI. `docs/security/commit-message-check.md` | `commit-message-check.yml:8-9,11-12,19,24-48` |
 | Terraform runs only by manual dispatch with no inputs; one run at a time | Live | SEC-004 | `evidence/security/checkov/after/` (CKV_GHA_7) | `terraform-apply.yml:6,11-12`; `terraform-destroy.yml:5,10-11` |
 | `tf-plan` under the read-only plan role; `tf-apply` behind the `infra` environment; add-ons plan and apply behind a second `infra` approval | Live | EXC-004, EXC-006 | SEC-037 verification (apply ran from `main`, 2026-10-10) | `terraform-apply.yml:33,43,97-101,138-142,179-183` |
 | `tf-apply` applies the exact plan file and the exact Lambda zip that `tf-plan` built | Live | SEC-016 | SEC-016 entry | `terraform-apply.yml:64-67,87-93,123-124` |
