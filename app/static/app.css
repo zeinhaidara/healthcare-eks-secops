@@ -1,15 +1,32 @@
+/* Light, clean theme. Contrast ratios (WCAG) were computed for every text and graphic pair:
+   text 4.5:1 or more, graphics 3:1 or more, on white and on the page background. */
 :root {
-  --bg: #0b1422;
-  --panel: #12213a;
-  --line: #27415f;
-  --ink: #e8eff8;
-  --muted: #9db0c8;
-  --accent: #5f86b8;
-  --stable: #3ccf91;
-  --watch: #f2b84b;
-  --review: #ef6b6b;
-  --unknown: #8a99ad;
-  color-scheme: dark;
+  --bg: #f3f5f7;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-solid: #ffffff;
+  --line: rgba(29, 42, 56, 0.1);
+  --line-strong: rgba(29, 42, 56, 0.28);
+  --shadow: 0 6px 24px rgba(29, 42, 56, 0.08);
+  --ink: #1d2a38;
+  --muted: #55677a;
+  --accent: #0f8f8a;
+  --accent-btn: #0b7a76;
+  --accent-ink: #0a6b67;
+  --accent-tint: #e1f3f2;
+  --stable: #1f9d6b;
+  --watch: #b57700;
+  --review: #d64545;
+  --unknown: #6f7f90;
+  --stable-tint: #e4f5ec;
+  --watch-tint: #fdf1d6;
+  --review-tint: #fde6e6;
+  --unknown-tint: #e8ecf0;
+  --stable-ink: #0b5a3a;
+  --watch-ink: #7a5000;
+  --review-ink: #a12626;
+  --unknown-ink: #44505e;
+  --radius: 16px;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, sans-serif; }
@@ -27,57 +44,75 @@ h2 { font-size: 1.05rem; }
 }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
 button {
-  font: inherit; color: var(--ink); background: var(--accent); border: 0; border-radius: 8px;
+  font: inherit; color: #ffffff; background: var(--accent-btn); border: 0; border-radius: 10px;
   padding: 10px 16px; min-height: 44px; cursor: pointer;
 }
-button.ghost { background: transparent; border: 1px solid var(--line); }
-button:focus-visible, input:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+button:hover { background: var(--accent-ink); }
+button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
+button.ghost:hover { background: var(--accent-tint); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
 
-.gate { max-width: 440px; margin: 8vh auto 0; padding: 0 16px; }
+/* White glass surfaces. Without backdrop-filter support they fall back to solid white. */
+.gate, .stage, .side > section, .card {
+  background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gate, .stage, .side > section, .card { background: var(--glass-solid); }
+}
+
+.gate { max-width: 440px; margin: 8vh 16px 0; padding: 20px; }
+@media (min-width: 480px) { .gate { margin: 8vh auto 0; } }
 .gate form { display: grid; gap: 8px; margin-top: 16px; }
 label { font-weight: 600; }
 input[type="password"] {
-  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 8px; padding: 10px 12px; min-height: 44px; width: 100%;
+  font: inherit; color: var(--ink); background: #ffffff; border: 1px solid var(--line-strong);
+  border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%;
 }
-.msg { min-height: 1.5em; color: var(--watch); }
+.msg { min-height: 1.5em; color: var(--watch-ink); }
 
 main { display: grid; gap: 16px; padding: 0 16px 24px; max-width: 1200px; margin: 0 auto; }
 main > * { min-width: 0; }
-.stage { display: grid; gap: 8px; }
+.stage { display: grid; gap: 8px; padding: 12px; }
 .canvas-host {
   width: 100%; height: 56vh; min-height: 300px; max-height: 640px; border: 1px solid var(--line);
-  border-radius: 12px; overflow: hidden; background: #0d1828; position: relative;
+  border-radius: 12px; overflow: hidden; background: #f7f9fb; position: relative;
 }
 .canvas-host canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .canvas-host canvas.over-node { cursor: pointer; }
-.canvas-host:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+.canvas-host:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
 /* One label for the hovered, focused or selected patient; placed by app.js through CSSOM. */
 .node-label {
-  position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; padding: 3px 8px; border-radius: 6px;
-  background: rgba(11, 20, 34, 0.92); border: 1px solid var(--line); font-size: 0.85rem; white-space: nowrap;
-  max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis;
+  position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; padding: 3px 8px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95); border: 1px solid var(--line-strong); font-size: 0.85rem;
+  white-space: nowrap; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(29, 42, 56, 0.12);
 }
 .legend-line { margin: 0; color: var(--muted); font-size: 0.9rem; }
-.status-note { margin: 0; color: var(--watch); font-weight: 600; font-size: 0.9rem; }
+.status-note { margin: 0; color: var(--watch-ink); font-weight: 600; font-size: 0.9rem; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; padding: 0; margin: 0; }
 .chip {
   display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.85rem; font-weight: 700;
-  color: #0b1422;
+  border: 1px solid transparent;
 }
-.chip-stable { background: var(--stable); }
-.chip-watch { background: var(--watch); }
-.chip-review { background: var(--review); }
-.chip-unknown { background: var(--unknown); }
-.pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 0.85rem; }
+.chip-stable { background: var(--stable-tint); color: var(--stable-ink); border-color: var(--stable); }
+.chip-watch { background: var(--watch-tint); color: var(--watch-ink); border-color: var(--watch); }
+.chip-review { background: var(--review-tint); color: var(--review-ink); border-color: var(--review); }
+.chip-unknown { background: var(--unknown-tint); color: var(--unknown-ink); border-color: var(--unknown); }
+.pill {
+  background: var(--accent-tint); color: var(--accent-ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 0 8px; font-size: 0.85rem; font-weight: 700;
+}
 
 .side { display: grid; gap: 16px; align-content: start; }
+.side > section { padding: 16px; }
 .plist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; max-height: 280px; overflow-y: auto; }
 .pbtn {
-  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--panel);
-  border: 1px solid var(--line);
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: #ffffff;
+  color: var(--ink); border: 1px solid var(--line);
 }
-.pbtn[aria-pressed="true"] { border-color: #ffffff; }
+.pbtn:hover { background: var(--accent-tint); }
+.pbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .pid { font-weight: 700; }
 .pname { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
@@ -93,16 +128,16 @@ main > * { min-width: 0; }
 /* Patient card: a native modal dialog. No padding on the dialog itself, so a click whose target is
    the dialog element is a click on the backdrop. */
 .card {
-  padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--ink);
+  padding: 0; color: var(--ink); background: rgba(255, 255, 255, 0.92);
   width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
 }
-.card::backdrop { background: rgba(4, 8, 15, 0.72); }
+.card::backdrop { background: rgba(29, 42, 56, 0.4); }
 .card-inner { padding: 16px; max-height: calc(100vh - 34px); overflow-y: auto; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .card-head h2 { overflow-wrap: anywhere; }
-.card-banner { margin: 8px 0 0; color: var(--watch); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.04em; }
+.card-banner { margin: 8px 0 0; color: var(--watch-ink); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.04em; }
 .card-body { display: grid; gap: 12px; margin-top: 12px; }
-.card-section h3 { margin: 0; font-size: 0.95rem; color: var(--accent); }
+.card-section h3 { margin: 0; font-size: 0.95rem; color: var(--accent-ink); }
 
 @media (min-width: 900px) {
   main { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: start; }
