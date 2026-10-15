@@ -53,34 +53,14 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.equal($("status-note").hidden, true, "real status mix: no placeholder note");
   assert.equal($("n-unknown").textContent, "0");
 
-  // Redesign: the hero shows the selected patient, the cohort rings are filled, search filters the
-  // list, the tabs switch views, and without WebGL (as here) the hero falls back to text.
-  const listButtons = buttons();
-  assert.match($("hero-name").textContent, /^P001 /, "unlock focuses the first row, which selects it");
-  assert.match($("hero-status").className, /^chip chip-(stable|watch|review)$/);
-  assert.equal($("hero-open").hidden, false);
-  assert.equal($("cohort-total").textContent, "30");
-  for (const key of ["stable", "watch", "review", "unknown"]) {
-    assert.match($(`ring-${key}`).style.background, /^conic-gradient\(/, `ring-${key} is drawn`);
-  }
-  assert.equal($("search-wrap").hidden, false, "search shows after unlock");
-  $("search").value = "P01";
-  $("search").fire("input");
-  assert.equal($("patient-list").children.filter((li) => !li.hidden).length, 10, "P010 to P019");
-  assert.equal($("count").textContent, "10 of 30");
-  $("search").value = "";
-  $("search").fire("input");
-  assert.equal($("patient-list").children.filter((li) => li.hidden).length, 0);
+  // Dark redesign: status counts are glass chips over the network, the hub label needs the 3D scene
+  // (absent under Node, so it stays hidden and the text fallback shows), and the list is all 30.
+  const counts = ["stable", "watch", "review", "unknown"].map((k) => Number($(`n-${k}`).textContent));
+  assert.equal(counts.reduce((a, b) => a + b, 0), 30, "the four chips add up to every patient");
+  assert.equal($("hub-label").hidden, true, "no WebGL here: no hub label");
+  assert.equal($("no-webgl").hidden, false, "no WebGL here: the text fallback shows");
   assert.equal($("count").textContent, "30");
-  $("tab-tree").handlers.click[0]();
-  assert.equal($("view-tree").hidden, false);
-  assert.equal($("view-overview").hidden, true);
-  assert.equal($("tab-tree").getAttribute("aria-selected"), "true");
-  $("tab-tree").fire("keydown", { key: "ArrowLeft" });
-  assert.equal($("view-overview").hidden, false, "arrow keys move between tabs");
-  assert.equal($("tab-overview").getAttribute("aria-selected"), "true");
-  await until(() => $("hero-fallback").hidden === false);
-  assert.equal(listButtons.length, 30);
+  assert.ok(buttons()[0].getAttribute("data-tip").startsWith(SEED[0].status), "the hover tip names the status");
 
   // 1. Open by mouse from a list row; focus moves into the card.
   const first = buttons()[0];
@@ -91,11 +71,27 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.match($("card-body").textContent, /Blood pressure/);
   assert.match($("card-body").textContent, /synthetic/);
   assert.match($("card-body").textContent, /reference band \(illustrative\)/, "labs are drawn as range bars");
+  assert.match($("card-body").textContent, /Heart rate/, "vitals are drawn as ring gauges");
 
   // 2. Close button: card closes, focus returns to the row that opened it.
   $("card-close").handlers.click[0]();
   assert.equal($("card").open, false);
   assert.equal(active(), first);
+
+  // 2b. The bottom sheet's drag handle: a short drag springs back, a long drag down closes it.
+  const handle = $("sheet-handle");
+  first.handlers.click[0]();
+  handle.fire("pointerdown", { clientY: 100 });
+  handle.fire("pointermove", { clientY: 130 });
+  assert.equal($("card").style.transform, "translateY(30px)", "the sheet follows the drag");
+  handle.fire("pointerup", { clientY: 130 });
+  assert.equal($("card").open, true, "a short drag does not close it");
+  assert.equal($("card").style.transform, "", "and it springs back");
+  handle.fire("pointerdown", { clientY: 100 });
+  handle.fire("pointermove", { clientY: 260 });
+  handle.fire("pointerup", { clientY: 260 });
+  assert.equal($("card").open, false, "a long drag down closes it");
+  assert.equal(active(), first, "focus returns to the row");
 
   // 3. Escape: the browser closes the dialog (close event); focus returns.
   const second = buttons()[1];
