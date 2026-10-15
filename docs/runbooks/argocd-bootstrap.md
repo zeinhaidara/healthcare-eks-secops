@@ -7,6 +7,7 @@ Argo CD runs in the `argocd` namespace on Fargate, metrics-server in `kube-syste
 1. Apply the root (`terraform/`): adds the `argocd` and `external-secrets` Fargate profiles.
 2. Apply the add-ons root (`terraform/cluster-addons`): namespaces, the Helm releases, the External Secrets role, the repo credential and the `healthcare-api` ServiceAccounts.
 3. Check the repo credential (below). There is no by-hand step.
+4. Deploys then run through Argo CD: see `docs/runbooks/gitops-deploy.md`. Nothing here runs `helm upgrade`; CI never deploys.
 
 ## The repo credential (GitHub App, synced by External Secrets)
 

@@ -55,7 +55,7 @@ Branch flow: `feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit,
 | Workflow | Trigger | AWS access | What it does |
 |---|---|---|---|
 | `ci.yml` | PRs to `main` or `dev`, pushes to `dev` | none | `app-test-lint`, `lambda-test`, `app-trivy`, `app-build`, `app-image-scan`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar` |
-| `cd.yml` | push to `main` changing `app/` or `helm/` | OIDC roles | `build` (Trivy image scan, no credentials) -> `push` (ECR push role) -> `deploy-dev` (environment `dev`) -> `deploy-prod` (environment `prod`); Helm deploy pinned to the image digest, then a smoke test |
+| `cd.yml` | push to `main` changing `app/`, or run by hand | OIDC role | `build` (Trivy image scan, no credentials) -> `push` (ECR push role, reads the digest) -> `bump-image` (pull request to `dev` that sets the image tag and digest). Argo CD deploys from Git; CI never runs Helm or kubectl (`docs/runbooks/gitops-deploy.md`) |
 | `terraform-apply.yml` | manual, no inputs | OIDC roles | `tf-plan` (read-only plan role, destructive plan guard) -> `tf-apply` (environment `infra`, apply role) -> `addons-plan` and `addons-apply` (environment `infra`) |
 | `terraform-destroy.yml` | manual, no inputs | OIDC role | `tf-destroy` behind its own `infra-destroy` approval |
 

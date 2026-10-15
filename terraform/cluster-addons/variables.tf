@@ -73,3 +73,13 @@ variable "argocd_repo_url" {
   type        = string
   default     = "https://github.com/zeinhaidara/healthcare-eks-secops.git"
 }
+
+variable "ecr_repository" {
+  description = "ECR repository name (ECR_REPOSITORY). Its URL is given to Argo CD as a chart parameter, never committed."
+  type        = string
+}
+
+variable "domain_name" {
+  description = "Base domain (DOMAIN_NAME). The wildcard ACM certificate for it is looked up and given to Argo CD as a chart parameter."
+  type        = string
+}

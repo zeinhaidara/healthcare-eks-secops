@@ -268,3 +268,50 @@ resource "helm_release" "argocd_repo_secret" {
 
   depends_on = [helm_release.external_secrets, helm_release.argocd]
 }
+
+# ---------- GitOps: AppProject and the dev and prod Applications ----------
+# CI builds, scans and pushes the image, then opens a pull request that sets the tag and digest in the
+# environment values file. Argo CD deploys from Git. dev tracks the dev branch and syncs automatically;
+# prod tracks main and syncs only when someone approves in Argo CD. The Applications are delivered by
+# a local chart for the same CRD-ordering reason as the repo credential above. Values that depend on the
+# AWS account are looked up here and passed as Application parameters, so they live in the cluster and
+# never in Git.
+data "aws_ecr_repository" "app" {
+  name = var.ecr_repository
+}
+
+data "aws_acm_certificate" "wildcard" {
+  domain      = "*.${var.domain_name}"
+  statuses    = ["ISSUED"]
+  most_recent = true
+}
+
+resource "helm_release" "argocd_apps" {
+  name      = "argocd-apps"
+  chart     = "${path.module}/charts/argocd-apps"
+  namespace = kubernetes_namespace_v1.argocd.metadata[0].name
+  atomic    = true
+  wait      = true
+  timeout   = 300
+
+  values = [yamlencode({
+    repoUrl = var.argocd_repo_url
+    environments = [
+      { name = "dev", namespace = var.app_namespaces[0], branch = "dev", automated = true },
+      { name = "prod", namespace = var.app_namespaces[1], branch = "main", automated = false },
+    ]
+    chartParameters = {
+      "image.repository"       = data.aws_ecr_repository.app.repository_url
+      "ingress.certificateArn" = data.aws_acm_certificate.wildcard.arn
+      "ingress.projectTag"     = var.project_name
+      "networkPolicy.vpcCidr"  = data.aws_vpc.this.cidr_block
+      "env.apiKeySecretName"   = "${var.name_prefix}-api-key"
+    }
+  })]
+
+  depends_on = [
+    helm_release.argocd,
+    kubernetes_namespace_v1.app,
+    kubernetes_service_account_v1.app,
+  ]
+}

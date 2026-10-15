@@ -1,25 +1,29 @@
-# Base values. Environment files (values-dev.yaml, values-prod.yaml) override host and sizing.
-# Values that depend on the AWS account are NOT set here: cd.yml passes them with --set at deploy
-# time (image.repository, image.tag, serviceAccount.roleArn, ingress.certificateArn).
+# Base values. Environment files (values-dev.yaml, values-prod.yaml) override host, sizing and the
+# image tag and digest, which cd.yml updates by pull request after each build.
+# Values that depend on the AWS account are NOT set in Git: Argo CD receives them as Application
+# parameters from terraform/cluster-addons (image.repository, ingress.certificateArn,
+# networkPolicy.vpcCidr, ingress.projectTag, env.apiKeySecretName). Argo CD deploys; CI does not.
 
 replicaCount: 2
 
 image:
-  repository: "" # required, set at deploy time
-  tag: "" # required, the commit SHA, set at deploy time
-  digest: "" # set at deploy time (sha256:...); when set the image is pulled by digest, the tag stays as a label
+  repository: "" # required, an Argo CD Application parameter from Terraform
+  tag: "" # required, the commit SHA, set by the cd.yml pull request
+  digest: "" # set by the cd.yml pull request (sha256:...); when set the image is pulled by digest, the tag stays as a label
   pullPolicy: Always
 
 containerPort: 8080
 
-# Extra pod annotations. cd.yml sets secret-version to the API key secret's current version ID so a
-# rotation rolls the pods on the next deploy (they read the key only at startup). The version ID is
-# not secret. Empty values are not rendered, so leaving it unset adds no annotation and restarts nothing.
+# Extra pod annotations. Nothing sets any today. The API key is read only at startup, so after a
+# key rotation restart the pods (docs/runbooks/rotation.md). Empty values are not rendered.
 podAnnotations: {}
 
 serviceAccount:
+  # The environment values files set create to false: Terraform owns the ServiceAccount and its IRSA
+  # role annotation (terraform/cluster-addons). The chart then only refers to it by name.
+  create: true
   name: healthcare-api # IRSA trust is pinned to <namespace>:healthcare-api
-  roleArn: "" # required, set at deploy time
+  roleArn: "" # only used when create is true
 
 env:
   awsRegion: us-east-2
@@ -58,10 +62,10 @@ ingress:
   enabled: true
   className: alb
   host: "" # required, set per environment
-  certificateArn: "" # required, set at deploy time
-  # Default for local template renders only. cd.yml sets this from the PROJECT_NAME repo variable at
-  # deploy time. The budget module's cost_tag_value (terraform/modules/budget/variables.tf) is separate
-  # and must be changed in the same PR if PROJECT_NAME changes.
+  certificateArn: "" # required, an Argo CD Application parameter from Terraform
+  # Default for local template renders only. Argo CD gets this from Terraform's project_name (the
+  # PROJECT_NAME repo variable). The budget module's cost_tag_value (terraform/modules/budget/variables.tf)
+  # is separate and must be changed in the same PR if PROJECT_NAME changes.
   projectTag: cloudbatch818
 
 # Needs metrics-server, which is not installed on this cluster yet. Off until it is (follow-up).
@@ -80,7 +84,7 @@ podDisruptionBudget:
 # security groups for pods (securityGroupPolicy below).
 networkPolicy:
   enabled: true
-  vpcCidr: "" # required, set at deploy time (VPC_CIDR)
+  vpcCidr: "" # required, an Argo CD Application parameter from Terraform (the VPC CIDR)
 
 # Security groups for pods (Fargate). The SecurityGroupPolicy is owned by terraform/cluster-addons
 # (created by the apply role), not by this chart: the deploy roles use AmazonEKSEditPolicy, which has
