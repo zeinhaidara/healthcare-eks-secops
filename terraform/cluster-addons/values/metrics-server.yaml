@@ -1,0 +1,10 @@
+# metrics-server on Fargate. Each Fargate pod is its own node and port 10250 is reserved, so the
+# server listens on 10251 (the --secure-port argument follows containerPort).
+containerPort: 10251
+replicas: 1
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+  limits:
+    memory: 200Mi
