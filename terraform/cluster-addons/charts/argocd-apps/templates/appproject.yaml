@@ -1,0 +1,30 @@
+# The only project Applications may use. Source: this repo. Destinations: the two app namespaces in
+# this cluster. No cluster-scoped objects. Only the kinds the chart creates.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: healthcare
+  namespace: {{ .Release.Namespace }}
+spec:
+  description: healthcare-api, deployed from Git
+  sourceRepos:
+    - {{ required "repoUrl is required" .Values.repoUrl | quote }}
+  destinations:
+    {{- range .Values.environments }}
+    - server: {{ $.Values.server | quote }}
+      namespace: {{ .namespace | quote }}
+    {{- end }}
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: policy
+      kind: PodDisruptionBudget

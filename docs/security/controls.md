@@ -60,7 +60,7 @@ Supporting rules:
 | `tf-apply` applies the exact plan file and the exact Lambda zip that `tf-plan` built | Live | SEC-016 | SEC-016 entry | `terraform-apply.yml:64-67,87-93,123-124` |
 | Destructive plan guard: `tf-plan` fails on a delete or replace of an S3 bucket or bucket setting, KMS key or DynamoDB table; fails closed on a missing plan or grep error | Live | SEC-037 | `improvement-log.md:433-475`. Not verified: the guard has not been seen blocking a real plan (only the local test run in the session) | `terraform-apply.yml:71-86` |
 | Destroy behind its own `infra-destroy` approval | Live | none | The workflow | `terraform-destroy.yml:32-43` |
-| `cd.yml` on a push to `main` that changes `app/` or `helm/`: build, scan, push, deploy dev, then prod | Live | SEC-011, SEC-031 | SEC-031 entry; SEC-033 verification | `cd.yml:6-11,27-258` |
+| `cd.yml` on a push to `main` that changes `app/`: build, scan, push, then a pull request to `dev` that sets the image tag and digest. CI never runs Helm or kubectl against the cluster; Argo CD deploys from Git | Planned | SEC-011, SEC-031 | Code is in the PR that adds it; not applied or run. The earlier deploy jobs had SEC-031 and SEC-033 evidence, which does not carry over | `cd.yml:6-13`; `docs/runbooks/gitops-deploy.md` |
 | GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`: one required reviewer (the maintainer), self-review allowed, repo admins can bypass; `prod`, `infra`, `infra-destroy` deploy from `main` only, `dev` from protected branches (`dev`, `main`) | Manual | EXC-003 | Settings read 2026-10-11 (read-only), recorded in `talk/presentation-facts.md:38-40`. Discrepancy 4 below | `docs/bootstrap.md:19` |
 
 CI roles (all created by hand; policies are copies kept in `docs/bootstrap-policies/`):
@@ -70,7 +70,7 @@ CI roles (all created by hand; policies are copies kept in `docs/bootstrap-polic
 | plan | `tf-plan` | Read-only; state lock file only | Manual | `plan-policy.json`; trust includes `pull_request` (EXC-004, SEC-011). Trust policy not verified: not in the repo |
 | apply | `tf-apply`, add-ons jobs, destroy | Write, scoped to project resources; EKS cluster admin | Manual | `apply-policy.json`; EXC-006, SEC-019 |
 | ecr-push | `cd.yml` job `push` | Push to the project ECR repository | Manual | Not verified: no policy file for this role in the repo (`docs/bootstrap-policies/` has plan, apply, deploy-dev, deploy-prod only) |
-| deploy-dev, deploy-prod | `cd.yml` deploy jobs | `AmazonEKSEditPolicy` on one namespace each; describe and list calls in AWS | Manual | `deploy-dev-policy.json`, `deploy-prod-policy.json`; `terraform/main.tf:92-100`; SEC-019. Not verified: which role each environment's `AWS_ROLE_ARN` variable holds (GitHub variables, values not read) |
+| deploy-dev, deploy-prod | no longer used by `cd.yml` (kept until removed) | `AmazonEKSEditPolicy` on one namespace each; describe and list calls in AWS | Manual | `deploy-dev-policy.json`, `deploy-prod-policy.json`; `terraform/main.tf:92-100`; SEC-019. Not verified: which role each environment's `AWS_ROLE_ARN` variable holds (GitHub variables, values not read) |
 
 ## 4. Dependencies and artifacts
 
@@ -81,14 +81,14 @@ CI roles (all created by hand; policies are copies kept in `docs/bootstrap-polic
 | Base image pinned by digest; image runs as non-root user 10001 | Live | SEC-030 | SEC-030 entry; `app/Dockerfile` | `app/Dockerfile:1,6,8,14` |
 | Image scanned before it is pushed; the scanned image is the one pushed | Live | SEC-012, SEC-031 | `evidence/security/trivy/after/ci-image/` | `cd.yml:27-63` (scan `:38-52`; build job holds no credentials, `:32`) |
 | Images in ECR: immutable tags, scan on push, KMS encryption, lifecycle rules | Live | none | `evidence/security/checkov/after/detective/full-final/` | `terraform/modules/ecr/main.tf:3,7,11-12,16-38` |
-| Deploys pin the image digest, not a tag | Live | SEC-031 | SEC-031 entry | `cd.yml:121-126,168` |
+| Deploys pin the image digest, not a tag: `cd.yml` writes the digest into the values files and the chart pulls by digest | Planned | SEC-031 | Not run yet | `cd.yml:98-104,125-132`; `helm/healthcare-api/templates/deployment.yaml:40` |
 | Dependency updates proposed weekly | Live | none | See Dependabot row in section 1 | `.github/dependabot.yml:3-14` |
 
 ## 5. Deploy layer (chart, cluster and application)
 
 | Control | Status | ID | Evidence | Source |
 |---|---|---|---|---|
-| Deploy rolls back on failure (`--rollback-on-failure --wait --timeout 5m`), then a smoke test | Live | SEC-031 | SEC-031 entry; SEC-033 verification | `cd.yml:174-176,256-258`; `scripts/smoke-test.sh` |
+| Deploy through Argo CD: dev syncs automatically with prune and self-heal; prod syncs only when approved in Argo CD; an `AppProject` limits the source repo, the two namespaces and the object kinds, with no cluster-scoped objects. Rollback is a `git revert` of the image tag. The old `--rollback-on-failure` and the cluster smoke test are gone, and CI does not wait for Argo health | Planned | none | Code is in the PR that adds it; not applied | `terraform/cluster-addons/charts/argocd-apps/`; `docs/runbooks/gitops-deploy.md` |
 | Manual rollback script and runbook | Planned | none | `scripts/rollback.sh` and `docs/runbooks/rollback.md` do not exist (the previous version of this page named them) | none |
 | Pod hardening: non-root, read-only root filesystem, no privilege escalation, all capabilities dropped, default seccomp profile, no service account token | Live | SEC-030 | SEC-030 entry; pods admitted under `restricted` on dev and prod (SEC-032 verification, 2026-10-09) | `helm/healthcare-api/templates/deployment.yaml:31-37,68-79` |
 | Pod Security `restricted` enforced, audited and warned on both app namespaces | Live | SEC-030, SEC-032 | SEC-032 entry | `terraform/cluster-addons/main.tf:13-25` |
