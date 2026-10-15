@@ -25,7 +25,8 @@ Everything under `docs/`, grouped by purpose, one line each. The project overvie
 - Raw scan evidence is under [`evidence/security/`](../evidence/security/).
 
 ## Runbooks
-- [runbooks/argocd-bootstrap.md](runbooks/argocd-bootstrap.md): installing Argo CD and metrics-server on Fargate, and the by-hand repo deploy key.
+- [runbooks/argocd-bootstrap.md](runbooks/argocd-bootstrap.md): installing Argo CD, metrics-server and External Secrets on Fargate, and how the GitHub App credential reaches Argo.
+- [runbooks/argocd-github-app-rotation.md](runbooks/argocd-github-app-rotation.md): rotating the GitHub App private key that Argo CD uses, synced by External Secrets.
 - [runbooks/cluster-access.md](runbooks/cluster-access.md): checks that the cluster, Fargate, namespaces and roles are as designed.
 - [runbooks/deploy-check.md](runbooks/deploy-check.md): what to check after a deploy: pods, `/ready`, the load balancer, HTTPS, pod security groups, rollback.
 - [runbooks/detective-controls.md](runbooks/detective-controls.md): Security Hub, GuardDuty and CloudTrail: enable order, imports, the destructive plan guard, known gaps.

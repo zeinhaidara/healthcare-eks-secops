@@ -55,3 +55,21 @@ variable "metrics_server_chart_version" {
   type        = string
   default     = "3.14.0"
 }
+
+variable "external_secrets_chart_version" {
+  description = "external-secrets Helm chart (charts.external-secrets.io)."
+  type        = string
+  default     = "2.11.0"
+}
+
+variable "github_app_secret_name" {
+  description = "Secrets Manager secret (by name) that holds the Argo CD GitHub App credential as JSON: githubAppID, githubAppInstallationID, githubAppPrivateKey. Created by hand."
+  type        = string
+  default     = "healthcare/argocd/github-app"
+}
+
+variable "argocd_repo_url" {
+  description = "Repository Argo CD reads, over HTTPS with the GitHub App."
+  type        = string
+  default     = "https://github.com/zeinhaidara/healthcare-eks-secops.git"
+}

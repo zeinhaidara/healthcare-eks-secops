@@ -1,0 +1,9 @@
+# All values are set by terraform/cluster-addons (helm_release.argocd_repo_secret).
+region: ""
+serviceAccount:
+  name: external-secrets
+  namespace: external-secrets
+# Name of the Secrets Manager secret. The App ID, installation ID and private key live only in it.
+secretName: ""
+repoUrl: ""
+refreshInterval: 1h
