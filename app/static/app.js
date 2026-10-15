@@ -98,10 +98,44 @@ function factList(rows) {
   return dl;
 }
 
-// A ring gauge fill, set through CSSOM. The fraction is where the value sits on the model's range.
-function ringFill(node, fraction) {
-  const deg = Math.round(Math.max(0, Math.min(1, fraction)) * 360);
-  node.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ring-track) ${deg}deg 360deg)`;
+// A ring gauge drawn as inline SVG with a gradient stroke. The fraction is where the value sits on the
+// model's range. Only SVG attributes are used (no style attribute), so the Content Security Policy holds.
+const RING_R = 30;
+let gaugeSeq = 0;
+
+function svgEl(tag, attrs) {
+  // The namespace is read from an inline SVG that is already in the page (the rail icon), so the script
+  // carries no URL.
+  const node = document.createElementNS($("svg-ns").namespaceURI, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+  return node;
+}
+
+function gaugeRing(fraction) {
+  const id = `gauge-grad-${(gaugeSeq += 1)}`;
+  const circumference = 2 * Math.PI * RING_R;
+  const svg = svgEl("svg", { viewBox: "0 0 72 72", class: "gauge-svg", "aria-hidden": "true", focusable: "false" });
+  const grad = svgEl("linearGradient", { id, x1: 0, y1: 0, x2: 1, y2: 1 });
+  grad.append(svgEl("stop", { offset: "0%", "stop-color": "#2dd4bf" }), svgEl("stop", { offset: "100%", "stop-color": "#8f7bff" }));
+  const defs = svgEl("defs", {});
+  defs.append(grad);
+  svg.append(defs, svgEl("circle", { cx: 36, cy: 36, r: RING_R, fill: "none", stroke: "rgba(233,242,244,0.1)", "stroke-width": 4 }));
+  if (fraction > 0) {
+    svg.append(
+      svgEl("circle", {
+        cx: 36,
+        cy: 36,
+        r: RING_R,
+        fill: "none",
+        stroke: `url(#${id})`,
+        "stroke-width": 4,
+        "stroke-linecap": "round",
+        "stroke-dasharray": `${(circumference * Math.min(1, fraction)).toFixed(1)} ${circumference.toFixed(1)}`,
+        transform: "rotate(-90 36 36)",
+      }),
+    );
+  }
+  return svg;
 }
 
 function gauges(p) {
@@ -109,8 +143,7 @@ function gauges(p) {
   for (const g of vitalGauges(p)) {
     const item = el("div", "gauge-item");
     const ring = el("div", g.fraction === null ? "gauge gauge-empty" : "gauge");
-    ring.append(el("span", "gauge-value", g.fraction === null ? "-" : g.text.split(" ")[0]));
-    ringFill(ring, g.fraction || 0);
+    ring.append(gaugeRing(g.fraction || 0), el("span", "gauge-value", g.fraction === null ? "-" : g.text.split(" ")[0]));
     item.append(ring, el("span", "gauge-label", g.label), el("span", g.fraction === null ? "gauge-text not-recorded" : "gauge-text", g.text));
     wrap.append(item);
   }

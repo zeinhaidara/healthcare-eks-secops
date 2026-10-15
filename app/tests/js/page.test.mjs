@@ -72,6 +72,10 @@ test("page: gate, card by mouse, Close, Escape, backdrop, keyboard, placeholder,
   assert.match($("card-body").textContent, /synthetic/);
   assert.match($("card-body").textContent, /reference band \(illustrative\)/, "labs are drawn as range bars");
   assert.match($("card-body").textContent, /Heart rate/, "vitals are drawn as ring gauges");
+  const gradients = dom.created.filter((e) => e.tagName === "LINEARGRADIENT");
+  assert.ok(gradients.length >= 3, "each ring gauge has its own SVG gradient");
+  assert.ok(new Set(gradients.map((g) => g.getAttribute("id"))).size === gradients.length, "gradient ids are unique");
+  assert.ok(gradients.every((g) => Object.keys(g.style).length === 0), "SVG parts set attributes only, never a style");
 
   // 2. Close button: card closes, focus returns to the row that opened it.
   $("card-close").handlers.click[0]();
