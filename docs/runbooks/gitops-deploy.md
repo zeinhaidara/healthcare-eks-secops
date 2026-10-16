@@ -123,7 +123,7 @@ Auto-rotation is off on purpose: GitHub has no API a Secrets Manager rotation fu
 1. In GitHub, open the OAuth App, choose **Generate a new client secret**, and copy it. Do not paste it anywhere except the next step.
 2. In Secrets Manager, edit the secret `cloudbatch818-zein-hcsecops-argocd-github-sso` and replace the value of `OAuth-Client-Secret` (leave `OAuth-Client-ID` as it is).
 3. Wait for External Secrets to refresh (it checks every hour), or force it now: `kubectl -n argocd annotate externalsecret argocd-github-sso force-sync=$(date +%s) --overwrite`. Check it: `kubectl -n argocd get externalsecret argocd-github-sso` shows `SecretSynced`. Do not print the Secret.
-4. Dex picks up the changed Secret and restarts. Sign in with GitHub to confirm.
+4. Dex does not reload the Secret by itself. Once the ExternalSecret shows `SecretSynced`, restart it: `kubectl -n argocd rollout restart deployment argocd-dex-server`. Then sign in with GitHub to confirm.
 5. Back in GitHub, delete the old client secret.
 
 ## Later clean-up (not yet done)
