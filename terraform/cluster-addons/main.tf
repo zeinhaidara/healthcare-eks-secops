@@ -169,7 +169,7 @@ resource "helm_release" "argocd" {
       configs = {
         cm = {
           url             = "https://${local.argocd_host}"
-          "admin.enabled" = "true"
+          "admin.enabled" = "false"
           # Dex with a GitHub connector. The client ID and secret are read from the Kubernetes Secret
           # built by External Secrets ($<secret>:<key>); no value is written here. No orgs or teams: the
           # repo is on a personal account, so access is by GitHub username in the RBAC below.
