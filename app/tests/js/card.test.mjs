@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NOT_RECORDED, PLACEHOLDER_NOTE, cardSections, initials, labBars, legendText, statusSummary, vitalGauges } from "../../static/view-model.js";
+import { NO_WARD, RISK_ORDER, layoutTree, statusKey, wardOf } from "../../static/layout.js";
+import { NOT_RECORDED, PLACEHOLDER_NOTE, arcCard, cardSections, initials, labBars, legendText, cardPosition, nodeCard, statusSummary, visiblePatients, vitalGauges } from "../../static/view-model.js";
 import { SEED } from "./dom_shim.mjs";
 
 const rowsOf = (p) => Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
@@ -65,12 +66,37 @@ test("status summary: the seed's mix is real; one status or none is a placeholde
   assert.equal(statusSummary([]).placeholder, false, "an empty list says nothing");
 });
 
-test("the legend line names the hub, the branches, every colour and that bands are illustrative", () => {
+test("the legend line describes the arcs and the branches, every colour, and that it is illustrative", () => {
   const line = legendText();
-  for (const part of ["registry", "Branches", "risk band", "illustrative", "green stable", "amber watch", "red review", "grey status not recorded"]) {
+  for (const part of ["registry", "four arcs", "Arc length", "share of patients", "green to red", "review patients", "Click an arc", "Branches", "Dot size", "Illustrative", "green stable", "amber watch", "red review", "grey status not recorded"]) {
     assert.ok(line.includes(part), part);
   }
   assert.ok(!line.includes("\n"), "one line");
+});
+
+test("the arc card gives the ward, the total and the Stable, Watch and Review counts", () => {
+  const arcs = layoutTree(SEED).arcs;
+  for (const arc of arcs) {
+    const card = arcCard(arc);
+    assert.equal(card.title, `Ward ${arc.ward}`);
+    assert.ok(card.detail.startsWith(`${arc.total} patients`));
+    assert.ok(card.detail.includes(`Stable ${arc.stable}`) && card.detail.includes(`Watch ${arc.watch}`) && card.detail.includes(`Review ${arc.review}`));
+    assert.ok(!card.detail.includes("Not recorded"), "only shown when some status is missing");
+  }
+  const odd = arcCard({ text: "Ward A", total: 1, stable: 0, watch: 0, review: 0, unknown: 1 });
+  assert.equal(odd.detail, "1 patient · Stable 0 · Watch 0 · Review 0 · Not recorded 1");
+});
+
+test("the list filter: statuses, one ward, search, sorted by risk", () => {
+  const all = new Set(["stable", "watch", "review", "unknown"]);
+  assert.equal(visiblePatients(SEED, all).length, SEED.length);
+  assert.equal(visiblePatients(SEED, all, "", "B").length, SEED.filter((p) => wardOf(p) === "B").length);
+  assert.ok(visiblePatients(SEED, all, "", "B").every((p) => wardOf(p) === "B"));
+  assert.equal(visiblePatients(SEED, new Set(["review"]), "", "B").length, SEED.filter((p) => wardOf(p) === "B" && p.status === "review").length);
+  assert.equal(visiblePatients(SEED.map((p) => ({ ...p, ward: null })), all, "", NO_WARD).length, SEED.length, "no ward is its own filter");
+  assert.deepEqual(visiblePatients(SEED, all, SEED[2].patient_id.toLowerCase()).map((p) => p.patient_id), [SEED[2].patient_id]);
+  const order = visiblePatients(SEED, all).map((p) => RISK_ORDER[statusKey(p)]);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b));
 });
 
 test("one-decimal fields keep their decimal even when JSON drops it", () => {
@@ -111,4 +137,43 @@ test("care-team initials", () => {
   assert.equal(initials("cardiology"), "CA");
   assert.equal(initials("sleep medicine"), "SM");
   assert.equal(initials(""), "?");
+});
+
+test("the node card gives the ID, name, ward, age and risk", () => {
+  const p = SEED[0];
+  const card = nodeCard(p);
+  assert.equal(card.title, `${p.patient_id} ${p.name}`);
+  assert.equal(card.detail, `Ward ${wardOf(p)} · age ${p.age} · risk: ${p.status}`);
+  assert.equal(nodeCard(V1).detail, "Ward not recorded · age 40 · risk: not recorded");
+});
+
+test("cards are clamped inside the scene and kept clear of the ward labels", () => {
+  const bounds = { width: 600, height: 400 };
+  const size = { w: 160, h: 44 };
+  const inside = (p) => p.left >= 4 && p.top >= 4 && p.left + size.w <= bounds.width - 4 && p.top + size.h <= bounds.height - 4;
+  const hits = (p, o) => p.left < o.left + o.w && p.left + size.w > o.left && p.top < o.top + o.h && p.top + size.h > o.top;
+  // Anchors at every edge and corner, centred or below: always inside.
+  for (const x of [-50, 0, 300, 600, 700]) {
+    for (const y of [-50, 0, 200, 400, 500]) {
+      for (const below of [true, false]) assert.ok(inside(cardPosition({ x, y, r: 6 }, size, bounds, [], { below })), `anchor ${x},${y} below=${below}`);
+    }
+  }
+  // A label right under the preferred spot: the card moves off it.
+  const label = { left: 220, top: 230, w: 120, h: 24 };
+  const near = cardPosition({ x: 280, y: 220, r: 6 }, size, bounds, [label], { below: true });
+  assert.equal(near.overlap, 0);
+  assert.ok(!hits(near, label), "the card is clear of the label");
+  assert.ok(inside(near));
+  // Without obstacles the first choice is used: below the anchor for a node, centred for an arc.
+  assert.deepEqual(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, [], { below: true }), { left: 220, top: 114, overlap: 0 });
+  assert.equal(cardPosition({ x: 300, y: 100, r: 0 }, size, bounds, [], { below: false }).top, 78);
+  // A crowded centre (arc counts and the hub) with a free band further out: the search finds it.
+  const centre = [{ left: 120, top: 130, w: 360, h: 140 }];
+  const crowded = cardPosition({ x: 300, y: 200, r: 6 }, size, bounds, centre, { below: true });
+  assert.equal(crowded.overlap, 0);
+  assert.ok(inside(crowded) && !hits(crowded, centre[0]));
+  // Deterministic, and when nothing is free it takes the least overlap instead of failing.
+  const wall = [{ left: 0, top: 0, w: 600, h: 400 }];
+  assert.deepEqual(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall), cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall));
+  assert.ok(inside(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall)));
 });

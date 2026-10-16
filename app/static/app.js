@@ -1,13 +1,17 @@
-import { createSession, SessionError } from "./session.js";
+﻿import { createSession, SessionError } from "./session.js";
 import { layoutTree, statusKey } from "./layout.js";
 import {
   NOT_RECORDED,
   STATUS_LABELS,
+  arcCard,
+  cardPosition,
   cardSections,
   initials,
   labBars,
   legendText,
+  nodeCard,
   statusSummary,
+  visiblePatients,
   vitalGauges,
 } from "./view-model.js";
 
@@ -20,6 +24,15 @@ let selectedId = null;
 let hoverId = null;
 let scene = null; // set after the 3D module loads
 let trigger = null; // the element that opened the detail panel; focus returns here
+let wardLabels = []; // { node, x, y }: faint ward names placed over the network
+const STATUS_KEYS = ["stable", "watch", "review", "unknown"];
+const shown = new Set(STATUS_KEYS); // statuses currently highlighted; the others are dimmed and filtered out
+let query = ""; // the patient search
+let wardFilter = null; // a ward letter (or "none") while the list is filtered to one ward
+let arcs = []; // the ward arcs from the layout: { arc, button }
+let arcFocus = null; // the ward whose arc is hovered or focused, for the tooltip
+const ARC_LABEL_RADIUS = 5.4; // where the counts sit, inside the arc (world units, matches scene.js)
+const ARC_TIP_RADIUS = 11;
 
 // Reduced motion, guarded so the page also runs where matchMedia does not exist.
 const reducedMotion = () =>
@@ -34,49 +47,127 @@ function el(tag, className, text) {
 
 const byId = (id) => patients.find((p) => p.patient_id === id);
 
-function showGate(message = "") {
+function setGateState(message, kind) {
+  // kind: "loading" (a busy status), "error" (announced at once) or "" (plain).
+  $("gate-msg").textContent = message;
+  $("gate-msg").className = kind === "error" ? "msg msg-error" : "msg";
+  $("gate-msg").setAttribute("role", kind === "error" ? "alert" : "status");
+  const busy = kind === "loading";
+  $("unlock").disabled = busy;
+  $("gate-form").setAttribute("aria-busy", String(busy));
+}
+
+function showGate(message = "", kind = "") {
   if ($("card").open) $("card").close();
   $("app").hidden = true;
   $("lock").hidden = true;
+  $("rail").hidden = true;
   $("gate").hidden = false;
-  $("gate-msg").textContent = message;
+  setGateState(message, kind);
   $("key").value = "";
   $("key").focus();
 }
 
-// Two DOM labels over the network, positioned through CSSOM (element.style), which the Content
-// Security Policy allows; no inline style attributes. The hub label sits under the orb. The node label
-// is for the hovered patient or else the selected one.
+// Labels over the network (ward names, the hub count, the arc counts, the arc card and the node card) are
+// positioned through CSSOM (element.style), which the Content Security Policy allows; no inline style
+// attributes. This runs on every drawn frame, and reading a size forces layout, so a size is measured once
+// (and again when a card's text changes or the window resizes) and a style is written only when it changes.
+let sizes = new WeakMap();
+const sizeOf = (node, fresh = false) => {
+  if (fresh || !sizes.has(node)) sizes.set(node, { w: node.offsetWidth || 0, h: node.offsetHeight || 0 });
+  return sizes.get(node);
+};
+const placed = new Map(); // node -> last left and top, so cards can keep clear of the labels
+const put = (node, left, top) => {
+  placed.set(node, { left: Math.round(left), top: Math.round(top) });
+  const l = `${Math.round(left)}px`;
+  const t = `${Math.round(top)}px`;
+  if (node.style.left !== l) node.style.left = l;
+  if (node.style.top !== t) node.style.top = t;
+};
+const reveal = (node, on) => {
+  if (node.hidden === on) node.hidden = !on;
+};
+const setText = (node, text) => {
+  if (node.textContent === text) return false;
+  node.textContent = text;
+  return true;
+};
+if (typeof window.addEventListener === "function") {
+  window.addEventListener("resize", () => {
+    sizes = new WeakMap();
+    placeLabel();
+  });
+}
+
+const polar = (deg, r) => [r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180)];
+
+// What a card must keep clear of: the ward names, the arc counts and the hub label, where they are now.
+function obstacles() {
+  const nodes = [...wardLabels.map((l) => l.node), ...arcs.map((a) => a.button), $("hub-label")];
+  return nodes
+    .filter((n) => !n.hidden && placed.has(n))
+    .map((n) => ({ left: placed.get(n).left - 3, top: placed.get(n).top - 3, w: sizeOf(n).w + 6, h: sizeOf(n).h + 6 }));
+}
+
+// A card (the arc card, the node card): fill the text, then place it by its anchor, kept inside the host.
+function placeCard(card, title, detail, anchor, below) {
+  const host = $("canvas-host");
+  const changed = setText(title.node, title.text) | setText(detail.node, detail.text);
+  const wasHidden = card.hidden;
+  reveal(card, true);
+  const size = sizeOf(card, Boolean(changed) || wasHidden);
+  const at = cardPosition(anchor, size, { width: host.clientWidth || 0, height: host.clientHeight || 0 }, obstacles(), { below });
+  put(card, at.left, at.top);
+}
+
+const COMPACT_PX = 440; // a scene smaller than this on its short side gets the compact labels
 function placeLabel() {
   const host = $("canvas-host");
+  const cls = Math.min(host.clientWidth || 0, host.clientHeight || 0) < COMPACT_PX ? "canvas-host compact" : "canvas-host";
+  if (host.className !== cls) {
+    host.className = cls;
+    sizes = new WeakMap(); // the label text changes size with it
+  }
+  for (const w of wardLabels) {
+    const at = scene ? scene.screenOfPoint(w.x, w.y) : null;
+    reveal(w.node, Boolean(at));
+    if (at) put(w.node, at.x - sizeOf(w.node).w / 2, at.y - 8);
+  }
   const hubPos = scene ? scene.screenOf("root") : null;
   const hub = $("hub-label");
+  reveal(hub, Boolean(hubPos));
   if (hubPos) {
-    $("hub-count").textContent = `${patients.length} patients`;
-    hub.hidden = false;
-    const hw = hub.offsetWidth || 0;
-    hub.style.left = `${Math.max(4, hubPos.x - hw / 2)}px`;
-    hub.style.top = `${hubPos.y + hubPos.r + 34}px`;
+    const changed = setText($("hub-count"), String(patients.length));
+    const { w, h } = sizeOf(hub, changed);
+    put(hub, hubPos.x - w / 2, hubPos.y - h / 2);
+  }
+  for (const { arc, button } of arcs) {
+    const at = scene ? scene.screenOfPoint(...polar(arc.mid, ARC_LABEL_RADIUS)) : null;
+    if (at) {
+      const { w, h } = sizeOf(button);
+      put(button, at.x - w / 2, at.y - h / 2);
+    }
+  }
+  const tip = $("arc-tip");
+  const focused = arcs.find((a) => a.arc.ward === arcFocus);
+  const tipAt = focused && scene ? scene.screenOfPoint(...polar(focused.arc.mid, ARC_TIP_RADIUS)) : null;
+  if (tipAt) {
+    const card = arcCard(focused.arc);
+    placeCard(tip, { node: $("arc-tip-title"), text: card.title }, { node: $("arc-tip-detail"), text: card.detail }, { ...tipAt, r: 0 }, false);
   } else {
-    hub.hidden = true;
+    reveal(tip, false);
   }
   const label = $("node-label");
   const id = hoverId || selectedId;
   const pos = id && scene ? scene.screenOf(id) : null;
   const p = id ? byId(id) : null;
   if (!pos || !p) {
-    label.hidden = true;
+    reveal(label, false);
     return;
   }
-  label.textContent = `${p.patient_id} ${p.name}`;
-  label.hidden = false;
-  const w = label.offsetWidth || 0;
-  const h = label.offsetHeight || 0;
-  const maxLeft = Math.max(4, (host.clientWidth || 0) - w - 4);
-  let top = pos.y + pos.r + 8;
-  if (top + h > (host.clientHeight || 0) - 4) top = pos.y - pos.r - h - 8;
-  label.style.left = `${Math.min(Math.max(pos.x - w / 2, 4), maxLeft)}px`;
-  label.style.top = `${Math.max(top, 4)}px`;
+  const card = nodeCard(p);
+  placeCard(label, { node: $("node-label-title"), text: card.title }, { node: $("node-label-detail"), text: card.detail }, pos, true);
 }
 
 function select(id) {
@@ -247,13 +338,15 @@ function openCard(id, from) {
 function renderList() {
   const list = $("patient-list");
   list.replaceChildren();
-  for (const p of patients) {
+  const rows = visiblePatients(patients, shown, query, wardFilter);
+  order = rows.map((p) => p.patient_id);
+  for (const p of rows) {
     const li = el("li");
     const b = el("button", "pbtn");
     b.type = "button";
     b.dataset.id = p.patient_id;
     b.setAttribute("aria-pressed", String(p.patient_id === selectedId));
-    b.setAttribute("data-tip", `${STATUS_LABELS[statusKey(p)]} · next visit ${p.next_visit || NOT_RECORDED}`);
+    b.setAttribute("data-tip", `${STATUS_LABELS[statusKey(p)]} Â· next visit ${p.next_visit || NOT_RECORDED}`);
     b.append(
       el("span", `dot dot-${statusKey(p)}`),
       el("span", "pid", p.patient_id),
@@ -265,7 +358,58 @@ function renderList() {
     li.append(b);
     list.append(li);
   }
-  $("count").textContent = String(patients.length);
+  $("ward-clear").hidden = !wardFilter;
+  const filteredArc = arcs.find((a) => a.arc.ward === wardFilter);
+  if (filteredArc) $("ward-clear").textContent = `${filteredArc.arc.text} only. Clear`;
+  $("count").textContent = rows.length === patients.length ? String(patients.length) : `${rows.length} of ${patients.length}`;
+  $("list-empty").textContent = patients.length === 0 ? "No patients returned." : "No patients match.";
+  $("list-empty").hidden = rows.length > 0;
+}
+
+// A status chip is a toggle: pressed means shown. Turning one off dims its nodes and hides its rows.
+function toggleStatus(key) {
+  if (shown.has(key)) shown.delete(key);
+  else shown.add(key);
+  $(`chip-${key}`).setAttribute("aria-pressed", String(shown.has(key)));
+  if (scene) scene.setFilter(shown, wardFilter);
+  renderList();
+  placeLabel();
+}
+
+// An arc is a toggle: click filters the list to its ward, click again clears it.
+function toggleWard(ward) {
+  wardFilter = wardFilter === ward ? null : ward;
+  for (const { arc, button } of arcs) button.setAttribute("aria-pressed", String(arc.ward === wardFilter));
+  if (scene) scene.setFilter(shown, wardFilter);
+  renderList();
+  placeLabel();
+}
+
+function hoverArc(ward) {
+  arcFocus = ward;
+  if (scene) scene.setArcFocus(ward);
+  placeLabel();
+}
+
+// One real button per arc, holding the counts. It is the keyboard and screen-reader way to the arc: focus
+// shows the same card as hover, Enter or Space filters. With the 3D view it sits over the arc; without it,
+// the buttons form a plain row (the ward filter still works).
+function buildArcs(list) {
+  $("ward-arcs").replaceChildren();
+  arcs = list.map((arc) => {
+    const button = el("button", "arc-btn");
+    button.type = "button";
+    button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-label", `${arc.text}: ${arc.total} patients, ${arc.review} in review. Filter the list to this ward.`);
+    const review = el("span", "arc-review");
+    review.append(el("span", "arc-n", String(arc.review)), el("span", "arc-word", " review"));
+    button.append(el("span", "arc-total", String(arc.total)), review);
+    button.addEventListener("click", () => toggleWard(arc.ward));
+    button.addEventListener("focus", () => hoverArc(arc.ward));
+    button.addEventListener("blur", () => hoverArc(null));
+    $("ward-arcs").append(button);
+    return { arc, button };
+  });
 }
 
 function renderSummary() {
@@ -285,16 +429,38 @@ function moveSelection(step) {
   select(order[next]);
 }
 
+function buildWardLabels(guides) {
+  $("ward-labels").replaceChildren();
+  wardLabels = guides.labels.map((l) => {
+    const node = el("span", "ward-label", l.text);
+    $("ward-labels").append(node);
+    return { node, x: l.x, y: l.y };
+  });
+}
+
 async function showTree(data) {
   patients = data;
-  order = patients.map((p) => p.patient_id);
   selectedId = null;
   hoverId = null;
+  shown.clear();
+  for (const k of STATUS_KEYS) {
+    shown.add(k);
+    $(`chip-${k}`).setAttribute("aria-pressed", "true");
+  }
+  query = "";
+  wardFilter = null;
+  arcFocus = null;
+  $("search").value = "";
+  setGateState("", "");
   $("gate").hidden = true;
   $("app").hidden = false;
   $("lock").hidden = false;
+  $("rail").hidden = false;
+  const layout = layoutTree(patients);
+  buildArcs(layout.arcs);
   renderList();
   renderSummary();
+  $("net-state").hidden = false; // "Loading the network..." until the 3D view is ready
   try {
     const { createScene } = await import("./scene.js");
     scene = createScene($("canvas-host"), {
@@ -303,14 +469,22 @@ async function showTree(data) {
         hoverId = id;
         placeLabel();
       },
+      onArcHover: hoverArc,
+      onArcActivate: toggleWard,
       onDraw: placeLabel,
       reducedMotion: reducedMotion(),
     });
   } catch {
     scene = null;
   }
+  $("net-state").hidden = true;
   $("no-webgl").hidden = Boolean(scene);
-  if (scene) scene.setData(layoutTree(patients));
+  $("ward-arcs").className = scene ? "ward-arcs" : "ward-arcs flat";
+  if (scene) {
+    buildWardLabels(layout.guides);
+    scene.setData(layout);
+    scene.setFilter(shown, wardFilter);
+  }
   placeLabel();
   $("patient-list").querySelector("button")?.focus();
 }
@@ -319,16 +493,36 @@ $("gate-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const candidate = $("key").value;
   $("key").value = ""; // the field never keeps the key
-  $("gate-msg").textContent = "Checking the key...";
+  setGateState("Checking the key and loading patients...", "loading");
   try {
     await showTree(await session.login(candidate));
   } catch (err) {
-    showGate(err instanceof SessionError ? err.message : "Something went wrong.");
+    // A bad key and an unreachable service are different problems, so they read differently.
+    const message =
+      err instanceof SessionError
+        ? err.kind === "unavailable"
+          ? `${err.message} The patient service may be down. Try again in a moment.`
+          : `${err.message} Check it and try again.`
+        : "Something went wrong. Try again.";
+    showGate(message, "error");
   }
 });
 
+$("search").addEventListener("input", () => {
+  query = $("search").value;
+  renderList();
+});
+$("ward-clear").addEventListener("click", () => wardFilter && toggleWard(wardFilter));
+for (const key of STATUS_KEYS) $(`chip-${key}`).addEventListener("click", () => toggleStatus(key));
+
+// The rail: real shortcuts, no dead icons. Each one moves keyboard focus to a section.
+$("rail-network").addEventListener("click", () => $("canvas-host").focus());
+$("rail-cohort").addEventListener("click", () => $("chip-stable").focus());
+$("rail-patients").addEventListener("click", () => $("search").focus());
+
 // Keyboard on the network: arrows move between patients, Enter or Space opens the detail panel.
 $("canvas-host").addEventListener("keydown", (e) => {
+  if (e.target !== $("canvas-host")) return; // an arc button inside it handles its own Enter and Space
   if (["ArrowRight", "ArrowDown"].includes(e.key)) moveSelection(1);
   else if (["ArrowLeft", "ArrowUp"].includes(e.key)) moveSelection(-1);
   else if (e.key === "Home") select(order[0]);
@@ -388,6 +582,13 @@ $("lock").addEventListener("click", () => {
   scene = null;
   $("node-label").hidden = true;
   $("hub-label").hidden = true;
+  $("arc-tip").hidden = true;
+  $("ward-arcs").replaceChildren();
+  arcs = [];
+  wardFilter = null;
+  arcFocus = null;
+  $("ward-labels").replaceChildren();
+  wardLabels = [];
   $("patient-list").replaceChildren();
   showGate("Locked. Enter the key to continue.");
 });
