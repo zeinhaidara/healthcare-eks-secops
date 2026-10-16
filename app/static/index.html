@@ -10,12 +10,10 @@
 </head>
 <body>
   <div class="shell">
-    <nav class="rail" aria-hidden="true">
-      <span class="pill-icon pill-icon-active"><svg id="svg-ns" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></span>
-      <span class="pill-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10 10.5 6.4 7.2M14 10.5l3.6-3.3M10 13.5l-3.6 3.3M14 13.5l3.6 3.3"/></svg></span>
-      <span class="pill-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18 14.2c1.8.7 3 2.3 3 4.5"/></svg></span>
-      <span class="pill-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg></span>
-      <span class="pill-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg></span>
+    <nav id="rail" class="rail" aria-label="Jump to a section" hidden>
+      <button id="rail-network" type="button" class="pill-icon" aria-label="Go to the network" title="Network"><svg id="svg-ns" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10 10.5 6.4 7.2M14 10.5l3.6-3.3M10 13.5l-3.6 3.3M14 13.5l3.6 3.3"/></svg></button>
+      <button id="rail-cohort" type="button" class="pill-icon" aria-label="Go to the status filters" title="Status filters"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg></button>
+      <button id="rail-patients" type="button" class="pill-icon" aria-label="Go to the patient search" title="Patients"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18 14.2c1.8.7 3 2.3 3 4.5"/></svg></button>
     </nav>
 
     <div class="frame">
@@ -31,25 +29,29 @@
         <form id="gate-form" autocomplete="off">
           <label for="key">API key</label>
           <input id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
-          <button type="submit">Unlock</button>
+          <button id="unlock" type="submit">Unlock</button>
         </form>
         <p id="gate-msg" class="msg" role="status" aria-live="polite"></p>
       </section>
 
       <main id="app" hidden>
         <section class="stage" aria-label="Network of synthetic patients">
-          <ul class="legend gpills" aria-label="Patients per status">
-            <li class="gpill"><span class="dot dot-stable"></span><span class="gpill-label">stable</span> <span id="n-stable" class="gpill-count">0</span></li>
-            <li class="gpill"><span class="dot dot-watch"></span><span class="gpill-label">watch</span> <span id="n-watch" class="gpill-count">0</span></li>
-            <li class="gpill"><span class="dot dot-review"></span><span class="gpill-label">review</span> <span id="n-review" class="gpill-count">0</span></li>
-            <li class="gpill"><span class="dot dot-unknown"></span><span class="gpill-label">not recorded</span> <span id="n-unknown" class="gpill-count">0</span></li>
+          <ul class="legend gpills" aria-label="Filter patients by status">
+            <li><button id="chip-stable" type="button" class="gpill" aria-pressed="true"><span class="dot dot-stable"></span><span class="gpill-label">stable</span> <span id="n-stable" class="gpill-count">0</span></button></li>
+            <li><button id="chip-watch" type="button" class="gpill" aria-pressed="true"><span class="dot dot-watch"></span><span class="gpill-label">watch</span> <span id="n-watch" class="gpill-count">0</span></button></li>
+            <li><button id="chip-review" type="button" class="gpill" aria-pressed="true"><span class="dot dot-review"></span><span class="gpill-label">review</span> <span id="n-review" class="gpill-count">0</span></button></li>
+            <li><button id="chip-unknown" type="button" class="gpill" aria-pressed="true"><span class="dot dot-unknown"></span><span class="gpill-label">not recorded</span> <span id="n-unknown" class="gpill-count">0</span></button></li>
           </ul>
           <div id="canvas-host" class="canvas-host" tabindex="0" role="application"
-               aria-label="Patient network. Arrow keys move between patients. Enter opens the patient detail."
+               aria-label="Patient network. The centre arcs summarise each ward. Angle is the ward, distance from the centre is the status. Arrow keys move between patients. Enter opens the patient detail."
                aria-describedby="legend">
-            <div id="hub-label" class="hub-label" hidden><span class="hub-name">Registry</span><span id="hub-count" class="hub-count">0 patients</span></div>
-            <div id="node-label" class="node-label" hidden></div>
+            <div id="ward-labels" class="ward-labels" aria-hidden="true"></div>
+            <div id="hub-label" class="hub-label" hidden><span class="hub-name">Registry</span><span class="hub-count"><span id="hub-count">0</span><span class="hub-word"> patients</span></span></div>
+            <div id="ward-arcs" class="ward-arcs"></div>
+            <div id="arc-tip" class="node-label arc-tip" hidden><strong id="arc-tip-title" class="node-title"></strong><span id="arc-tip-detail" class="node-detail"></span></div>
+            <div id="node-label" class="node-label" hidden><strong id="node-label-title" class="node-title"></strong><span id="node-label-detail" class="node-detail"></span></div>
           </div>
+          <p id="net-state" class="muted small" role="status" aria-live="polite" hidden>Loading the network...</p>
           <p id="no-webgl" class="muted" hidden>The 3D view is not available in this browser. Use the list of patients.</p>
           <p id="legend" class="legend-line"></p>
           <p id="status-note" class="status-note" role="note" hidden></p>
@@ -59,7 +61,13 @@
         <aside class="side">
           <section class="glass list-panel" aria-labelledby="list-title">
             <h2 id="list-title">Patients <span id="count" class="pill">0</span></h2>
+            <button id="ward-clear" type="button" class="ghost ward-clear" hidden>Ward filter on. Clear</button>
+            <label class="search" for="search"><span class="sr-only">Search patients by ID or name</span>
+              <input id="search" type="search" placeholder="Search by ID or name" autocomplete="off" spellcheck="false">
+            </label>
+            <p class="muted small sort-note">Sorted by risk: review first.</p>
             <ul id="patient-list" class="plist"></ul>
+            <p id="list-empty" class="muted" role="status" hidden>No patients match.</p>
           </section>
         </aside>
       </main>

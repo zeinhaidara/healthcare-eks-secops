@@ -1,6 +1,6 @@
 // What the page says about a record, as plain data. Pure functions, no DOM, testable in Node.
 // Anything missing reads "not recorded", never a blank and never a guessed value.
-import { STATUSES, statusKey } from "./layout.js";
+import { NO_WARD, RISK_ORDER, ageBand, statusKey, wardOf } from "./layout.js";
 
 export const NOT_RECORDED = "not recorded";
 export const PLACEHOLDER_NOTE = "Note: status is a placeholder in this dataset.";
@@ -22,15 +22,98 @@ export function statusSummary(patients) {
   return { counts, placeholder, note: placeholder ? PLACEHOLDER_NOTE : "" };
 }
 
-const COLOUR_NAMES = { stable: "green", watch: "amber", review: "red" };
-
-// One line: what the hub is, what the branches are, what the colours mean.
+// The caption under the network: what the arcs, the branches, the size and the colours mean.
 export function legendText() {
-  const colours = STATUSES.map((s) => `${COLOUR_NAMES[s]} ${s}`).join(", ");
   return (
-    "Centre: the patient registry. Branches: one per synthetic patient, grouped by risk band " +
-    `(illustrative labels, not clinical advice). Colours: ${colours}, grey status not recorded.`
+    "Centre: the patient registry, as four arcs, one per ward, A to D. Arc length is the ward's share of patients; arc colour runs from green " +
+    "to red as more of the ward's patients are in review; the numbers inside are the ward's patients and its review patients. " +
+    "Click an arc to filter the list to that ward, and again to clear it. " +
+    "Branches: one per patient, at its ward's angle, with review closest to the centre, then watch, then stable. " +
+    "Dot size is the age band, larger is older. Branch colours: green stable, amber watch, red review, grey status not recorded. " +
+    "Illustrative, not clinical advice."
   );
+}
+
+// Where a card goes (CSS pixels, top left): beside its anchor, kept inside the bounds and clear of the
+// obstacles (the ward labels). It tries a few places in a fixed order and takes the first with no overlap, else
+// the one that overlaps least, so it is deterministic. anchor {x, y, r}, size {w, h}, bounds {width, height},
+// obstacles [{left, top, w, h}]: the ward labels, the arc counts and the hub label. `below` puts it under the
+// anchor first (a node); otherwise centred on it. If none of those places is free it searches the whole scene.
+export function cardPosition(anchor, size, bounds, obstacles = [], { below = true, margin = 4, gap = 8 } = {}) {
+  const { x, y, r = 0 } = anchor;
+  const { w, h } = size;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+  const fit = ([left, top]) => ({ left: clamp(left, margin, bounds.width - w - margin), top: clamp(top, margin, bounds.height - h - margin) });
+  const cx = x - w / 2;
+  const cy = y - h / 2;
+  const tries = [
+    below ? [cx, y + r + gap] : [cx, cy],
+    [cx, y - r - h - gap],
+    [cx, y + r + gap],
+    [x + r + gap, cy],
+    [x - r - w - gap, cy],
+  ].map(fit);
+  const overlap = (p) =>
+    obstacles.reduce((sum, o) => sum + Math.max(0, Math.min(p.left + w, o.left + o.w) - Math.max(p.left, o.left)) * Math.max(0, Math.min(p.top + h, o.top + o.h) - Math.max(p.top, o.top)), 0);
+  let best = null;
+  for (const p of tries) {
+    const o = overlap(p);
+    if (o === 0) return { ...p, overlap: 0 };
+    if (!best || o < best.overlap) best = { ...p, overlap: o };
+  }
+  // Nothing next to the anchor is free: look across the scene (a few columns, rows every 6px), the least overlap
+  // wins and the nearest spot breaks a tie.
+  const lefts = [...new Set(tries.map((p) => p.left).concat(fit([margin, 0]).left, fit([bounds.width, 0]).left))];
+  const far = (p) => Math.hypot(p.left + w / 2 - x, p.top + h / 2 - y);
+  for (let top = margin; top <= bounds.height - h - margin; top += 6) {
+    for (const left of lefts) {
+      const p = { left, top };
+      const o = overlap(p);
+      if (o < best.overlap || (o === best.overlap && far(p) < far(best))) best = { ...p, overlap: o };
+    }
+  }
+  return best;
+}
+
+// The card on a hovered or focused arc: the ward, its total, and the status counts.
+export function arcCard(arc) {
+  const parts = [`${arc.total} ${arc.total === 1 ? "patient" : "patients"}`, `Stable ${arc.stable}`, `Watch ${arc.watch}`, `Review ${arc.review}`];
+  if (arc.unknown) parts.push(`Not recorded ${arc.unknown}`);
+  return { title: arc.text, detail: parts.join(" · ") };
+}
+
+// ---------- The patient list: sort by risk, filter by status and search ----------
+
+// Review first, then watch, then stable, then not recorded; patient ID breaks ties.
+export function sortByRisk(patients) {
+  return [...patients].sort((a, b) => RISK_ORDER[statusKey(a)] - RISK_ORDER[statusKey(b)] || a.patient_id.localeCompare(b.patient_id));
+}
+
+// A search matches the patient ID or the name, ignoring case and surrounding spaces. Empty matches all.
+export function matchesSearch(p, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return true;
+  return String(p.patient_id).toLowerCase().includes(q) || String(p.name || "").toLowerCase().includes(q);
+}
+
+// The patients to show: the visible statuses (a Set of status keys), one ward if set (a letter, or NO_WARD),
+// and the search, sorted by risk.
+export function visiblePatients(patients, shownStatuses, query = "", ward = null) {
+  return sortByRisk(patients).filter((p) => shownStatuses.has(statusKey(p)) && (!ward || (wardOf(p) || NO_WARD) === ward) && matchesSearch(p, query));
+}
+
+// The small card on a hovered or focused node: id and name, then ward, age and risk.
+export function nodeCard(p) {
+  const ward = wardOf(p);
+  const band = ageBand(p.age);
+  return {
+    title: `${p.patient_id} ${p.name || ""}`.trim(),
+    detail: [
+      ward ? `Ward ${ward}` : "Ward not recorded",
+      band ? `age ${p.age}` : "age not recorded",
+      `risk: ${STATUS_LABELS[statusKey(p)]}`,
+    ].join(" · "),
+  };
 }
 
 function bloodPressure(p) {

@@ -7,5 +7,5 @@ serviceAccount:
   name: healthcare-api
 # The only values cd.yml changes: it pushes the build's commit SHA and digest straight to dev.
 image:
-  tag: "ad7006321f2d304ae75cca85600a05a81f9ffc00"
-  digest: "sha256:1b66adef6d33e877d69c94034c6aa1af91124aab46bfaf2e99c62677ee31261b"
+  tag: "b6d4a3e4dd8e284a2a0837ba42ec58bbd8543a71"
+  digest: "sha256:007671b2857a97af6a799a73857c0e48613de6aec5a91425720ffa3b4a19765d"

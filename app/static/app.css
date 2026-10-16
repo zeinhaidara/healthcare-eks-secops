@@ -29,6 +29,7 @@
   --watch-text: #f2b84b;
   --review-text: #ff8aa0;
   --unknown-text: #a9b8c3;
+  --periwinkle-text: #d8d3ff; /* banner text: 7.1:1 on the pill over the lightest page */
   --radius: 20px;
   --radius-sm: 13px;
   color-scheme: dark;
@@ -59,7 +60,7 @@ p { margin: 0; }
   -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .card, .gpill, .pill-icon { background: var(--glass-strong); }
+  .glass, .card, .gpill, .pill-icon, .banner { background: var(--glass-strong); }
 }
 
 /* ---------- Shell: rail of glass pills, top bar ---------- */
@@ -70,7 +71,9 @@ p { margin: 0; }
 .brand { flex: 1 1 auto; }
 .banner {
   order: 3; flex: 1 1 100%; padding: 6px 12px; border-radius: 999px; text-align: center;
-  background: #f2b84b; color: #1b1300; font-weight: 700; letter-spacing: 0.04em; font-size: 0.74rem; text-transform: uppercase;
+  background: var(--sheen), rgba(143, 123, 255, 0.16); border: 1px solid rgba(143, 123, 255, 0.45); color: var(--periwinkle-text);
+  box-shadow: var(--highlight); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  font-weight: 600; letter-spacing: 0.08em; font-size: 0.74rem; text-transform: uppercase;
 }
 
 /* ---------- Controls ---------- */
@@ -84,7 +87,7 @@ button.ghost:hover { background: rgba(233, 242, 244, 0.1); }
 button:focus-visible, input:focus-visible, .canvas-host:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
 
 /* ---------- Gate ---------- */
-.gate { width: min(440px, 100%); justify-self: center; margin-top: 6vh; padding: 24px; box-shadow: var(--highlight), var(--depth-3); }
+.gate { width: min(440px, 100%); max-width: 440px; margin-inline: auto; justify-self: center; margin-top: 6vh; padding: 24px; box-shadow: var(--highlight), var(--depth-3); }
 .gate form { display: grid; gap: 8px; margin-top: 16px; }
 .gate .muted { margin-top: 8px; }
 label { font-weight: 600; }
@@ -93,6 +96,7 @@ input[type="password"] {
   border-radius: 12px; padding: 10px 12px; min-height: 44px; width: 100%;
 }
 .msg { min-height: 1.5em; margin-top: 8px; color: var(--watch-text); }
+.msg-error { color: var(--review-text); font-weight: 600; }
 
 /* ---------- Main: the network is the hero ---------- */
 main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 1fr); }
@@ -103,7 +107,12 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
   letter-spacing: 0.12em; text-transform: uppercase; background: var(--sheen), var(--glass); border: 1px solid var(--glass-line);
   box-shadow: var(--highlight), var(--depth-1); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
 }
+.gpill { color: var(--ink); font-weight: 600; }
 .gpill-count { font-weight: 700; letter-spacing: 0; color: var(--ink); }
+/* A status chip is a toggle: pressed (shown) is lit, not pressed (hidden) is dim with a struck label. */
+.gpill[aria-pressed="false"] { opacity: 0.62; }
+.gpill[aria-pressed="false"] .gpill-label { text-decoration: line-through; }
+.gpill[aria-pressed="true"] { border-color: rgba(233, 242, 244, 0.32); }
 .canvas-host {
   width: 100%; height: 44vh; min-height: 280px; max-height: 760px; border-radius: var(--radius); overflow: hidden;
   position: relative; border: 1px solid var(--glass-line); background: rgba(7, 13, 18, 0.35);
@@ -114,9 +123,13 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
   background: radial-gradient(ellipse at center, transparent 52%, rgba(3, 8, 12, 0.6) 100%);
 }
-.hub-label { position: absolute; left: 0; top: 0; z-index: 2; display: grid; justify-items: center; gap: 1px; pointer-events: none; text-align: center; }
-.hub-name { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-text); }
-.hub-count { font-size: 0.8rem; font-weight: 300; color: var(--ink); }
+/* A small opaque backing, so the registry total reads against the core glow (checked in page.test.mjs). */
+.hub-label {
+  position: absolute; left: 0; top: 0; z-index: 2; display: grid; justify-items: center; gap: 1px; pointer-events: none; text-align: center;
+  padding: 3px 10px; border-radius: 14px; background: rgba(5, 11, 16, 0.88); border: 1px solid var(--glass-line);
+}
+.hub-name { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-text); }
+.hub-count { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
 /* One label for the hovered, focused or selected patient; placed by app.js through CSSOM. */
 .node-label {
   position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; padding: 3px 10px; border-radius: 999px;
@@ -124,6 +137,41 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
   max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; box-shadow: var(--depth-1);
 }
 .legend-line { color: var(--muted); font-size: 0.88rem; }
+.ward-labels { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.ward-label { position: absolute; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.2em; color: var(--muted); white-space: nowrap; }
+.node-title { display: block; font-weight: 700; }
+.node-detail { display: block; color: var(--muted); font-size: 0.76rem; }
+.node-label { border-radius: 14px; padding: 6px 12px; }
+/* The ward arcs: the buttons carry the counts over the 3D arcs. They take no pointer events (the canvas picks
+   arcs), but are real buttons for the keyboard and screen readers. */
+.ward-arcs { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.arc-btn {
+  position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: 0; padding: 0; min-height: 0; min-width: 0;
+  background: none; border: 0; border-radius: 10px; color: var(--ink); line-height: 1.05; pointer-events: none;
+  text-shadow: 0 0 10px rgba(233, 242, 244, 0.7), 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.arc-btn:hover { background: none; }
+.arc-btn[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 3px; }
+.arc-total { font-size: 1.05rem; font-weight: 700; }
+.arc-review { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+/* A small canvas (app.js adds .compact when the scene is under 440px on its short side, on a phone in either
+   orientation): the arcs are thin, so the review count drops its word and shows a red dot instead. */
+.compact .arc-total { font-size: 0.85rem; }
+.compact .arc-word, .compact .hub-name, .compact .hub-word { display: none; }
+.compact .arc-review { font-size: 0.66rem; letter-spacing: 0; }
+.compact .arc-review::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--review-text); }
+.compact .hub-count { font-size: 0.95rem; }
+.ward-arcs.flat { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 12px; pointer-events: auto; }
+.ward-arcs.flat .arc-btn { position: static; pointer-events: auto; padding: 6px 12px; background: var(--glass); border: 1px solid var(--glass-line); }
+.arc-tip { white-space: normal; max-width: min(300px, calc(100% - 8px)); z-index: 4; }
+.search input {
+  font: inherit; color: var(--ink); background: rgba(7, 13, 18, 0.7); border: 1px solid var(--glass-line);
+  border-radius: 12px; padding: 10px 12px; min-height: 44px; width: 100%; margin-top: 12px;
+}
+.search input::placeholder { color: var(--muted); }
+.sort-note { margin-top: 8px; }
+.ward-clear { margin-top: 10px; min-height: 36px; padding: 4px 14px; font-size: 0.82rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .status-note { color: var(--watch-text); font-weight: 600; font-size: 0.9rem; }
 
 /* ---------- Patient list ---------- */
@@ -184,7 +232,7 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
 .sheet-handle { width: 44px; height: 5px; margin: 8px auto 12px; border-radius: 999px; background: rgba(233, 242, 244, 0.35); cursor: grab; touch-action: none; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .card-head h2 { overflow-wrap: anywhere; font-size: 1.35rem; font-weight: 300; }
-.card-banner { margin-top: 8px; color: var(--watch-text); font-weight: 700; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.card-banner { margin-top: 8px; color: var(--periwinkle-text); font-weight: 600; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .card-body { display: grid; gap: 12px; margin-top: 14px; }
 .card-section {
   display: grid; gap: 10px; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--glass-line);
@@ -235,16 +283,26 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
 }
 @media (min-width: 1100px) {
   .shell { grid-template-columns: 76px minmax(0, 1fr); }
+  /* The rail is hidden until the key is entered. Without a rule the frame would fall into the 76px rail
+     column and squeeze the lock card; hidden, it spans the page so the card is centred on the screen. */
+  .rail:not([hidden]) ~ .frame { grid-column: 2; }
+  .rail[hidden] ~ .frame { grid-column: 1 / -1; }
   .rail { display: grid; align-content: start; justify-items: center; gap: 12px; padding: 22px 0; position: sticky; top: 0; height: 100vh; }
   .pill-icon {
     width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; color: var(--muted);
     background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--highlight), var(--depth-1);
     -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
   }
+  .pill-icon:hover, .pill-icon:focus-visible { color: var(--accent-text); background: rgba(233, 242, 244, 0.1); }
   .pill-icon-active { color: var(--accent-text); border-color: rgba(25, 195, 180, 0.55); box-shadow: var(--highlight), 0 0 18px rgba(25, 195, 180, 0.35); }
   main { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
   .canvas-host { height: 74vh; }
   .plist { max-height: 70vh; }
+}
+
+/* A phone on its side is short: give the network the height, so the arcs are not tiny. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .canvas-host { height: calc(100vh - 24px); min-height: 300px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

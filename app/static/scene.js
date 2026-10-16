@@ -1,20 +1,22 @@
 // three.js rendering for the patient network.
-//   - Branches: curved lines from the hub to every patient, bright at the hub and dim at the patient.
+//   - Centre: four ward arcs around a small glowing core. Arc length is the ward's share of patients, arc
+//     colour the share of its patients in review (green to red). Hover, focus or click is reported to the page.
+//   - Branches: curved lines from the centre to every patient, bright at the centre and dim at the patient.
 //   - Light pulses: small bright points that travel slowly along some branches.
 //   - Nodes: a small dot with a soft status-coloured halo (a radial gradient drawn on a 2D canvas, so
 //     there are no image files). Halo size and brightness vary a little with a per-patient depth.
-//   - Hub: a layered core (emissive sphere, a fresnel rim-light shell, two tilted orbit rings, a halo,
-//     inside a dark ring).
-//   - Atmosphere: sparse dust far behind, plus a pointer parallax tilt of the hub and the dust.
+//   - Atmosphere: sparse dust far behind, plus a pointer parallax shift of the dust and the core glow.
+// A faint ring per status and the ward wedge borders sit behind the dots (angle = ward, distance = status).
+// A status filter or a ward filter dims the other nodes, branches and pulses instead of removing them.
 // The camera is orthographic, so pan, zoom, pinch, hit-testing and the DOM label positions are exact.
-// Depth is faked with scale, alpha, tilt and parallax. The bloom is additive blending: the vendored
+// Depth is faked with scale, alpha and parallax. The bloom is additive blending: the vendored
 // build has no post-processing pass.
 // Rendering is capped at device pixel ratio 2, throttled to about 30 fps on narrow screens, paused while
 // the tab is hidden or the canvas is off-screen, and every geometry, material and texture is disposed.
-// Under reduced motion nothing rotates, pulses, drifts or tilts, and frames are drawn on demand only.
+// Under reduced motion nothing pulses, drifts or shifts, and frames are drawn on demand only.
 // No network access, no storage, no inline styles.
 import * as THREE from "./vendor/three/three.module.js";
-import { STATUS_COLORS, unit } from "./layout.js";
+import { ARC_TICK, NO_WARD, STATUS_COLORS, unit } from "./layout.js";
 
 const BASE_SPAN = 26; // world units across the shorter side at zoom 1 (grows if a sector pushes patients out)
 const MIN_ZOOM = 0.6;
@@ -22,6 +24,11 @@ const MAX_ZOOM = 4;
 const HUB_COLOR = "#19c3b4";
 const SELECTION_COLOR = 0xe9f2f4;
 const RADIUS = { root: 1.15, patient: 0.34 };
+const ARC_IN = 4.2; // the ward arcs sit between these radii, inside the nearest (review) ring
+const ARC_OUT = 6.6;
+const ARC_PICK = 0.6; // extra reach for the pointer
+const BRANCH_START = ARC_OUT + 0.55; // branches begin just outside the arc band and its glow, so the counts stay clear
+const ARC_BAND = 0.3; // fill of the arc band; the rim and the glow carry the colour
 const CURVE_POINTS = 28;
 const NARROW_PX = 600;
 const NARROW_FRAME_MS = 33; // about 30 fps
@@ -41,20 +48,7 @@ function glowTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-// A fresnel-style rim: bright where the surface turns away from the viewer, clear in the middle.
-function rimMaterial(color) {
-  return new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(color) }, uPower: { value: 2.4 }, uStrength: { value: 1.25 } },
-    vertexShader: "varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader:
-      "varying vec3 vNormal; uniform vec3 uColor; uniform float uPower; uniform float uStrength; void main() { float f = pow(1.0 - abs(vNormal.z), uPower); gl_FragColor = vec4(uColor * f * uStrength, f); }",
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-}
-
-export function createScene(container, { onActivate, onHover, onDraw, reducedMotion = false }) {
+export function createScene(container, { onActivate, onHover, onArcHover, onArcActivate, onDraw, reducedMotion = false }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -76,15 +70,7 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
   const owned = [];
   const own = (x) => (owned.push(x), x);
 
-  // Light for the hub core only; every other material is unlit.
-  scene.add(new THREE.AmbientLight(0x5f8f90, 0.9));
-  const key = new THREE.DirectionalLight(0xbdfaf2, 2.2);
-  key.position.set(-3, 4, 6);
-  scene.add(key);
-  const fill = new THREE.PointLight(0x19c3b4, 30, 12);
-  fill.position.set(2, -2, 4);
-  scene.add(fill);
-
+  // Every material is unlit (basic), so the scene needs no lights.
   const glowMap = own(glowTexture());
   const glowSprite = (color, scale, opacity) => {
     const m = own(new THREE.SpriteMaterial({ map: glowMap, color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -106,26 +92,15 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
   const dust = new THREE.Points(dustGeo, dustMat);
   scene.add(dust);
 
-  // ---- The hub: dark ring, halo, emissive core, rim shell, two tilted orbit rings ----
+  // ---- The centre: a dark disc, a soft glow and a small bright core. The ward arcs are added by setData ----
   const hub = new THREE.Group();
   hub.position.z = 0.2;
-  const darkRing = new THREE.Mesh(own(new THREE.RingGeometry(1.55, 2.1, 64)), own(new THREE.MeshBasicMaterial({ color: 0x050b10, transparent: true, opacity: 0.92 })));
-  darkRing.position.z = -0.3;
-  const ringEdge = new THREE.Mesh(own(new THREE.RingGeometry(2.1, 2.14, 64)), own(new THREE.MeshBasicMaterial({ color: 0x19c3b4, transparent: true, opacity: 0.3 })));
-  ringEdge.position.z = -0.29;
-  const halo = glowSprite(0x19c3b4, 9, 0.7);
+  const disc = new THREE.Mesh(own(new THREE.CircleGeometry(ARC_IN - 0.2, 64)), own(new THREE.MeshBasicMaterial({ color: 0x050b10, transparent: true, opacity: 0.8 })));
+  disc.position.z = -0.3;
+  const halo = glowSprite(0x19c3b4, 14, 0.5);
   halo.position.z = -0.2;
-  const orb = new THREE.Mesh(
-    own(new THREE.SphereGeometry(RADIUS.root, 48, 32)),
-    own(new THREE.MeshStandardMaterial({ color: 0x0b3a3a, emissive: new THREE.Color(HUB_COLOR), emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.25 })),
-  );
-  const core = new THREE.Mesh(own(new THREE.SphereGeometry(0.5, 24, 16)), own(new THREE.MeshBasicMaterial({ color: 0xb8fff6 })));
-  const rimShell = new THREE.Mesh(own(new THREE.SphereGeometry(1.42, 48, 32)), own(rimMaterial(0x7ff3e6)));
-  const orbitA = new THREE.Mesh(own(new THREE.TorusGeometry(1.85, 0.014, 8, 128)), own(new THREE.MeshBasicMaterial({ color: 0x7ff3e6, transparent: true, opacity: 0.55 })));
-  orbitA.rotation.set(1.15, 0.3, 0);
-  const orbitB = new THREE.Mesh(own(new THREE.TorusGeometry(1.6, 0.012, 8, 128)), own(new THREE.MeshBasicMaterial({ color: 0xa99bff, transparent: true, opacity: 0.45 })));
-  orbitB.rotation.set(0.45, 1.0, 0.6);
-  hub.add(darkRing, ringEdge, halo, orb, core, rimShell, orbitA, orbitB);
+  const core = glowSprite(0xb8fff6, 1.6, 0.6);
+  hub.add(disc, halo, core);
   scene.add(hub);
 
   const selectRing = new THREE.Mesh(own(new THREE.RingGeometry(0.9, 1.0, 48)), own(new THREE.MeshBasicMaterial({ color: SELECTION_COLOR, transparent: true, opacity: 1 })));
@@ -137,9 +112,15 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
   let span = BASE_SPAN; // grows when a crowded sector pushes patients further out, so none are clipped
   let nodes = [];
   let disposables = []; // per-dataset objects, rebuilt by setData
-  let edgeMaterial = null;
+  let edgeMats = {}; // one line material per ward and status, so a filter can dim a group on its own
   let edgePaths = []; // one array of points per branch, for the light pulses
-  let pulses = []; // { path, speed, phase }
+  let pulses = []; // { path, speed, phase, status, color }
+  let nodeRefs = []; // { status, ward, dotMat, glowMat, glowBase }
+  let arcs = []; // { arc, mat, rimMat, glowMat }
+  const shown = new Set(["stable", "watch", "review", "unknown"]); // statuses currently highlighted
+  const arcState = { ward: null, hover: null }; // the ward filter and the arc under the pointer or focus
+  const DIM = 0.12;
+  const onGroup = (status, ward) => shown.has(status) && (!arcState.ward || ward === arcState.ward);
   let pulsePoints = null;
   let selectedScale = 1;
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -174,21 +155,23 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
     attr.needsUpdate = true;
   }
 
+  const groupOn = (key) => {
+    const [ward, status] = key.split("|");
+    return onGroup(status, ward);
+  };
+
   function draw(time = 0) {
     pending = false;
     const t = time / 1000;
     if (!reducedMotion) {
-      orb.rotation.y = t * 0.2;
-      orbitA.rotation.z = t * 0.35;
-      orbitB.rotation.z = -t * 0.28;
-      rimShell.material.uniforms.uStrength.value = 1.15 + 0.15 * Math.sin(t * 1.2);
-      if (edgeMaterial) edgeMaterial.opacity = 0.62 + 0.18 * Math.sin(t * 1.4); // the line pulse
+      const pulse = 0.62 + 0.18 * Math.sin(t * 1.4); // the line pulse
+      for (const [key, m] of Object.entries(edgeMats)) m.opacity = pulse * (groupOn(key) ? 1 : DIM);
+      core.material.opacity = 0.6 + 0.1 * Math.sin(t * 1.2);
       updatePulses(t);
-      // Pointer parallax: ease toward the target, tilt the hub and shift the dust the other way.
+      // Pointer parallax: ease toward the target, shift the dust and the core glow the other way.
       parallax.x += (parallax.tx - parallax.x) * 0.08;
       parallax.y += (parallax.ty - parallax.y) * 0.08;
-      hub.rotation.y = parallax.x * 0.45;
-      hub.rotation.x = -parallax.y * 0.35;
+      halo.position.set(-parallax.x * 0.25, -parallax.y * 0.25, -0.2);
       dust.position.set(-parallax.x * 1.6, -parallax.y * 1.6, 0);
       dust.rotation.z = t * 0.006;
       if (selectRing.visible) {
@@ -256,11 +239,17 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
     edgePaths = [];
     pulses = [];
     pulsePoints = null;
+    nodeRefs = [];
+    arcs = [];
+    edgeMats = {};
   }
   const track = (x) => (disposables.push(x), x);
 
-  function curve(a, b) {
-    // A gentle sideways bend, a different share and side for each patient.
+  function curve(hub, b) {
+    // From the edge of the arc band, on the line to the patient, with a gentle sideways bend, a different
+    // share and side for each patient.
+    const d = Math.hypot(b.x - hub.x, b.y - hub.y) || 1;
+    const a = { x: hub.x + ((b.x - hub.x) / d) * BRANCH_START, y: hub.y + ((b.y - hub.y) / d) * BRANCH_START };
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
@@ -275,16 +264,73 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
   function setData(layout) {
     clearWorld();
     nodes = layout.nodes;
-    const reach = Math.max(0, ...nodes.map((n) => Math.hypot(n.x, n.y)));
-    span = Math.max(BASE_SPAN, 2 * (reach + 2.2));
+    const guides = layout.guides || { rings: [], borders: [], labels: [], outer: 0 };
+    const reach = Math.max(0, guides.outer + 3.5, ...nodes.map((n) => Math.hypot(n.x, n.y)));
+    span = Math.max(BASE_SPAN, 2 * (reach + 1.5));
     const byId = new Map(nodes.map((n) => [n.id, n]));
     const hubColor = new THREE.Color(HUB_COLOR);
-    edgeMaterial = track(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const matFor = (ward, status) => {
+      const key = `${ward}|${status}`;
+      edgeMats[key] ||= track(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+      return edgeMats[key];
+    };
     const statusOf = [];
+    const statusName = [];
+    const wardName = [];
+
+    const gapMat = track(new THREE.MeshBasicMaterial({ color: 0x050b10, transparent: true, opacity: 0.95, depthWrite: false }));
+    // The ward arcs: a soft wide band behind a solid one. Colour and length come from the layout.
+    for (const arc of layout.arcs || []) {
+      const rad = (d) => (d * Math.PI) / 180;
+      // The sweep is exactly arc.length (count / total x 360). A ward with no patients gets only a small tick.
+      const sweep = arc.total ? arc.length : ARC_TICK;
+      const from = arc.total ? arc.start : arc.start - ARC_TICK / 2;
+      const segs = Math.max(3, Math.ceil(sweep / 3));
+      const color = new THREE.Color(arc.color);
+      const band = (inner, outer, material, z) => {
+        const m = new THREE.Mesh(track(new THREE.RingGeometry(inner, outer, segs, 1, rad(from), rad(sweep))), material);
+        m.position.z = z;
+        world.add(m);
+      };
+      const glowMat = track(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }));
+      // A tinted glass band with a bright rim on both edges: the page's light counts sit on a dark surface.
+      const mat = track(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: ARC_BAND, depthWrite: false }));
+      const rimMat = track(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: arc.total ? 0.95 : 0.35, depthWrite: false }));
+      band(ARC_IN - 0.35, ARC_OUT + 0.35, glowMat, 0.15);
+      band(ARC_IN, ARC_OUT, mat, 0.2);
+      band(ARC_IN, ARC_IN + 0.09, rimMat, 0.25);
+      band(ARC_OUT - 0.09, ARC_OUT, rimMat, 0.25);
+      if (arc.total) {
+        // The thin gap between this arc and the one before it, drawn over the join.
+        const gap = new THREE.Mesh(track(new THREE.RingGeometry(ARC_IN - 0.4, ARC_OUT + 0.4, 2, 1, rad(arc.start - 0.8), rad(1.6))), gapMat);
+        gap.position.z = 0.3;
+        world.add(gap);
+      }
+      arcs.push({ arc, mat, rimMat, glowMat });
+    }
+
+    // Guides: a faint ring per status and a faint line on each ward border. Drawn first, so they sit behind.
+    const guideMat = track(new THREE.LineBasicMaterial({ color: 0x19c3b4, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending }));
+    for (const ring of guides.rings) {
+      const pts = [];
+      for (let i = 0; i <= 120; i++) pts.push(new THREE.Vector3(Math.cos((i / 120) * Math.PI * 2) * ring.radius, Math.sin((i / 120) * Math.PI * 2) * ring.radius, -0.5));
+      const gg = track(new THREE.BufferGeometry().setFromPoints(pts));
+      world.add(new THREE.Line(gg, guideMat));
+    }
+    for (const angle of guides.borders) {
+      const a = (angle * Math.PI) / 180;
+      const gg = track(new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(Math.cos(a) * (ARC_OUT + 0.6), Math.sin(a) * (ARC_OUT + 0.6), -0.5),
+        new THREE.Vector3(Math.cos(a) * (guides.outer + 2), Math.sin(a) * (guides.outer + 2), -0.5),
+      ]));
+      world.add(new THREE.Line(gg, guideMat));
+    }
+
     for (const e of layout.edges) {
       const a = byId.get(e.from);
       const b = byId.get(e.to);
       const pts = curve(a, b);
+      const ward = b.ward || NO_WARD;
       const tint = new THREE.Color(STATUS_COLORS[b.status] || STATUS_COLORS.unknown);
       const colors = [];
       pts.forEach((_, i) => {
@@ -294,9 +340,11 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
       });
       const g = track(new THREE.BufferGeometry().setFromPoints(pts));
       g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-      world.add(new THREE.Line(g, edgeMaterial));
+      world.add(new THREE.Line(g, matFor(ward, b.status)));
       edgePaths.push(pts);
       statusOf.push(tint);
+      statusName.push(b.status);
+      wardName.push(ward);
     }
 
     // Light pulses on some branches, capped by screen width. None under reduced motion.
@@ -308,8 +356,8 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
       const colors = new Float32Array(count * 3);
       for (let i = 0; i < count; i++) {
         const idx = Math.floor(i * stride);
-        pulses.push({ path: edgePaths[idx], speed: 0.05 + 0.07 * unit(idx, "speed"), phase: unit(idx, "phase") });
         const c = statusOf[idx].clone().lerp(new THREE.Color(0xffffff), 0.55);
+        pulses.push({ path: edgePaths[idx], speed: 0.05 + 0.07 * unit(idx, "speed"), phase: unit(idx, "phase"), status: statusName[idx], ward: wardName[idx], color: [c.r, c.g, c.b] });
         colors.set([c.r, c.g, c.b], i * 3);
       }
       const pg = track(new THREE.BufferGeometry());
@@ -327,16 +375,59 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
       if (node.type !== "patient") continue;
       const color = STATUS_COLORS[node.status] || STATUS_COLORS.unknown;
       const near = node.depth ?? 0.5; // 0 far, 1 near
-      const mat = track(new THREE.MeshBasicMaterial({ color }));
+      const mat = track(new THREE.MeshBasicMaterial({ color, transparent: true }));
       const dot = new THREE.Mesh(dotGeo, mat);
       dot.position.set(node.x, node.y, 0.1);
-      dot.scale.setScalar(0.88 + 0.24 * near);
+      dot.scale.setScalar((node.size || 1) * (0.94 + 0.12 * near)); // size = age band, depth only nudges it
       world.add(dot);
-      const glow = glowSprite(color, 1.9 + 1.0 * near, 0.4 + 0.3 * near);
+      const glowBase = 0.4 + 0.3 * near;
+      const glow = glowSprite(color, (1.9 + 1.0 * near) * (node.size || 1), glowBase);
       glow.position.set(node.x, node.y, 0.05);
       world.add(glow);
       track(glow.material);
+      nodeRefs.push({ status: node.status, ward: node.ward || NO_WARD, dotMat: mat, glowMat: glow.material, glowBase });
     }
+    applyFilter();
+  }
+
+  // Dim the nodes, branches and pulses outside the shown statuses and, if set, outside the filtered ward.
+  function applyFilter() {
+    for (const r of nodeRefs) {
+      const on = onGroup(r.status, r.ward);
+      r.dotMat.opacity = on ? 1 : DIM + 0.04;
+      r.glowMat.opacity = on ? r.glowBase : r.glowBase * 0.1;
+    }
+    if (reducedMotion) for (const [key, m] of Object.entries(edgeMats)) m.opacity = 0.7 * (groupOn(key) ? 1 : DIM);
+    if (pulsePoints) {
+      const attr = pulsePoints.geometry.getAttribute("color");
+      pulses.forEach((p, i) => (onGroup(p.status, p.ward) ? attr.setXYZ(i, ...p.color) : attr.setXYZ(i, 0, 0, 0)));
+      attr.needsUpdate = true;
+    }
+    applyArcs();
+    requestDraw();
+  }
+
+  // The filtered ward and the hovered or focused arc are bright; the other arcs recede while a ward filter is on.
+  function applyArcs() {
+    for (const { arc, mat, rimMat, glowMat } of arcs) {
+      const lit = arc.ward === arcState.hover || arc.ward === arcState.ward;
+      const away = arcState.ward && arc.ward !== arcState.ward ? 0.3 : 1;
+      mat.opacity = (arc.total ? ARC_BAND : 0.1) * away + (lit ? 0.06 : 0);
+      rimMat.opacity = (arc.total ? 0.95 : 0.35) * away;
+      glowMat.opacity = lit ? 0.4 : arcState.ward ? 0.04 : 0.2;
+    }
+  }
+
+  function setFilter(statuses, ward = null) {
+    shown.clear();
+    for (const s of statuses) shown.add(s);
+    arcState.ward = ward;
+    applyFilter();
+  }
+
+  function setArcFocus(ward) {
+    arcState.hover = ward;
+    applyArcs();
     requestDraw();
   }
 
@@ -364,11 +455,33 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
     };
   }
 
-  function nearestPatient(clientX, clientY) {
+  // Screen position of a world point, for the ward labels.
+  function screenOfPoint(x, y) {
+    const { w, h, halfW, halfH } = frustum();
+    return { x: ((x - (view.cx - halfW)) / (2 * halfW)) * w, y: ((view.cy + halfH - y) / (2 * halfH)) * h };
+  }
+
+  function worldPoint(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const { halfW, halfH } = frustum();
-    const px = view.cx - halfW + ((clientX - rect.left) / rect.width) * 2 * halfW;
-    const py = view.cy + halfH - ((clientY - rect.top) / rect.height) * 2 * halfH;
+    return {
+      px: view.cx - halfW + ((clientX - rect.left) / rect.width) * 2 * halfW,
+      py: view.cy + halfH - ((clientY - rect.top) / rect.height) * 2 * halfH,
+    };
+  }
+
+  // The ward arc under a point, or null. Angles are degrees counterclockwise from the east.
+  function arcAt(clientX, clientY) {
+    const { px, py } = worldPoint(clientX, clientY);
+    const r = Math.hypot(px, py);
+    if (r < ARC_IN - ARC_PICK || r > ARC_OUT + ARC_PICK) return null;
+    const deg = ((Math.atan2(py, px) * 180) / Math.PI + 360) % 360;
+    const hit = arcs.find(({ arc }) => (deg - arc.start + 360) % 360 <= arc.length);
+    return hit ? hit.arc : null;
+  }
+
+  function nearestPatient(clientX, clientY) {
+    const { px, py } = worldPoint(clientX, clientY);
     let best = null;
     let bestD = Infinity;
     for (const n of nodes) {
@@ -404,10 +517,12 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
         parallax.tx = ((e.clientX - rect.left) / (rect.width || 1)) * 2 - 1;
         parallax.ty = -(((e.clientY - rect.top) / (rect.height || 1)) * 2 - 1);
       }
-      if (e.pointerType === "mouse" && onHover) {
-        const hit = nearestPatient(e.clientX, e.clientY);
-        canvas.classList.toggle("over-node", Boolean(hit));
-        onHover(hit ? hit.id : null);
+      if (e.pointerType === "mouse") {
+        const arc = arcAt(e.clientX, e.clientY);
+        const hit = arc ? null : nearestPatient(e.clientX, e.clientY);
+        canvas.classList.toggle("over-node", Boolean(hit || arc));
+        if ((arc ? arc.ward : null) !== arcState.hover && onArcHover) onArcHover(arc ? arc.ward : null);
+        if (onHover) onHover(hit ? hit.id : null);
       }
       return;
     }
@@ -432,6 +547,8 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
     pointers.delete(e.pointerId);
     pinchStart = null;
     if (was && pointers.size === 0 && moved < 6 && e.type === "pointerup") {
+      const arc = arcAt(e.clientX, e.clientY);
+      if (arc && onArcActivate) return onArcActivate(arc.ward);
       const hit = nearestPatient(e.clientX, e.clientY);
       if (hit) onActivate(hit.id);
     }
@@ -441,6 +558,7 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
     parallax.tx = 0;
     parallax.ty = 0;
     if (onHover) onHover(null);
+    if (arcState.hover && onArcHover) onArcHover(null);
   };
   const onWheel = (e) => {
     e.preventDefault();
@@ -475,5 +593,5 @@ export function createScene(container, { onActivate, onHover, onDraw, reducedMot
 
   resize();
   resume();
-  return { setData, setSelected, screenOf, dispose };
+  return { setData, setSelected, setFilter, setArcFocus, screenOf, screenOfPoint, dispose };
 }

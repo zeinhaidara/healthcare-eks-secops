@@ -18,13 +18,17 @@ The image repository, the ACM certificate, the VPC CIDR, the project tag and the
 
 ## Open the Argo CD UI
 
-1. Point `kubectl` at the cluster with an identity that may read secrets in the `argocd` namespace: `aws eks update-kubeconfig --name <cluster name> --region us-east-2`.
-2. Forward the server: `kubectl -n argocd port-forward svc/argocd-server 8443:443`
-3. Open `https://localhost:8443`. The certificate is self-signed, so the browser warns once.
-4. Sign in as `admin`. The password comes from the Kubernetes Secret `argocd-initial-admin-secret` in the `argocd` namespace, key `password` (the Argo CD chart default; no SSO is set up). Read it on your own machine, for example `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'` and base64-decode the output. Do not paste it into a ticket, chat or file.
-5. Open `healthcare-api-prod`, review the diff, and choose Sync.
+The UI is at `https://argocd.<domain>` (the domain is the `DOMAIN_NAME` variable). It is an internet-facing load balancer with a valid certificate and no IP allowlist, so sign-in is the control.
 
-The read-only operator access cannot read secrets, so it cannot fetch that password. If the initial secret has been deleted after a password change, use the password that replaced it.
+1. Open the URL and choose **Log in via GitHub**. GitHub asks you to authorise the OAuth App `healthcare-eks-argocd-sso` the first time.
+2. You come back signed in. Your role comes from your GitHub username (`terraform/cluster-addons/variables.tf`, variable `argocd_rbac`): `zeinhaidara` is `role:admin`, `pxkundu` and `oguduf` are `role:readonly`. Anyone else can sign in but sees nothing (`policy.default` is `role:none`).
+3. Open `healthcare-api-prod`, review the diff, and choose Sync (admin only).
+
+To check the role you got, open User Info in the UI (or `/api/v1/session/userinfo`): the `preferred_username` claim must equal your GitHub username, which is what the RBAC lines match on.
+
+To add or change a person, edit `argocd_rbac` in `terraform/cluster-addons/variables.tf` through a pull request into `dev`, release to `main`, and run `terraform-apply`.
+
+**Local admin (fallback, until SSO is verified).** The `admin` login is still on. Its password is the Kubernetes Secret `argocd-initial-admin-secret` in the `argocd` namespace, key `password`; read it on your own machine and do not paste it anywhere. If the endpoint is not up yet, `kubectl -n argocd port-forward svc/argocd-server 8443:443` and `https://localhost:8443` still work. The clean-up at the end of this page turns the local admin off.
 
 ## Roll back
 
@@ -46,7 +50,7 @@ Roll back with a revert, not a cluster command.
 
 ### 1. Application and pods
 
-In the Argo CD UI (port-forward, see above), open `healthcare-api-$ENV`: it should be Synced and Healthy, at the commit you expect. With an identity that can read Argo CD objects: `kubectl -n argocd get application healthcare-api-$ENV`. The read-only operator user cannot read them.
+In the Argo CD UI (see Open the Argo CD UI), open `healthcare-api-$ENV`: it should be Synced and Healthy, at the commit you expect. With an identity that can read Argo CD objects: `kubectl -n argocd get application healthcare-api-$ENV`. The read-only operator user cannot read them.
 
 ```sh
 kubectl get deploy,pods,svc,ingress,pdb -n "$NS"
@@ -109,3 +113,35 @@ Do not use `helm rollback`: Argo CD owns the release and would sync it back. Rev
 
 - API key rotation no longer rolls the pods by itself. The deploy job used to set a Secrets Manager version annotation. After a rotation, restart the pods (`docs/runbooks/rotation.md`) until an automatic method is chosen.
 - CI does not wait for Argo to report Synced and Healthy. That needs an Argo CD API token and a reachable Argo, which means a new secret and exposure, so it is not built.
+
+## Rotate the GitHub sign-in client secret
+
+The OAuth App `healthcare-eks-argocd-sso` has a client ID and a client secret. They live only in the Secrets Manager secret `cloudbatch818-zein-hcsecops-argocd-github-sso`, keys `OAuth-Client-ID` and `OAuth-Client-Secret`. External Secrets copies them into the Kubernetes Secret `argocd-github-sso`, which Dex reads. Nothing is in Git.
+
+Auto-rotation is off on purpose: GitHub has no API a Secrets Manager rotation function could call to issue a new client secret, so there is nothing for it to rotate. Rotate by hand:
+
+1. In GitHub, open the OAuth App, choose **Generate a new client secret**, and copy it. Do not paste it anywhere except the next step.
+2. In Secrets Manager, edit the secret `cloudbatch818-zein-hcsecops-argocd-github-sso` and replace the value of `OAuth-Client-Secret` (leave `OAuth-Client-ID` as it is).
+3. Wait for External Secrets to refresh (it checks every hour), or force it now: `kubectl -n argocd annotate externalsecret argocd-github-sso force-sync=$(date +%s) --overwrite`. Check it: `kubectl -n argocd get externalsecret argocd-github-sso` shows `SecretSynced`. Do not print the Secret.
+4. Dex picks up the changed Secret and restarts. Sign in with GitHub to confirm.
+5. Back in GitHub, delete the old client secret.
+
+## Later clean-up (not yet done)
+
+Do this by hand only after you have signed in with GitHub and seen the right role (see Open the Argo CD UI). It has **not** been done.
+
+1. **Turn the local admin login off.** In `terraform/cluster-addons/main.tf` (`helm_release.argocd`), set `"admin.enabled"` to `"false"`. Open a pull request into `dev`, release to `main`, and run `terraform-apply`. Check that the login page shows only the GitHub button.
+2. **Remove the manual admin association on the `argocd` namespace.** It was added by hand and is not in Terraform, so Terraform will not remove it. Run this as the owner (the cluster name and principal are yours, not in Git):
+
+   ```sh
+   aws eks disassociate-access-policy \
+     --cluster-name <cluster name> \
+     --principal-arn <the operator IAM user ARN> \
+     --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy \
+     --region us-east-2
+   aws eks list-associated-access-policies --cluster-name <cluster name> \
+     --principal-arn <the operator IAM user ARN> --region us-east-2
+   ```
+
+   The list must no longer show `AmazonEKSAdminPolicy` for the `argocd` namespace.
+3. The Terraform-managed read-only association (`operator_argocd_read`, see `docs/runbooks/eks-operator-import.md`) is a separate thing and stays until you remove its resource through a pull request.
