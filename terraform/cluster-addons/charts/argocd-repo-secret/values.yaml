@@ -7,3 +7,8 @@ serviceAccount:
 secretName: ""
 repoUrl: ""
 refreshInterval: 1h
+# The GitHub OAuth App credential for Argo CD sign-in. secretName is the Secrets Manager secret; k8sName is the
+# Kubernetes Secret Dex reads. Empty secretName renders nothing.
+sso:
+  secretName: ""
+  k8sName: argocd-github-sso

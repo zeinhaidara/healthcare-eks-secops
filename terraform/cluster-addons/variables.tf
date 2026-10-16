@@ -83,3 +83,24 @@ variable "domain_name" {
   description = "Base domain (DOMAIN_NAME). The wildcard ACM certificate for it is looked up and given to Argo CD as a chart parameter."
   type        = string
 }
+
+variable "route53_zone_id" {
+  description = "Hosted zone for the Argo CD alias record (ROUTE53_ZONE_ID)."
+  type        = string
+}
+
+variable "argocd_sso_secret_name" {
+  description = "Secrets Manager secret (by name) with the Argo CD GitHub OAuth App credential as JSON: OAuth-Client-ID, OAuth-Client-Secret. Created by hand, rotation off on purpose."
+  type        = string
+  default     = "cloudbatch818-zein-hcsecops-argocd-github-sso"
+}
+
+variable "argocd_rbac" {
+  description = "GitHub usernames and the Argo CD role each gets. Everyone else signs in with no access (policy.default is role:none)."
+  type        = map(string)
+  default = {
+    zeinhaidara = "role:admin"
+    pxkundu     = "role:readonly"
+    oguduf      = "role:readonly"
+  }
+}

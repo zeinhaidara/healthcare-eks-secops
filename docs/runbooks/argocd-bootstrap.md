@@ -26,7 +26,7 @@ The App was created and installed on this repo only, by hand. Its App ID, instal
 - `kubectl get clustersecretstore aws-secrets-manager`: status Ready.
 - `kubectl -n argocd get externalsecret healthcare-repo`: status SecretSynced, and `kubectl -n argocd get secret healthcare-repo` exists. Do not print its data.
 - `kubectl top pods -A` returns numbers (metrics-server works).
-- UI, only when needed: `kubectl -n argocd port-forward svc/argocd-server 8443:443`. Settings, Repositories shows the repo as Successful.
+- UI: `https://argocd.<domain>` (see `docs/runbooks/gitops-deploy.md`). Settings, Repositories shows the repo as Successful.
 
 ## Fargate notes
 
