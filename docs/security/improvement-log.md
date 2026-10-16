@@ -473,6 +473,7 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - Current state: the public access blocks on both log buckets and server access logging on the trail bucket are in place, restored by the repair apply. Operator-confirmed at 2026-10-11, console check.
   - The findings are retained in GuardDuty as history and are not archived.
 - After: apply succeeded, delivery confirmed, plan shows only the accepted `sns_topic_name` drift.
+- Note (2026-10-16): the drift ran the other way from the wording above. The code set the topic ARN and the provider reads back the topic name for a topic in the same account and region as the trail (provider 6.68.0), so the plan showed the name changing to the ARN. `aws_cloudtrail.this` now sets `aws_sns_topic.trail.name`; this changes no CloudTrail configuration. Expected plan: no change for the trail. Not confirmed by a plan run yet.
 - Outcome: closed (2026-10-10). The `sns_topic_name` drift is accepted and tracked as a follow-up.
 - Control area: change control, access control, audit logging
 
