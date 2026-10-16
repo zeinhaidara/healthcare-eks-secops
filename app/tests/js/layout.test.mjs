@@ -107,12 +107,8 @@ test("the ward arcs match the data: counts per ward and status, review counts, a
   }
   assert.equal(arcs.reduce((n, a) => n + a.total, 0), SEED.length, "every patient is in one arc");
   assert.equal(arcs.reduce((n, a) => n + a.review, 0), SEED.filter((p) => p.status === "review").length);
-  // Length is the share: the lengths plus the fixed gaps fill the circle, and a bigger ward has a longer arc.
-  const gap = (360 - arcs.reduce((n, a) => n + a.length, 0)) / arcs.length;
-  assert.ok(gap > 0 && gap < 10);
-  for (const a of arcs) assert.ok(Math.abs(a.length + gap - a.share * 360) < 1e-9, `ward ${a.ward} arc length is its share`);
   const big = [...arcs].sort((a, b) => b.total - a.total);
-  assert.ok(big[0].length >= big[big.length - 1].length);
+  assert.ok(big[0].length >= big[big.length - 1].length, "a bigger ward has a longer arc");
 });
 
 test("arc colour runs from the stable green to the review red, by the review share", () => {
@@ -126,11 +122,29 @@ test("arc colour runs from the stable green to the review red, by the review sha
   for (const a of arcs) assert.equal(a.color, arcColor(a.reviewShare));
 });
 
-test("an empty ward still has a tick, and one ward holding everyone gets a near-full arc", () => {
+test("the sweep of each arc is exactly count / total x 360 degrees, and the arcs meet end to end", () => {
+  const { arcs } = layoutTree(SEED);
+  const total = SEED.length;
+  for (const a of arcs) assert.ok(Math.abs(a.length - (a.total / total) * 360) < 1e-9, `ward ${a.ward}: ${a.length} degrees`);
+  assert.deepEqual(arcs.map((a) => Math.round(a.length * 1000) / 1000), [84, 96, 96, 84], "the seed: 7, 8, 8, 7 of 30");
+  assert.ok(Math.abs(arcs.reduce((n, a) => n + a.length, 0) - 360) < 1e-9, "together a full circle");
+  arcs.forEach((a, i) => {
+    assert.ok(Math.abs(a.start - (i ? arcs[i - 1].start + arcs[i - 1].length : 0)) < 1e-9, `ward ${a.ward} starts where the one before ends`);
+    assert.ok(Math.abs(a.mid - (a.start + a.length / 2)) < 1e-9);
+  });
+  // Other splits too, not just the seed.
+  for (const split of [[1, 1, 1, 1], [10, 0, 5, 3], [29, 1, 0, 0], [0, 0, 0, 7]]) {
+    const fake = split.flatMap((n, i) => Array.from({ length: n }, (_, k) => ({ ...SEED[0], patient_id: `P${i}${k}`, ward: `Ward ${WARDS[i]}` })));
+    const sweeps = wardArcs(fake).map((a) => a.length);
+    split.forEach((n, i) => assert.ok(Math.abs(sweeps[i] - (n / fake.length) * 360) < 1e-9, `split ${split} ward ${WARDS[i]}`));
+  }
+});
+
+test("an empty ward has a sweep of 0 and one ward holding everyone sweeps the whole circle", () => {
   const one = SEED.map((p) => ({ ...p, ward: "Ward B" }));
   const arcs = wardArcs(one);
   assert.equal(arcs.find((a) => a.ward === "A").total, 0);
-  assert.equal(arcs.find((a) => a.ward === "A").length, 2);
-  assert.ok(arcs.find((a) => a.ward === "B").length > 340);
+  assert.equal(arcs.find((a) => a.ward === "A").length, 0);
+  assert.ok(Math.abs(arcs.find((a) => a.ward === "B").length - 360) < 1e-9);
   assert.deepEqual(wardArcs([]).map((a) => a.total), [0, 0, 0, 0]);
 });

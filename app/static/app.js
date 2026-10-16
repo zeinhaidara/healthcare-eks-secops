@@ -4,6 +4,7 @@ import {
   NOT_RECORDED,
   STATUS_LABELS,
   arcCard,
+  cardPosition,
   cardSections,
   initials,
   labBars,
@@ -76,7 +77,9 @@ const sizeOf = (node, fresh = false) => {
   if (fresh || !sizes.has(node)) sizes.set(node, { w: node.offsetWidth || 0, h: node.offsetHeight || 0 });
   return sizes.get(node);
 };
+const placed = new Map(); // node -> last left and top, so cards can keep clear of the labels
 const put = (node, left, top) => {
+  placed.set(node, { left: Math.round(left), top: Math.round(top) });
   const l = `${Math.round(left)}px`;
   const t = `${Math.round(top)}px`;
   if (node.style.left !== l) node.style.left = l;
@@ -99,21 +102,33 @@ if (typeof window.addEventListener === "function") {
 
 const polar = (deg, r) => [r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180)];
 
+// What a card must keep clear of: the ward names, the arc counts and the hub label, where they are now.
+function obstacles() {
+  const nodes = [...wardLabels.map((l) => l.node), ...arcs.map((a) => a.button), $("hub-label")];
+  return nodes
+    .filter((n) => !n.hidden && placed.has(n))
+    .map((n) => ({ left: placed.get(n).left - 3, top: placed.get(n).top - 3, w: sizeOf(n).w + 6, h: sizeOf(n).h + 6 }));
+}
+
 // A card (the arc card, the node card): fill the text, then place it by its anchor, kept inside the host.
 function placeCard(card, title, detail, anchor, below) {
   const host = $("canvas-host");
   const changed = setText(title.node, title.text) | setText(detail.node, detail.text);
   const wasHidden = card.hidden;
   reveal(card, true);
-  const { w, h } = sizeOf(card, Boolean(changed) || wasHidden);
-  const maxLeft = Math.max(4, (host.clientWidth || 0) - w - 4);
-  let top = below ? anchor.y + anchor.r + 8 : anchor.y - h / 2;
-  if (below && top + h > (host.clientHeight || 0) - 4) top = anchor.y - anchor.r - h - 8;
-  top = Math.max(4, Math.min(top, (host.clientHeight || 0) - h - 4));
-  put(card, Math.min(Math.max(anchor.x - w / 2, 4), maxLeft), top);
+  const size = sizeOf(card, Boolean(changed) || wasHidden);
+  const at = cardPosition(anchor, size, { width: host.clientWidth || 0, height: host.clientHeight || 0 }, obstacles(), { below });
+  put(card, at.left, at.top);
 }
 
+const COMPACT_PX = 440; // a scene smaller than this on its short side gets the compact labels
 function placeLabel() {
+  const host = $("canvas-host");
+  const cls = Math.min(host.clientWidth || 0, host.clientHeight || 0) < COMPACT_PX ? "canvas-host compact" : "canvas-host";
+  if (host.className !== cls) {
+    host.className = cls;
+    sizes = new WeakMap(); // the label text changes size with it
+  }
   for (const w of wardLabels) {
     const at = scene ? scene.screenOfPoint(w.x, w.y) : null;
     reveal(w.node, Boolean(at));

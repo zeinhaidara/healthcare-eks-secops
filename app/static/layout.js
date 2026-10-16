@@ -53,8 +53,7 @@ export const wardOf = (p) => {
 };
 
 // ---------- The centre: one arc per ward ----------
-const ARC_GAP = 5; // degrees of clear space between arcs
-const ARC_MIN = 2; // an arc is never shorter than this, so an empty ward still shows a tick
+export const ARC_TICK = 2; // degrees: the mark the scene draws for a ward with no patients (its sweep stays 0)
 export const REVIEW_FULL = 0.5; // half a ward in review reads as fully red
 
 const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -68,7 +67,9 @@ export function arcColor(reviewShare) {
   return t < 0.5 ? mix(STATUS_COLORS.stable, STATUS_COLORS.watch, t * 2) : mix(STATUS_COLORS.watch, STATUS_COLORS.review, (t - 0.5) * 2);
 }
 
-// One arc per ward, running counterclockwise from the east: A first. Pure data, the scene only draws it.
+// One arc per ward, running counterclockwise from the east: A first. The sweep is exactly count / total x 360
+// degrees and the arcs meet end to end; the scene draws the thin gaps between them as separators on top.
+// Pure data, the scene only draws it.
 export function wardArcs(patients, wedgeNames = WARDS) {
   const total = patients.length;
   const rows = wedgeNames.map((ward) => ({ ward, text: ward === NO_WARD ? "No ward" : `Ward ${ward}`, total: 0, stable: 0, watch: 0, review: 0, unknown: 0 }));
@@ -78,9 +79,9 @@ export function wardArcs(patients, wedgeNames = WARDS) {
     r.total = r.stable + r.watch + r.review + r.unknown;
     r.share = total ? r.total / total : 0;
     r.reviewShare = r.total ? r.review / r.total : 0;
-    const length = Math.max(ARC_MIN, r.share * 360 - ARC_GAP);
-    const start = at + ARC_GAP / 2;
-    at += r.share * 360;
+    const length = r.share * 360;
+    const start = at;
+    at += length;
     return { ...r, start, length, mid: start + length / 2, color: arcColor(r.reviewShare) };
   });
 }

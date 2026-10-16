@@ -297,6 +297,16 @@ test("page: each rail icon goes somewhere real, and there are no others", async 
   }
 });
 
+test("page: small scenes get compact labels, big ones keep the words", async () => {
+  const small = await unlocked();
+  assert.equal(small.$("canvas-host").className, "canvas-host compact", "the shim's 600 x 400 scene is under 440 on its short side");
+  const big = await boot();
+  big.$("canvas-host").clientHeight = 700;
+  await big.submit(KEY);
+  await until(() => big.rows().length === SEED.length);
+  assert.equal(big.$("canvas-host").className, "canvas-host");
+});
+
 test("page: the banner text is unchanged and it is a quiet periwinkle pill, not amber or red", () => {
   const text = "SYNTHETIC DATA &middot; illustrative only &middot; not clinical advice";
   assert.match(INDEX_HTML, new RegExp(`<div class="banner" role="note">${text}</div>`));
@@ -363,4 +373,40 @@ test("page: loading and error states for the patient fetch", async () => {
   assert.equal(page.$("list-empty").hidden, false);
   assert.equal(page.$("list-empty").textContent, "No patients returned.");
   assert.equal(page.arcButtons().length, 4, "the arcs still draw, all zero");
+});
+
+test("page: the lock card is centred at any width, and the hub label has a readable backing", () => {
+  const css = readFileSync(new URL("../../static/app.css", import.meta.url), "utf-8").replace(/\r\n/g, "\n");
+  const rule = (selector, from = css) => from.match(new RegExp(`(?:^|\\n)\\s*${selector.replace(/[.]/g, "\\.")} \\{([^}]*)\\}`))[1];
+  // Narrow and wide: the card has a width cap and centres itself.
+  const gate = rule(".gate");
+  assert.match(gate, /width: min\(440px, 100%\)/);
+  assert.match(gate, /max-width: 440px/);
+  assert.match(gate, /margin-inline: auto/);
+  // The 1100px grid has a rail column. The rail is hidden on the lock screen, so the frame must name column 2,
+  // or it falls into the 76px rail column and the card is squeezed.
+  const wide = css.slice(css.indexOf("@media (min-width: 1100px)"));
+  assert.match(wide, /\.shell \{ grid-template-columns: 76px minmax\(0, 1fr\); \}/);
+  assert.match(wide, /\.rail:not\(\[hidden\]\) ~ \.frame \{ grid-column: 2; \}/, "with the rail showing, the frame is column 2");
+  assert.match(wide, /\.rail\[hidden\] ~ \.frame \{ grid-column: 1 \/ -1; \}/, "with the rail hidden, the frame spans the page");
+  assert.match(INDEX_HTML, /<nav id="rail"[^>]* hidden>/, "the rail is hidden until unlock, which is why the frame needs the explicit column");
+
+  // The hub label: an opaque-enough backing, and the "30" and the name clear AA even over the brightest glow.
+  const hub = rule(".hub-label");
+  const [r, g, b, a] = hub.match(/background: rgba\((\d+), (\d+), (\d+), ([\d.]+)\)/).slice(1).map(Number);
+  assert.ok(a >= 0.85, "mostly opaque");
+  const glow = [184, 255, 246]; // the core sprite colour, the brightest thing behind the label
+  const back = [r, g, b].map((v, i) => v * a + glow[i] * (1 - a));
+  const lum = (rgb) => {
+    const [x, y, z] = rgb.map((v) => v / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * x + 0.7152 * y + 0.0722 * z;
+  };
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  for (const [name, colour] of [["--ink", css.match(/--ink: (#[0-9a-f]{6})/)[1]], ["--accent-text", css.match(/--accent-text: (#[0-9a-f]{6})/)[1]]]) {
+    const ratio = (lum(hex(colour)) + 0.05) / (lum(back) + 0.05);
+    assert.ok(ratio >= 4.5, `${name} on the hub backing is ${ratio.toFixed(2)}:1`);
+  }
+  assert.match(rule(".hub-count"), /color: var\(--ink\)/);
+  assert.match(css, /\.compact \.arc-word, \.compact \.hub-name, \.compact \.hub-word \{ display: none; \}/, "compact labels are keyed to the scene size");
+  assert.match(css, /@media \(orientation: landscape\) and \(max-height: 520px\) \{\s+\.canvas-host \{ height: calc\(100vh - 24px\)/, "a phone on its side gets a taller network");
 });

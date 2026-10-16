@@ -16,7 +16,7 @@
 // Under reduced motion nothing pulses, drifts or shifts, and frames are drawn on demand only.
 // No network access, no storage, no inline styles.
 import * as THREE from "./vendor/three/three.module.js";
-import { NO_WARD, STATUS_COLORS, unit } from "./layout.js";
+import { ARC_TICK, NO_WARD, STATUS_COLORS, unit } from "./layout.js";
 
 const BASE_SPAN = 26; // world units across the shorter side at zoom 1 (grows if a sector pushes patients out)
 const MIN_ZOOM = 0.6;
@@ -27,6 +27,7 @@ const RADIUS = { root: 1.15, patient: 0.34 };
 const ARC_IN = 4.2; // the ward arcs sit between these radii, inside the nearest (review) ring
 const ARC_OUT = 6.6;
 const ARC_PICK = 0.6; // extra reach for the pointer
+const BRANCH_START = ARC_OUT + 0.55; // branches begin just outside the arc band and its glow, so the counts stay clear
 const ARC_BAND = 0.3; // fill of the arc band; the rim and the glow carry the colour
 const CURVE_POINTS = 28;
 const NARROW_PX = 600;
@@ -98,7 +99,7 @@ export function createScene(container, { onActivate, onHover, onArcHover, onArcA
   disc.position.z = -0.3;
   const halo = glowSprite(0x19c3b4, 14, 0.5);
   halo.position.z = -0.2;
-  const core = glowSprite(0xb8fff6, 2.2, 0.9);
+  const core = glowSprite(0xb8fff6, 1.6, 0.6);
   hub.add(disc, halo, core);
   scene.add(hub);
 
@@ -165,7 +166,7 @@ export function createScene(container, { onActivate, onHover, onArcHover, onArcA
     if (!reducedMotion) {
       const pulse = 0.62 + 0.18 * Math.sin(t * 1.4); // the line pulse
       for (const [key, m] of Object.entries(edgeMats)) m.opacity = pulse * (groupOn(key) ? 1 : DIM);
-      core.material.opacity = 0.8 + 0.12 * Math.sin(t * 1.2);
+      core.material.opacity = 0.6 + 0.1 * Math.sin(t * 1.2);
       updatePulses(t);
       // Pointer parallax: ease toward the target, shift the dust and the core glow the other way.
       parallax.x += (parallax.tx - parallax.x) * 0.08;
@@ -244,8 +245,11 @@ export function createScene(container, { onActivate, onHover, onArcHover, onArcA
   }
   const track = (x) => (disposables.push(x), x);
 
-  function curve(a, b) {
-    // A gentle sideways bend, a different share and side for each patient.
+  function curve(hub, b) {
+    // From the edge of the arc band, on the line to the patient, with a gentle sideways bend, a different
+    // share and side for each patient.
+    const d = Math.hypot(b.x - hub.x, b.y - hub.y) || 1;
+    const a = { x: hub.x + ((b.x - hub.x) / d) * BRANCH_START, y: hub.y + ((b.y - hub.y) / d) * BRANCH_START };
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
@@ -274,13 +278,17 @@ export function createScene(container, { onActivate, onHover, onArcHover, onArcA
     const statusName = [];
     const wardName = [];
 
+    const gapMat = track(new THREE.MeshBasicMaterial({ color: 0x050b10, transparent: true, opacity: 0.95, depthWrite: false }));
     // The ward arcs: a soft wide band behind a solid one. Colour and length come from the layout.
     for (const arc of layout.arcs || []) {
       const rad = (d) => (d * Math.PI) / 180;
-      const segs = Math.max(3, Math.ceil(arc.length / 3));
+      // The sweep is exactly arc.length (count / total x 360). A ward with no patients gets only a small tick.
+      const sweep = arc.total ? arc.length : ARC_TICK;
+      const from = arc.total ? arc.start : arc.start - ARC_TICK / 2;
+      const segs = Math.max(3, Math.ceil(sweep / 3));
       const color = new THREE.Color(arc.color);
       const band = (inner, outer, material, z) => {
-        const m = new THREE.Mesh(track(new THREE.RingGeometry(inner, outer, segs, 1, rad(arc.start), rad(arc.length))), material);
+        const m = new THREE.Mesh(track(new THREE.RingGeometry(inner, outer, segs, 1, rad(from), rad(sweep))), material);
         m.position.z = z;
         world.add(m);
       };
@@ -292,6 +300,12 @@ export function createScene(container, { onActivate, onHover, onArcHover, onArcA
       band(ARC_IN, ARC_OUT, mat, 0.2);
       band(ARC_IN, ARC_IN + 0.09, rimMat, 0.25);
       band(ARC_OUT - 0.09, ARC_OUT, rimMat, 0.25);
+      if (arc.total) {
+        // The thin gap between this arc and the one before it, drawn over the join.
+        const gap = new THREE.Mesh(track(new THREE.RingGeometry(ARC_IN - 0.4, ARC_OUT + 0.4, 2, 1, rad(arc.start - 0.8), rad(1.6))), gapMat);
+        gap.position.z = 0.3;
+        world.add(gap);
+      }
       arcs.push({ arc, mat, rimMat, glowMat });
     }
 

@@ -87,7 +87,7 @@ button.ghost:hover { background: rgba(233, 242, 244, 0.1); }
 button:focus-visible, input:focus-visible, .canvas-host:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
 
 /* ---------- Gate ---------- */
-.gate { width: min(440px, 100%); justify-self: center; margin-top: 6vh; padding: 24px; box-shadow: var(--highlight), var(--depth-3); }
+.gate { width: min(440px, 100%); max-width: 440px; margin-inline: auto; justify-self: center; margin-top: 6vh; padding: 24px; box-shadow: var(--highlight), var(--depth-3); }
 .gate form { display: grid; gap: 8px; margin-top: 16px; }
 .gate .muted { margin-top: 8px; }
 label { font-weight: 600; }
@@ -123,9 +123,13 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
   background: radial-gradient(ellipse at center, transparent 52%, rgba(3, 8, 12, 0.6) 100%);
 }
-.hub-label { position: absolute; left: 0; top: 0; z-index: 2; display: grid; justify-items: center; gap: 1px; pointer-events: none; text-align: center; }
-.hub-name { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-text); }
-.hub-count { font-size: 0.8rem; font-weight: 300; color: var(--ink); }
+/* A small opaque backing, so the registry total reads against the core glow (checked in page.test.mjs). */
+.hub-label {
+  position: absolute; left: 0; top: 0; z-index: 2; display: grid; justify-items: center; gap: 1px; pointer-events: none; text-align: center;
+  padding: 3px 10px; border-radius: 14px; background: rgba(5, 11, 16, 0.88); border: 1px solid var(--glass-line);
+}
+.hub-name { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-text); }
+.hub-count { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
 /* One label for the hovered, focused or selected patient; placed by app.js through CSSOM. */
 .node-label {
   position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; padding: 3px 10px; border-radius: 999px;
@@ -150,14 +154,13 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
 .arc-btn[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 3px; }
 .arc-total { font-size: 1.05rem; font-weight: 700; }
 .arc-review { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
-/* A narrow canvas: the arcs are thin, so the review count drops its word and shows a red dot instead. */
-@media (max-width: 599px) {
-  .arc-total { font-size: 0.85rem; }
-  .arc-word, .hub-name, .hub-word { display: none; }
-  .arc-review { font-size: 0.66rem; letter-spacing: 0; }
-  .arc-review::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--review-text); }
-  .hub-count { font-size: 0.95rem; font-weight: 600; }
-}
+/* A small canvas (app.js adds .compact when the scene is under 440px on its short side, on a phone in either
+   orientation): the arcs are thin, so the review count drops its word and shows a red dot instead. */
+.compact .arc-total { font-size: 0.85rem; }
+.compact .arc-word, .compact .hub-name, .compact .hub-word { display: none; }
+.compact .arc-review { font-size: 0.66rem; letter-spacing: 0; }
+.compact .arc-review::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--review-text); }
+.compact .hub-count { font-size: 0.95rem; }
 .ward-arcs.flat { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 12px; pointer-events: auto; }
 .ward-arcs.flat .arc-btn { position: static; pointer-events: auto; padding: 6px 12px; background: var(--glass); border: 1px solid var(--glass-line); }
 .arc-tip { white-space: normal; max-width: min(300px, calc(100% - 8px)); z-index: 4; }
@@ -280,6 +283,10 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
 }
 @media (min-width: 1100px) {
   .shell { grid-template-columns: 76px minmax(0, 1fr); }
+  /* The rail is hidden until the key is entered. Without a rule the frame would fall into the 76px rail
+     column and squeeze the lock card; hidden, it spans the page so the card is centred on the screen. */
+  .rail:not([hidden]) ~ .frame { grid-column: 2; }
+  .rail[hidden] ~ .frame { grid-column: 1 / -1; }
   .rail { display: grid; align-content: start; justify-items: center; gap: 12px; padding: 22px 0; position: sticky; top: 0; height: 100vh; }
   .pill-icon {
     width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; color: var(--muted);
@@ -291,6 +298,11 @@ main { display: grid; gap: 16px; min-width: 0; grid-template-columns: minmax(0, 
   main { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
   .canvas-host { height: 74vh; }
   .plist { max-height: 70vh; }
+}
+
+/* A phone on its side is short: give the network the height, so the arcs are not tiny. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .canvas-host { height: calc(100vh - 24px); min-height: 300px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

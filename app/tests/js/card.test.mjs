@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { NO_WARD, RISK_ORDER, layoutTree, statusKey, wardOf } from "../../static/layout.js";
-import { NOT_RECORDED, PLACEHOLDER_NOTE, arcCard, cardSections, initials, labBars, legendText, nodeCard, statusSummary, visiblePatients, vitalGauges } from "../../static/view-model.js";
+import { NOT_RECORDED, PLACEHOLDER_NOTE, arcCard, cardSections, initials, labBars, legendText, cardPosition, nodeCard, statusSummary, visiblePatients, vitalGauges } from "../../static/view-model.js";
 import { SEED } from "./dom_shim.mjs";
 
 const rowsOf = (p) => Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
@@ -145,4 +145,35 @@ test("the node card gives the ID, name, ward, age and risk", () => {
   assert.equal(card.title, `${p.patient_id} ${p.name}`);
   assert.equal(card.detail, `Ward ${wardOf(p)} · age ${p.age} · risk: ${p.status}`);
   assert.equal(nodeCard(V1).detail, "Ward not recorded · age 40 · risk: not recorded");
+});
+
+test("cards are clamped inside the scene and kept clear of the ward labels", () => {
+  const bounds = { width: 600, height: 400 };
+  const size = { w: 160, h: 44 };
+  const inside = (p) => p.left >= 4 && p.top >= 4 && p.left + size.w <= bounds.width - 4 && p.top + size.h <= bounds.height - 4;
+  const hits = (p, o) => p.left < o.left + o.w && p.left + size.w > o.left && p.top < o.top + o.h && p.top + size.h > o.top;
+  // Anchors at every edge and corner, centred or below: always inside.
+  for (const x of [-50, 0, 300, 600, 700]) {
+    for (const y of [-50, 0, 200, 400, 500]) {
+      for (const below of [true, false]) assert.ok(inside(cardPosition({ x, y, r: 6 }, size, bounds, [], { below })), `anchor ${x},${y} below=${below}`);
+    }
+  }
+  // A label right under the preferred spot: the card moves off it.
+  const label = { left: 220, top: 230, w: 120, h: 24 };
+  const near = cardPosition({ x: 280, y: 220, r: 6 }, size, bounds, [label], { below: true });
+  assert.equal(near.overlap, 0);
+  assert.ok(!hits(near, label), "the card is clear of the label");
+  assert.ok(inside(near));
+  // Without obstacles the first choice is used: below the anchor for a node, centred for an arc.
+  assert.deepEqual(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, [], { below: true }), { left: 220, top: 114, overlap: 0 });
+  assert.equal(cardPosition({ x: 300, y: 100, r: 0 }, size, bounds, [], { below: false }).top, 78);
+  // A crowded centre (arc counts and the hub) with a free band further out: the search finds it.
+  const centre = [{ left: 120, top: 130, w: 360, h: 140 }];
+  const crowded = cardPosition({ x: 300, y: 200, r: 6 }, size, bounds, centre, { below: true });
+  assert.equal(crowded.overlap, 0);
+  assert.ok(inside(crowded) && !hits(crowded, centre[0]));
+  // Deterministic, and when nothing is free it takes the least overlap instead of failing.
+  const wall = [{ left: 0, top: 0, w: 600, h: 400 }];
+  assert.deepEqual(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall), cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall));
+  assert.ok(inside(cardPosition({ x: 300, y: 100, r: 6 }, size, bounds, wall)));
 });

@@ -34,6 +34,47 @@ export function legendText() {
   );
 }
 
+// Where a card goes (CSS pixels, top left): beside its anchor, kept inside the bounds and clear of the
+// obstacles (the ward labels). It tries a few places in a fixed order and takes the first with no overlap, else
+// the one that overlaps least, so it is deterministic. anchor {x, y, r}, size {w, h}, bounds {width, height},
+// obstacles [{left, top, w, h}]: the ward labels, the arc counts and the hub label. `below` puts it under the
+// anchor first (a node); otherwise centred on it. If none of those places is free it searches the whole scene.
+export function cardPosition(anchor, size, bounds, obstacles = [], { below = true, margin = 4, gap = 8 } = {}) {
+  const { x, y, r = 0 } = anchor;
+  const { w, h } = size;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+  const fit = ([left, top]) => ({ left: clamp(left, margin, bounds.width - w - margin), top: clamp(top, margin, bounds.height - h - margin) });
+  const cx = x - w / 2;
+  const cy = y - h / 2;
+  const tries = [
+    below ? [cx, y + r + gap] : [cx, cy],
+    [cx, y - r - h - gap],
+    [cx, y + r + gap],
+    [x + r + gap, cy],
+    [x - r - w - gap, cy],
+  ].map(fit);
+  const overlap = (p) =>
+    obstacles.reduce((sum, o) => sum + Math.max(0, Math.min(p.left + w, o.left + o.w) - Math.max(p.left, o.left)) * Math.max(0, Math.min(p.top + h, o.top + o.h) - Math.max(p.top, o.top)), 0);
+  let best = null;
+  for (const p of tries) {
+    const o = overlap(p);
+    if (o === 0) return { ...p, overlap: 0 };
+    if (!best || o < best.overlap) best = { ...p, overlap: o };
+  }
+  // Nothing next to the anchor is free: look across the scene (a few columns, rows every 6px), the least overlap
+  // wins and the nearest spot breaks a tie.
+  const lefts = [...new Set(tries.map((p) => p.left).concat(fit([margin, 0]).left, fit([bounds.width, 0]).left))];
+  const far = (p) => Math.hypot(p.left + w / 2 - x, p.top + h / 2 - y);
+  for (let top = margin; top <= bounds.height - h - margin; top += 6) {
+    for (const left of lefts) {
+      const p = { left, top };
+      const o = overlap(p);
+      if (o < best.overlap || (o === best.overlap && far(p) < far(best))) best = { ...p, overlap: o };
+    }
+  }
+  return best;
+}
+
 // The card on a hovered or focused arc: the ward, its total, and the status counts.
 export function arcCard(arc) {
   const parts = [`${arc.total} ${arc.total === 1 ? "patient" : "patients"}`, `Stable ${arc.stable}`, `Watch ${arc.watch}`, `Review ${arc.review}`];
