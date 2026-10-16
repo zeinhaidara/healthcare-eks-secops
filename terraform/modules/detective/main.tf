@@ -193,7 +193,7 @@ resource "aws_cloudtrail" "this" {
   include_global_service_events = true
   enable_log_file_validation    = true
   enable_logging                = true
-  sns_topic_name                = aws_sns_topic.trail.arn
+  sns_topic_name                = aws_sns_topic.trail.name # the name, not the ARN: the provider reads the name back (SEC-037 note)
   cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.trail.arn}:*"
   cloud_watch_logs_role_arn     = aws_iam_role.trail_logs.arn
 
