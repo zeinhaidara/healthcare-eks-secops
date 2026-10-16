@@ -5,7 +5,7 @@ ingress:
 serviceAccount:
   create: false
   name: healthcare-api
-# The only values cd.yml changes: it opens a pull request that sets the pushed commit SHA and digest.
+# The only values cd.yml changes: it pushes the build's commit SHA and digest straight to dev.
 image:
   tag: "ad7006321f2d304ae75cca85600a05a81f9ffc00"
   digest: "sha256:1b66adef6d33e877d69c94034c6aa1af91124aab46bfaf2e99c62677ee31261b"
