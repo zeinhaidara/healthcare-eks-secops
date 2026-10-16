@@ -4,19 +4,27 @@ CI builds, scans and pushes the image. It never runs `helm` or `kubectl` against
 
 ## The flow
 
-1. A pull request that changes `app/` is merged to `dev`.
-2. The merge to `dev` runs `cd.yml`: build, Trivy scan (blocks on HIGH or CRITICAL), push to ECR by commit SHA, then read the pushed digest. `cd.yml` also runs by hand (Actions tab, Run workflow on `dev`): use it for the first build, or to bump to the current `dev` again.
-3. The `bump-image` job sets `image.tag` (the commit SHA) and `image.digest` in `helm/healthcare-api/values-dev.yaml` and `values-prod.yaml` and commits them straight to `dev`. A merge to `dev` builds and bumps dev.
-4. **dev:** the Argo CD Application `healthcare-api-dev` tracks the `dev` branch and syncs automatically (prune and self-heal on). When the bump commit lands on `dev`, dev deploys.
-5. **prod:** the Application `healthcare-api-prod` tracks `main` and has no automated sync. A release from `dev` to `main` promotes the same digest to prod. Then prod shows OutOfSync until someone approves: in the Argo CD UI, open `healthcare-api-prod`, review the diff, and choose Sync. Prod syncs by hand in Argo CD. The release to `main` is a separate, owner-driven step and does not build again.
+1. **Merge a change to `dev`.** A pull request that changes `app/` is merged into `dev`.
+2. **`cd` builds once.** The push to `dev` runs `cd.yml`: build, Trivy scan (blocks on HIGH or CRITICAL), push to ECR by commit SHA, then read the pushed digest. It also runs by hand (Actions tab, Run workflow on `dev`).
+3. **`cd` bumps both values files on `dev`.** The `bump-image` job sets `image.tag` (the commit SHA) and `image.digest` in `helm/healthcare-api/values-dev.yaml` and `values-prod.yaml` and commits them straight to `dev`. That commit changes only values, so it does not start another build.
+4. **Argo syncs dev automatically.** The Application `healthcare-api-dev` tracks the `dev` branch (prune and self-heal on), so dev deploys when the bump commit lands.
+5. **Open a pull request from `dev` to `main`, and merge it** (merge commit, not squash). This is the release, and it is an owner step.
+6. **Argo prod shows OutOfSync.** The Application `healthcare-api-prod` tracks `main` and has no automated sync, so it only reports the difference.
+7. **Click Sync in the Argo UI** (steps below). Prod now runs the same digest dev ran.
+
+Prod stays on the old digest until `main` carries the bump commit: the prod values file on `main` only changes when step 5 merges. The release does not build again.
 
 The image repository, the ACM certificate, the VPC CIDR, the project tag and the API key secret name are not in Git. Terraform (`terraform/cluster-addons`) looks them up and gives them to the Applications as Helm parameters. The ServiceAccount and its IRSA role annotation are owned by Terraform; the chart only refers to it by name (`serviceAccount.create: false`).
 
-## Settings the owner must turn on once
+## Open the Argo CD UI
 
-- Repository setting "Allow GitHub Actions to create and approve pull requests". `bump-image` uses the workflow token and cannot open its pull request without it.
-- Repository setting "Allow auto-merge".
-- A pull request opened with the workflow token does not start other workflows, so checks do not run on the bump pull request. The `dev` ruleset requires a pull request and no status checks, so it can merge. If `dev` gains required checks, use a GitHub App token for `bump-image`.
+1. Point `kubectl` at the cluster with an identity that may read secrets in the `argocd` namespace: `aws eks update-kubeconfig --name <cluster name> --region us-east-2`.
+2. Forward the server: `kubectl -n argocd port-forward svc/argocd-server 8443:443`
+3. Open `https://localhost:8443`. The certificate is self-signed, so the browser warns once.
+4. Sign in as `admin`. The password comes from the Kubernetes Secret `argocd-initial-admin-secret` in the `argocd` namespace, key `password` (the Argo CD chart default; no SSO is set up). Read it on your own machine, for example `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'` and base64-decode the output. Do not paste it into a ticket, chat or file.
+5. Open `healthcare-api-prod`, review the diff, and choose Sync.
+
+The read-only operator access cannot read secrets, so it cannot fetch that password. If the initial secret has been deleted after a password change, use the password that replaced it.
 
 ## Roll back
 
@@ -28,7 +36,7 @@ Roll back with a revert, not a cluster command.
 
 ## Force a sync or check state
 
-- UI: `kubectl -n argocd port-forward svc/argocd-server 8443:443`, then open the Application and choose Refresh or Sync.
+- UI: see [Open the Argo CD UI](#open-the-argo-cd-ui), then open the Application and choose Refresh or Sync.
 - Read-only state: `kubectl -n argocd get applications` shows sync and health.
 - Before the first bump the image tag is empty, so Argo reports a comparison error ("image.tag is required"). Run `cd.yml` by hand to produce the first bump.
 
