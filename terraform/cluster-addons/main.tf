@@ -123,6 +123,21 @@ resource "helm_release" "metrics_server" {
 }
 
 # ---------- Argo CD ----------
+# The UI is an internet-facing ALB at argocd.<domain>, behind the wildcard certificate and a TLS 1.2+ policy,
+# with no CIDR allowlist. Sign-in is GitHub through Argo's built-in Dex; the local admin login stays on until
+# SSO is verified (docs/runbooks/gitops-deploy.md). argocd-server runs plain HTTP behind the ALB
+# (server.insecure); the ALB ends TLS. Host, certificate and the OAuth credential come from variables, the
+# certificate lookup and the Secret below, so none is committed.
+locals {
+  argocd_host    = "argocd.${var.domain_name}"
+  argocd_lb_name = "${var.project_name}-argocd"
+  argocd_sso_k8s = "argocd-github-sso" # the Kubernetes Secret External Secrets builds for Dex
+  argocd_rbac_csv = join("\n", concat(
+    [for user, role in var.argocd_rbac : "g, ${user}, ${role}"],
+    [""],
+  ))
+}
+
 # Argo has no AWS role. It reads Git as a GitHub App; the Secret "healthcare-repo" is built by External
 # Secrets below (docs/runbooks/argocd-bootstrap.md). It deploys with the in-cluster RBAC from its own
 # install. The "argocd" Fargate profile is created in the root.
@@ -147,7 +162,90 @@ resource "helm_release" "argocd" {
   wait       = true
   timeout    = 900
 
-  values = [file("${path.module}/values/argocd.yaml")]
+  values = [
+    file("${path.module}/values/argocd.yaml"),
+    yamlencode({
+      global = { domain = local.argocd_host }
+      configs = {
+        cm = {
+          url             = "https://${local.argocd_host}"
+          "admin.enabled" = "true"
+          # Dex with a GitHub connector. The client ID and secret are read from the Kubernetes Secret
+          # built by External Secrets ($<secret>:<key>); no value is written here. No orgs or teams: the
+          # repo is on a personal account, so access is by GitHub username in the RBAC below.
+          "dex.config" = yamlencode({
+            connectors = [{
+              type = "github"
+              id   = "github"
+              name = "GitHub"
+              config = {
+                clientID     = format("$%s:dex.github.clientID", local.argocd_sso_k8s)
+                clientSecret = format("$%s:dex.github.clientSecret", local.argocd_sso_k8s)
+              }
+            }]
+          })
+        }
+        params = { "server.insecure" = true }
+        rbac = {
+          "policy.default" = "role:none"
+          "policy.csv"     = local.argocd_rbac_csv
+          # Dex puts the GitHub login in the preferred_username claim; match the users on it.
+          scopes = "[groups, preferred_username]"
+        }
+      }
+      server = {
+        ingress = {
+          enabled          = true
+          ingressClassName = "alb"
+          hostname         = local.argocd_host
+          annotations = {
+            "alb.ingress.kubernetes.io/scheme"             = "internet-facing"
+            "alb.ingress.kubernetes.io/target-type"        = "ip"
+            "alb.ingress.kubernetes.io/listen-ports"       = jsonencode([{ HTTP = 80 }, { HTTPS = 443 }])
+            "alb.ingress.kubernetes.io/ssl-redirect"       = "443"
+            "alb.ingress.kubernetes.io/certificate-arn"    = data.aws_acm_certificate.wildcard.arn
+            "alb.ingress.kubernetes.io/ssl-policy"         = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+            "alb.ingress.kubernetes.io/healthcheck-path"   = "/healthz"
+            "alb.ingress.kubernetes.io/load-balancer-name" = local.argocd_lb_name
+            "alb.ingress.kubernetes.io/tags"               = "Project=${var.project_name}"
+          }
+        }
+      }
+    }),
+  ]
+
+  # The OAuth credential Secret and the repository Secret are made first, so Dex finds them at start-up.
+  depends_on = [helm_release.argocd_repo_secret]
+}
+
+# ---------- Argo CD DNS ----------
+# The ALB is created by the load balancer controller after the Ingress exists, so the record has to wait
+# for it. The tag lookup finds no ALB on the first apply (count 0, nothing to create); once the controller has
+# made it, the next plan finds it, the name lookup reads its address, and the alias record is created.
+data "aws_lbs" "argocd" {
+  tags = {
+    "elbv2.k8s.aws/cluster" = var.cluster_name
+    "ingress.k8s.aws/stack" = "argocd/argocd-server"
+  }
+}
+
+data "aws_lb" "argocd" {
+  count = length(data.aws_lbs.argocd.arns) > 0 ? 1 : 0
+  name  = local.argocd_lb_name
+}
+
+resource "aws_route53_record" "argocd" {
+  count = length(data.aws_lb.argocd)
+
+  zone_id = var.route53_zone_id
+  name    = local.argocd_host
+  type    = "A"
+
+  alias {
+    name                   = data.aws_lb.argocd[0].dns_name
+    zone_id                = data.aws_lb.argocd[0].zone_id
+    evaluate_target_health = true
+  }
 }
 
 # ---------- app ServiceAccounts (IRSA) ----------
@@ -183,10 +281,12 @@ resource "kubernetes_service_account_v1" "app" {
   depends_on = [kubernetes_namespace_v1.app]
 }
 
-# ---------- External Secrets Operator (GitHub App credential for Argo CD) ----------
+# ---------- External Secrets Operator (GitHub App and GitHub sign-in credentials for Argo CD) ----------
 # Argo CD reads this repo as a GitHub App. The App ID, installation ID and private key exist only in
 # the Secrets Manager secret var.github_app_secret_name (created by hand). External Secrets copies
-# them into the Secret "healthcare-repo" in the argocd namespace. Nothing about the App is in Git.
+# them into the Secret "healthcare-repo" in the argocd namespace. The GitHub OAuth App credential for
+# sign-in (var.argocd_sso_secret_name, also by hand) is copied the same way into the Secret
+# "argocd-github-sso", which Dex reads. Nothing about either is in Git.
 resource "kubernetes_namespace_v1" "external_secrets" {
   metadata {
     name = "external-secrets"
@@ -207,11 +307,21 @@ data "aws_secretsmanager_secret" "github_app" {
   name = var.github_app_secret_name
 }
 
+data "aws_secretsmanager_secret" "argocd_sso" {
+  name = var.argocd_sso_secret_name
+}
+
 data "aws_iam_policy_document" "external_secrets" {
   statement {
     sid       = "ReadArgoGithubApp"
     actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
     resources = [data.aws_secretsmanager_secret.github_app.arn]
+  }
+
+  statement {
+    sid       = "ReadArgoGithubSso"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [data.aws_secretsmanager_secret.argocd_sso.arn]
   }
 }
 
@@ -264,9 +374,14 @@ resource "helm_release" "argocd_repo_secret" {
     region     = var.aws_region
     secretName = var.github_app_secret_name
     repoUrl    = var.argocd_repo_url
+    sso = {
+      secretName = var.argocd_sso_secret_name
+      k8sName    = local.argocd_sso_k8s
+    }
   })]
 
-  depends_on = [helm_release.external_secrets, helm_release.argocd]
+  # After the IAM policy that lets External Secrets read both secrets. Argo CD itself waits for this release.
+  depends_on = [helm_release.external_secrets, module.irsa_external_secrets]
 }
 
 # ---------- GitOps: AppProject and the dev and prod Applications ----------

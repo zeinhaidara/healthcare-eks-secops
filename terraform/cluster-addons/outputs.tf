@@ -2,6 +2,11 @@ output "app_namespaces" {
   value = [for ns in kubernetes_namespace_v1.app : ns.metadata[0].name]
 }
 
+output "argocd_url" {
+  description = "Argo CD UI address. The DNS record exists after the second apply."
+  value       = "https://${local.argocd_host}"
+}
+
 output "lb_controller_release" {
   value = "${helm_release.lb_controller.name} ${helm_release.lb_controller.version}"
 }
