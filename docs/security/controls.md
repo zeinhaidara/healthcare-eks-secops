@@ -161,6 +161,7 @@ Discrepancies between this page's sources (not fixed here, because the other doc
 5. **Pod Security rejection test.** `DESIGN_PLAN.md` section 13 expects it as before and after evidence; none was saved.
 6. **Skip comments.** 7 of 14 inline `checkov:skip` comments (detective module, Lambda ENI statements) give only the EXC ID, not the owner and expiry that `CLAUDE.md` requires in the comment. The register itself is complete.
 7. **Apply role is cluster admin (EXC-006, SEC-019).** The apply role holds `AmazonEKSClusterAdminPolicy` at cluster scope (`terraform/main.tf:102-106`). Anyone who can get an `infra` job approved, or who can change a workflow that runs there on `main`, acts as cluster admin: they can read every Secret (the Argo CD admin password and the app API key included), change RBAC and delete workloads. It is accepted and open, with expiry 2027-04-08. Planned fix, not scheduled: give the role only what the jobs need (namespace-scoped policies for the namespaces Terraform manages, and a narrow custom role for the cluster-scoped objects the add-ons root creates), and run the add-ons apply under its own role. This change does not touch the apply role.
+8. **Argo CD NetworkPolicy allows ingress from anywhere.** The default NetworkPolicy the Argo CD chart creates for the server in the `argocd` namespace allows ingress from any source. Known gap. Not changed.
 
 Not verified, with the reason:
 
