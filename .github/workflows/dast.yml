@@ -3,6 +3,7 @@ name: dast
 # OWASP ZAP baseline scan of the dev app. Report-only: findings never fail the job.
 # Manual or weekly, never on push. No secrets, no AWS credentials, no OIDC: the scan reaches the
 # app over the internet like any other client. The target is the repository variable DEV_BASE_URL.
+# The action uploads the reports itself, as the artifact zap_scan (it has no retention setting).
 # Scheduled and manual runs need this file on the default branch (main).
 # See docs/runbooks/dast-baseline.md.
 on:
@@ -45,17 +46,6 @@ jobs:
           target: ${{ vars.DEV_BASE_URL }}
           fail_action: false
           allow_issue_writing: false # report only; no GitHub issue (that would need issues: write)
-
-      # The action also uploads its own artifact, zap_scan, at the repository's default retention. This copy
-      # keeps the reports for 14 days.
-      - name: Upload the reports
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: zap-baseline-reports
-          path: |
-            report_html.html
-            report_md.md
-            report_json.json
-          retention-days: 14
-          if-no-files-found: warn
+          # ZAP 2.17.0, pinned by digest (the multi-arch index, linux/amd64 and arm64). The action's default is
+          # the moving "stable" tag. To update: read the new version and its digest from the registry and change both parts of the image reference.
+          docker_name: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6

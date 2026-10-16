@@ -16,9 +16,10 @@
 
 ## Where the report is
 
-Open the run, then Artifacts. `zap-baseline-reports` holds the HTML, Markdown and JSON reports and is kept for 14 days. The action also uploads `zap_scan` with the same reports; that copy follows the repository's default artifact retention.
+Open the run, then Artifacts. The artifact `zap_scan` holds the HTML, Markdown and JSON reports. The ZAP action uploads it and has no retention setting, so it is kept for the repository's default artifact retention. To keep reports for a shorter time, change that repository setting.
 
 ## Notes
 
 - Findings are for triage, not automatic action. Record any accepted one the way `docs/security/triage-process.md` describes.
-- The workflow has `contents: read` only, no secrets and no AWS access. The ZAP action is pinned to a commit (v0.15.0). The ZAP container image it pulls is the action's default `stable` tag, which is not pinned.
+- The workflow has `contents: read` only, no secrets and no AWS access.
+- Both the action and the ZAP container image are pinned: the action to a commit (v0.15.0) and the image to ZAP 2.17.0 by digest. To update the image, read the new version's digest from the registry (`ghcr.io/zaproxy/zaproxy`) and change `docker_name` in the workflow.
