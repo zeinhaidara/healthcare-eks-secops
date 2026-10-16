@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NOT_RECORDED, PLACEHOLDER_NOTE, cardSections, initials, labBars, legendText, statusSummary, vitalGauges } from "../../static/view-model.js";
+import { NO_WARD, RISK_ORDER, layoutTree, statusKey, wardOf } from "../../static/layout.js";
+import { NOT_RECORDED, PLACEHOLDER_NOTE, arcCard, cardSections, initials, labBars, legendText, nodeCard, statusSummary, visiblePatients, vitalGauges } from "../../static/view-model.js";
 import { SEED } from "./dom_shim.mjs";
 
 const rowsOf = (p) => Object.fromEntries(cardSections(p).flatMap((s) => s.rows));
@@ -65,12 +66,37 @@ test("status summary: the seed's mix is real; one status or none is a placeholde
   assert.equal(statusSummary([]).placeholder, false, "an empty list says nothing");
 });
 
-test("the legend line names the hub, the branches, every colour and that bands are illustrative", () => {
+test("the legend line describes the arcs and the branches, every colour, and that it is illustrative", () => {
   const line = legendText();
-  for (const part of ["registry", "Branches", "risk band", "illustrative", "green stable", "amber watch", "red review", "grey status not recorded"]) {
+  for (const part of ["registry", "four arcs", "Arc length", "share of patients", "green to red", "review patients", "Click an arc", "Branches", "Dot size", "Illustrative", "green stable", "amber watch", "red review", "grey status not recorded"]) {
     assert.ok(line.includes(part), part);
   }
   assert.ok(!line.includes("\n"), "one line");
+});
+
+test("the arc card gives the ward, the total and the Stable, Watch and Review counts", () => {
+  const arcs = layoutTree(SEED).arcs;
+  for (const arc of arcs) {
+    const card = arcCard(arc);
+    assert.equal(card.title, `Ward ${arc.ward}`);
+    assert.ok(card.detail.startsWith(`${arc.total} patients`));
+    assert.ok(card.detail.includes(`Stable ${arc.stable}`) && card.detail.includes(`Watch ${arc.watch}`) && card.detail.includes(`Review ${arc.review}`));
+    assert.ok(!card.detail.includes("Not recorded"), "only shown when some status is missing");
+  }
+  const odd = arcCard({ text: "Ward A", total: 1, stable: 0, watch: 0, review: 0, unknown: 1 });
+  assert.equal(odd.detail, "1 patient · Stable 0 · Watch 0 · Review 0 · Not recorded 1");
+});
+
+test("the list filter: statuses, one ward, search, sorted by risk", () => {
+  const all = new Set(["stable", "watch", "review", "unknown"]);
+  assert.equal(visiblePatients(SEED, all).length, SEED.length);
+  assert.equal(visiblePatients(SEED, all, "", "B").length, SEED.filter((p) => wardOf(p) === "B").length);
+  assert.ok(visiblePatients(SEED, all, "", "B").every((p) => wardOf(p) === "B"));
+  assert.equal(visiblePatients(SEED, new Set(["review"]), "", "B").length, SEED.filter((p) => wardOf(p) === "B" && p.status === "review").length);
+  assert.equal(visiblePatients(SEED.map((p) => ({ ...p, ward: null })), all, "", NO_WARD).length, SEED.length, "no ward is its own filter");
+  assert.deepEqual(visiblePatients(SEED, all, SEED[2].patient_id.toLowerCase()).map((p) => p.patient_id), [SEED[2].patient_id]);
+  const order = visiblePatients(SEED, all).map((p) => RISK_ORDER[statusKey(p)]);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b));
 });
 
 test("one-decimal fields keep their decimal even when JSON drops it", () => {
@@ -111,4 +137,12 @@ test("care-team initials", () => {
   assert.equal(initials("cardiology"), "CA");
   assert.equal(initials("sleep medicine"), "SM");
   assert.equal(initials(""), "?");
+});
+
+test("the node card gives the ID, name, ward, age and risk", () => {
+  const p = SEED[0];
+  const card = nodeCard(p);
+  assert.equal(card.title, `${p.patient_id} ${p.name}`);
+  assert.equal(card.detail, `Ward ${wardOf(p)} · age ${p.age} · risk: ${p.status}`);
+  assert.equal(nodeCard(V1).detail, "Ward not recorded · age 40 · risk: not recorded");
 });
