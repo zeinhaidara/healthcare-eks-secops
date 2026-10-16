@@ -7,7 +7,7 @@ The operator entry was created by hand in the EKS console. It was brought under 
 | Cluster | `var.cluster_name` (`CLUSTER_NAME`) |
 | Principal | IAM user from `operator_iam_user_name`; ARN built from the account data source (override with `operator_principal_arn`) |
 | Kubernetes username | `zein` |
-| Access | `AmazonEKSViewPolicy`, scope `cluster`. No Edit or Admin policy, no groups. |
+| Access | `AmazonEKSViewPolicy`, scope `cluster`; and the break-glass `AmazonEKSAdminViewPolicy`, scope `argocd` only (below). No Edit or Admin policy, no groups. |
 
 ## What happened
 
@@ -17,7 +17,21 @@ The operator entry was created by hand in the EKS console. It was brought under 
 
 ## Day to day
 
-Change the entry only through Terraform (variables `operator_principal_arn`, `operator_iam_user_name`, `operator_kubernetes_username`). A change made in the console shows up as a plan diff on the next run. Do not add Edit or Admin policies to the operator; access beyond View needs a review.
+Change the entry only through Terraform (variables `operator_principal_arn`, `operator_iam_user_name`, `operator_kubernetes_username`). A change made in the console shows up as a plan diff on the next run. Do not add Edit or Admin policies to the operator; access beyond View needs a review. The one reviewed exception is the break-glass read below.
+
+## Break-glass: read the Argo CD secrets
+
+`aws_eks_access_policy_association.operator_argocd_read` (`terraform/main.tf`) gives the operator `AmazonEKSAdminViewPolicy` on the `argocd` namespace only. That policy is read only (get, list, watch) but includes Secrets, which the cluster-wide view policy does not. It is there so the operator can read the Argo CD initial admin password (`docs/runbooks/gitops-deploy.md`, Open the Argo CD UI). It adds no write access and nothing outside `argocd`.
+
+To use it, run the commands you need on your own machine and do not share the output:
+
+```sh
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'   # base64; decode it locally
+kubectl auth can-i get secrets -n kube-system         # expect: no
+kubectl auth can-i delete deployments -n argocd       # expect: no
+```
+
+To remove it: delete the resource `operator_argocd_read` from `terraform/main.tf`, open a pull request into `dev`, release to `main`, and run `terraform-apply` (the plan should show one resource destroyed). Remove it once the password is no longer needed.
 
 ## If you ever need to import again
 
@@ -36,4 +50,4 @@ aws eks list-associated-access-policies --cluster-name "$CLUSTER_NAME" --princip
   --query 'associatedAccessPolicies[].{policy:policyArn,scope:accessScope}'
 ```
 
-Expect type `STANDARD`, user `zein`, no groups, and only `AmazonEKSViewPolicy` with scope `cluster`.
+Expect type `STANDARD`, user `zein`, no groups, and two policies: `AmazonEKSViewPolicy` with scope `cluster`, and `AmazonEKSAdminViewPolicy` with scope `namespace` and the one namespace `argocd`. After the break-glass is removed, only the first.
