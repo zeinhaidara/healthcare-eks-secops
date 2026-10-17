@@ -15,7 +15,7 @@ VENDOR = STATIC / "vendor" / "three"
 
 EXPECTED_CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; "
-    "connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
+    "connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 )
 
 
@@ -25,6 +25,35 @@ def read(path: Path) -> str:
 
 def test_content_security_policy_is_unchanged():
     assert main.CSP == EXPECTED_CSP
+
+
+def test_security_headers_are_on_every_kind_of_response(client, auth):
+    expected = {
+        "content-security-policy": EXPECTED_CSP,
+        "x-content-type-options": "nosniff",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+    }
+    responses = [
+        client.get("/"),  # the page
+        client.get("/static/app.js"),  # a static file
+        client.get("/health"),
+        client.get("/patients", headers=auth),  # the API
+        client.get("/patients"),  # a 403
+        client.get("/no-such-route"),  # a 404
+    ]
+    for r in responses:
+        for name, value in expected.items():
+            assert r.headers.get(name) == value, f"{r.request.url.path} {r.status_code}: {name}"
+    assert "form-action 'self'" in main.CSP
+    assert (
+        "includeSubDomains" in expected["strict-transport-security"]
+        and "preload" not in expected["strict-transport-security"]
+    )
+    # Left out on purpose (open): see docs/security/controls.md.
+    assert "cross-origin-embedder-policy" not in responses[0].headers
 
 
 def test_page_has_synthetic_banner_and_key_gate():
