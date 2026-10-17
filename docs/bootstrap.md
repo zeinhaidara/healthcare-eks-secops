@@ -1,73 +1,37 @@
 # Bootstrap
 
-One-time setup done by hand, outside Terraform. Terraform and the workflows only reference these through variables.
+One-time setup done by hand, outside Terraform. Terraform and the workflows only reference these through variables. Role ARNs, the account ID and the bucket name are never hardcoded.
 
-## Created manually
+## AWS, created by hand
 
-- S3 state bucket (name in repo variable `TF_STATE_BUCKET`), versioned and encrypted. Terraform uses native locking (`use_lockfile = true`, Terraform 1.10+), so no DynamoDB lock table.
-- GitHub OIDC identity provider in the AWS account.
-- One least-privilege IAM role per purpose, each trusting only this repo through OIDC:
+- S3 state bucket (repo variable `TF_STATE_BUCKET`), versioned and encrypted. Terraform uses native locking (`use_lockfile`), so there is no lock table. `terraform init` gets it through `-backend-config`.
+- The GitHub OIDC identity provider. No long-lived AWS keys anywhere.
+- One IAM role per purpose, each trusting only this repo through OIDC. Policies are in [bootstrap-policies/](bootstrap-policies/README.md) and applied by hand.
 
 | Role | Used by | Access |
 |---|---|---|
-| plan | `terraform-apply.yml` job `tf-plan` | read-only on resources, lock file only on state (`docs/bootstrap-policies/plan-policy.json`) |
-| apply | `tf-apply` (environment `infra`) and `terraform-destroy.yml` (environment `infra-destroy`) | write, scoped to project resources (`docs/bootstrap-policies/apply-policy.json`) |
-| ecr-push | `cd.yml` job `push` | push to the project ECR repo |
-| deploy-dev | `cd.yml` job `deploy-dev` | namespace-scoped EKS access |
-| deploy-prod | `cd.yml` job `deploy-prod` | namespace-scoped EKS access |
+| plan | `tf-plan` | Read-only; state lock file only |
+| apply | `tf-apply`, add-ons jobs (`infra`), `terraform-destroy.yml` (`infra-destroy`) | Write, scoped to project resources; EKS cluster admin (EXC-006) |
+| ecr-push | `cd.yml` job `push` | Push to the project ECR repo; trusts `main` and `dev` only |
+| deploy-dev, deploy-prod | Nothing since the move to Argo CD | Namespace-scoped EKS edit; their access entries are still in `terraform/main.tf` |
 
-- GitHub Environments `infra`, `infra-destroy`, `dev`, `prod`, each requiring approval and limited to `main`. `infra` and `infra-destroy` each hold `AWS_ROLE_ARN` (the apply role). The apply role's trust policy must allow the `environment:infra` and `environment:infra-destroy` subjects.
-- IAM policies for the CI roles are in `docs/bootstrap-policies/` and are applied by hand, never by Terraform.
-- GitHub variables (repo and environment level).
+## GitHub, set by hand
 
-## Set manually after Terraform apply
+- Environments `infra`, `infra-destroy`, `dev` and `prod`. Each has one required reviewer (the maintainer), self-review allowed, admin bypass on. `infra`, `infra-destroy` and `prod` deploy from `main` only; `dev` from protected branches. `infra` and `infra-destroy` hold `AWS_ROLE_ARN` (the apply role).
+- `main` ruleset: PR required with 0 approvals (EXC-003), no force push, no deletion, merge commits only, a `code_scanning` rule for CodeQL, and 10 required checks: `app-build`, `app-checkov`, `app-image-scan`, `app-test-lint`, `app-trivy`, `tf-checkov`, `tf-validate`, `sonar`, `codeql`, `CodeQL`.
+- `dev` ruleset: PR required with 0 approvals, no force push, no deletion, no required checks.
+- SonarCloud: secret `SONAR_TOKEN`, variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION`. Without them `sonar` fails on purpose. The free plan enforces the gate on PRs only.
+- CodeQL needs no secret; the repo is public.
+- Repo and environment variables for Terraform (`TF_VAR_*` values) and the workflows.
 
-- The API key value in Secrets Manager. Terraform creates only the empty, KMS-encrypted secret so the key never enters Terraform state.
-  1. Generate a random value (password manager or `openssl rand -base64 32`).
-  2. In the console (us-east-2), open the secret, choose Retrieve secret value, then Edit.
-  3. Use the Plaintext tab, paste the value, and save.
-  4. Keep a copy in your password manager for testing `/patients`.
-- The app reads the secret itself at startup through its IRSA role. Until the value is set, the pod stays not-ready (`/ready` returns 503) by design.
-- Rotation is automatic every 30 days (Lambda `cloudbatch818-zein-hcsecops-rotate-api-key`). After any rotation, restart the pods; see `docs/runbooks/rotation.md`.
-- Destroying the stack deletes the secret immediately (recovery window 0), so set a new value after every apply.
+## After the first apply
 
-## Code scanning and quality (CodeQL, SonarCloud)
+Terraform creates the API key secret empty, so the key never enters state. Set it:
 
-- CodeQL needs no secrets. The repo is public, so code scanning upload to the Security tab works without extra licensing.
-- SonarCloud, set by hand:
-  - secret `SONAR_TOKEN` (repo secret)
-  - variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION` (repo variables)
-  - Without them the `sonar` job fails on purpose with a message naming what is missing.
-  - SonarCloud free plan: the quality gate is enforced on pull requests only. Push runs upload the analysis but do not wait for gate status, because the free plan cannot return it for non-main branches.
-- `main` ruleset settings changed by hand: required approvals 0 (see EXC-003, SEC-009), code scanning requirement removed (SEC-010), required status checks `app-test-lint`, `app-trivy`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar`, block force push, restrict deletions, "Require deployments to succeed" off.
-- Merge method: merge commits only (no squash, no rebase).
+1. Generate a value (password manager or `openssl rand -base64 32`).
+2. In the console (us-east-2), open the secret, Retrieve secret value, Edit, Plaintext tab, paste and save.
+3. Keep a copy for testing `/patients`.
 
-## EKS on Fargate manual steps (Phase 3)
+Until it is set, pods stay not-ready (`/ready` returns 503). The destroy deletes the secret at once (recovery window 0), so set it again after every apply. Rotation is in [rotation.md](runbooks/rotation.md).
 
-1. Attach the updated `docs/bootstrap-policies/apply-policy.json` to the apply role (adds the `eks-fargate.amazonaws.com` service-linked role) before the first EKS apply (Phase 3).
-2. Keep `docs/bootstrap-policies/plan-policy.json` in sync with the live plan role (it includes `budgets:ListTagsForResource`).
-3. Run `terraform-apply`: read the plan in `tf-plan`, approve `tf-apply` (environment `infra`).
-4. After `tf-apply`, read the add-ons plan in `addons-plan`, then approve `addons-apply` (second `infra` approval).
-5. Check the cluster with `docs/runbooks/cluster-access.md`.
-
-## Rules
-
-- No long-lived AWS keys anywhere.
-- Role ARNs, account ID and bucket name are never hardcoded; they arrive as variables.
-- `terraform init` uses `-backend-config="bucket=$TF_STATE_BUCKET"`.
-
-## Helm chart and release pipeline manual steps (Phase 4)
-
-1. Attach `docs/bootstrap-policies/deploy-dev-policy.json` and `deploy-prod-policy.json` to the deploy roles (adds `acm:ListCertificates`).
-2. A merge to `main` that changes `app/` triggers `cd.yml`: build, scan, push, then a pull request to `dev` that sets the image tag. Argo CD deploys; prod needs a sync approved in Argo CD (`docs/runbooks/gitops-deploy.md`). The deploy roles and the `dev` and `prod` GitHub environments are no longer used by `cd.yml`.
-3. The API key secret needs a value or `/ready` stays 503 and the ALB target stays unhealthy (see `docs/runbooks/gitops-deploy.md`, Check a deploy).
-4. Decide how the `SecurityGroupPolicy` is created (SEC-032) before closing EXC-007. Note (2026-10-12): this step is done. EXC-007 was closed for dev and prod on 2026-10-09 (SEC-032); the `SecurityGroupPolicy` is owned by `terraform/cluster-addons`. The step is kept as the original text.
-
-## Known drift
-
-Observed on 2026-10-12 by reading the GitHub rulesets and environments (read-only). Each item is observed, not fixed. The live state and the policy JSON files are unchanged, and the text above is kept as written.
-
-- **`code_scanning` rule on `main`:** the `main` ruleset has a `code_scanning` rule. The "`main` ruleset settings" bullet above says the code scanning requirement was removed (SEC-010). Source: `main` ruleset, rules list.
-- **10 required checks, not 7:** the `main` ruleset requires `app-build`, `app-checkov`, `app-image-scan`, `app-test-lint`, `app-trivy`, `tf-checkov`, `tf-validate`, `sonar`, `CodeQL` and `codeql`. The bullet above lists 7. Source: `main` ruleset, `required_status_checks`.
-- **`dev` ruleset not described:** a `dev` ruleset is active. It targets `refs/heads/dev`, restricts deletion, blocks force push and requires a pull request with 0 approvals. It has no required status checks. This document does not mention it. Source: `dev` ruleset.
-- **`dev` environment allows protected branches:** the `dev` environment's deployment branch policy is "protected branches". The Environments bullet above says each environment is limited to `main`. `infra`, `infra-destroy` and `prod` use custom branch policies. Source: environments API, `deployment_branch_policy`.
+Then check the cluster with [cluster-access.md](runbooks/cluster-access.md) and Argo CD with [argocd.md](runbooks/argocd.md).

@@ -149,7 +149,7 @@ module "irsa_app" {
 }
 
 # Upstream policy for the controller version in cluster-addons (D4), unmodified apart from
-# whitespace. Its wildcards are listed in docs/bootstrap-policies/README.md for Phase 7.
+# whitespace. Its wildcards are listed in docs/bootstrap-policies/README.md.
 module "irsa_lb_controller" {
   source = "./modules/irsa"
 
@@ -162,8 +162,7 @@ module "irsa_lb_controller" {
 }
 
 # Operator: read-only cluster access. Created by hand in the EKS console, then brought under
-# Terraform by import (docs/runbooks/eks-operator-import.md). View policy at cluster scope, plus the
-# break-glass read of the argocd namespace below.
+# Terraform by import (docs/runbooks/eks-operator-import.md). View policy at cluster scope only.
 locals {
   operator_principal_arn = coalesce(
     var.operator_principal_arn,
@@ -192,24 +191,7 @@ resource "aws_eks_access_policy_association" "operator_view" {
   depends_on = [module.eks]
 }
 
-# BREAK-GLASS: lets the operator read the Argo CD initial admin secret. Read only (get, list, watch),
-# scoped to the argocd namespace, on the operator's existing access entry (an entry is unique per
-# principal, so this only adds a policy association). Owner Moulaye. To remove it, delete this
-# resource and run terraform-apply; see docs/runbooks/eks-operator-import.md.
-resource "aws_eks_access_policy_association" "operator_argocd_read" {
-  cluster_name  = module.eks.cluster_name
-  principal_arn = aws_eks_access_entry.operator.principal_arn
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminViewPolicy"
-
-  access_scope {
-    type       = "namespace"
-    namespaces = ["argocd"]
-  }
-
-  depends_on = [module.eks]
-}
-
-# Detective controls (Phase 7 step 1): Security Hub, GuardDuty and a single-region CloudTrail.
+# Detective controls: Security Hub, GuardDuty and a single-region CloudTrail.
 locals {
   trail_name           = "${var.name_prefix}-trail"
   detective_topic_name = "${var.name_prefix}-cloudtrail"

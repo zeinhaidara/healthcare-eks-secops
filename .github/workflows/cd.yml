@@ -1,7 +1,6 @@
 name: cd
 
-# Builds on merge to dev. The bump commit goes straight to dev. Prod values change on dev but reach prod
-# only when dev is released to main, because prod syncs from main.
+# Prod values change on dev but reach prod only on release to main, because prod syncs from main.
 on:
   push:
     branches: [dev]
@@ -27,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # Building and scanning need no AWS access, so this job holds no credentials.
       - name: Build image
         run: |
           docker build -t "${IMAGE_NAME}:${GITHUB_SHA}" app
@@ -40,8 +38,7 @@ jobs:
           scan-type: image
           input: image.tar
           trivy-config: security/trivy/trivy.yaml
-          # The action exports its own defaults (all severities, ignore-unfixed false) that override
-          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          # The action's defaults override trivy.yaml, so these repeat it; keep them in sync.
           severity: HIGH,CRITICAL
           ignore-unfixed: "true"
           exit-code: "1"
@@ -101,10 +98,7 @@ jobs:
           case "$digest" in sha256:*) ;; *) echo "::error::No digest for tag $GITHUB_SHA"; exit 1 ;; esac
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
-  # Sets the pushed tag and digest in both environment values files and commits them to dev. dev syncs
-  # automatically. prod tracks main, so it moves only when dev is released to main and the sync is approved
-  # in Argo CD. The commit changes only helm values, so the app/** filter does not match it, and a push made
-  # with the workflow token does not start workflows anyway: it cannot trigger another build.
+  # The bump touches only helm values and uses the workflow token, so it cannot trigger another build.
   bump-image:
     name: bump-image
     needs: push
@@ -123,7 +117,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for env in dev prod; do
-            IMAGE_TAG="$GITHUB_SHA" yq -i '.image.tag = strenv(IMAGE_TAG) | .image.digest = strenv(IMAGE_DIGEST)'               "helm/healthcare-api/values-${env}.yaml"
+            IMAGE_TAG="$GITHUB_SHA" yq -i '.image.tag = strenv(IMAGE_TAG) | .image.digest = strenv(IMAGE_DIGEST)' \
+              "helm/healthcare-api/values-${env}.yaml"
           done
           if git diff --quiet; then
             echo "Tag and digest already set; nothing to bump"
