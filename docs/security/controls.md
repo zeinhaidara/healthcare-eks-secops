@@ -95,7 +95,7 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 | VPC flow logs, KMS, 365 days | Live | SEC-002 | `terraform/modules/network` |
 | EKS: Fargate only, secrets encryption, all control-plane logs, no creator admin | Live | SEC-018, SEC-019 | `terraform/modules/eks`; secrets encryption not checked on the live cluster |
 | Apply role is cluster admin | Live | EXC-006 | `terraform/main.tf` |
-| Operator: cluster-wide view, plus read on `argocd` (break-glass) | Live | SEC-029 | [eks-operator-import.md](../runbooks/eks-operator-import.md); the user has a long-lived key and no MFA (Prowler N2) |
+| Operator: cluster-wide view only | Live | SEC-029 | [eks-operator-import.md](../runbooks/eks-operator-import.md); the user has a long-lived key and no MFA (Prowler N2) |
 | Terraform state AES256, not KMS | Manual | EXC-008 | Bucket made by hand |
 | No `Action: *` in CI policies; wildcards listed with owner | Live | EXC-001, EXC-009 | [bootstrap-policies](../bootstrap-policies/README.md) |
 

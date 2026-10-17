@@ -20,7 +20,7 @@ The UI is at `https://argocd.<domain>` (`DOMAIN_NAME` variable). It is internet-
 
 To add or change a person, edit `argocd_rbac` in a PR into `dev`, release to `main`, and run `terraform-apply`.
 
-The local admin login is off (`admin.enabled: "false"`). If GitHub sign-in breaks, the way back is a PR that sets it to `"true"`, released and applied.
+The local admin login is off (`admin.enabled: "false"`), so there is no admin password to read. Always sign in with GitHub. If GitHub sign-in breaks, the way back is a PR that sets it to `"true"`, released and applied.
 
 ## Checks
 
@@ -69,7 +69,7 @@ aws eks disassociate-access-policy --cluster-name <cluster> --principal-arn <ope
 aws eks list-associated-access-policies --cluster-name <cluster> --principal-arn <operator user ARN> --region us-east-2
 ```
 
-The Terraform-managed read-only association (`operator_argocd_read`) is separate; see [eks-operator-import.md](eks-operator-import.md).
+Once this is done and the Terraform removal of the read on `argocd` is applied, the list shows only `AmazonEKSViewPolicy` at cluster scope.
 
 ## Fargate notes
 
