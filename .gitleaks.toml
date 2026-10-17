@@ -1,0 +1,28 @@
+# Gitleaks configuration (job `gitleaks` in .github/workflows/ci.yml).
+# The default rules stay on. Add an allowlist entry only for a real false positive, one at a time, with a
+# comment that says why it is safe. Do not allowlist a whole directory.
+title = "healthcare-eks-secops"
+
+[extend]
+useDefault = true
+
+# Trivy image-scan evidence (saved under evidence/security/trivy). The scan output records the image's build
+# history and tags, and two things in it look like keys to generic-api-key but are not secrets:
+#   - "ENV GPG_KEY=<40 hex>": the public GPG key fingerprint the python base image sets;
+#   - "healthcare-api:<40 hex>": the local image tag, which is the git commit SHA.
+# Both must match, and only in these three files, and only for this rule. Found by the full-history scan on
+# 2026-10-17: 20 hits, 3 files, and no other finding.
+[[allowlists]]
+description = "Trivy evidence: public GPG key fingerprint and commit-SHA image tag"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^evidence/security/trivy/after/ci-image/trivy-image\.json$''',
+  '''^evidence/security/trivy/after/image/trivy-image\.json$''',
+  '''^evidence/security/trivy/before/image/trivy-image\.json$''',
+]
+regexTarget = "line"
+regexes = [
+  '''GPG_KEY=[0-9A-F]{40}''',
+  '''healthcare-api:[0-9a-f]{40}''',
+]

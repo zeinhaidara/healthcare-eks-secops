@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main, dev]
   push:
-    branches: [dev]
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -267,3 +267,32 @@ jobs:
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.qualitygate.wait=${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+
+  # Secrets scan over the full history (--log-opts=--all): every commit on every ref, including the commits a
+  # release merge brings in on its second parent. gitleaks-action cannot do this: it hard-codes
+  # --no-merges --first-parent for pushes and pull requests, so a release merge scanned 0 commits. This runs
+  # the gitleaks CLI directly. The version is pinned and its SHA-256 (from the release's checksums file) is
+  # checked before it runs. Default rules plus .gitleaks.toml; a finding fails the job. No licence needed.
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb" # gitleaks_8.30.1_linux_x64.tar.gz
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (checked against the pinned SHA-256)
+        run: |
+          set -euo pipefail
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Scan the full history
+        run: |
+          "$RUNNER_TEMP/gitleaks" detect --source . --config .gitleaks.toml --redact --no-banner -v \
+            --exit-code 2 --log-opts=--all

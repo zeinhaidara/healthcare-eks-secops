@@ -31,7 +31,7 @@ Where the page disagrees with another document, the row says so in the open. The
 
 ## 2. PR gate (no AWS access, no OIDC)
 
-`ci.yml` runs on pull requests to `main` or `dev` and on pushes to `dev`, with no path filter so every required check always reports (`.github/workflows/ci.yml:6-10`). Default token is read-only (`ci.yml:12-13`). The file holds no AWS credentials step (searched: zero `role-to-assume` or `configure-aws-credentials`).
+`ci.yml` runs on pull requests to `main` or `dev` and on pushes to `dev` and `main`, with no path filter so every required check always reports (`.github/workflows/ci.yml:6-10`). Default token is read-only (`ci.yml:12-13`). The file holds no AWS credentials step (searched: zero `role-to-assume` or `configure-aws-credentials`).
 
 | Check (job name) | Status | ID | Evidence | Source |
 |---|---|---|---|---|
@@ -44,6 +44,7 @@ Where the page disagrees with another document, the row says so in the open. The
 | `tf-checkov`: Terraform; any failed check fails the job | Live | SEC-001, SEC-002, SEC-005, EXC-001 to EXC-014 | `evidence/security/checkov/before/terraform/` (62 passed, 6 failed, 2026-10-08), `evidence/security/checkov/after/detective/full-final/` (355 passed, 0 failed, 15 skipped) | `ci.yml:178-201`; `security/checkov/terraform.yaml` |
 | `codeql`: Python and GitHub Actions, security-extended; fails on security severity 7.0 or more | Live | SEC-007 | `evidence/security/codeql/` (0 findings) | `ci.yml:205-229` (languages `:215`, gate `:228-229`) |
 | `sonar`: SonarCloud quality gate, waited on for pull requests only | Live | SEC-008, SEC-015 | `evidence/security/sonar/` | `ci.yml:231-269` (gate wait `:269`) |
+| `gitleaks`: secrets scan over the full git history on every pull request and push (`--log-opts=--all`), default rules plus the repo config; findings fail the job. It covers merge commits and the whole push range: the commits a release merge brings in on its second parent are scanned, which the earlier `gitleaks-action` setup (`--no-merges --first-parent`) skipped | Planned | none | Proved in a throwaway repo: the old range found 0 leaks and the new one found the planted key (rule `aws-access-token`). Local full-history scan: 104 commits, 20 hits, all `generic-api-key` false positives in three Trivy evidence files, allowlisted in `.gitleaks.toml` with the reason. Flip to Live after the first green CI run | `ci.yml:276-298` (CLI v8.30.1 pinned by SHA-256 `:282-283`, scan `:297-298`); config `.gitleaks.toml` |
 
 Supporting rules:
 - All 63 `uses:` lines in the four workflows are pinned by commit SHA (searched: none unpinned).
