@@ -149,7 +149,7 @@ module "irsa_app" {
 }
 
 # Upstream policy for the controller version in cluster-addons (D4), unmodified apart from
-# whitespace. Its wildcards are listed in docs/bootstrap-policies/README.md for Phase 7.
+# whitespace. Its wildcards are listed in docs/bootstrap-policies/README.md.
 module "irsa_lb_controller" {
   source = "./modules/irsa"
 
@@ -209,7 +209,7 @@ resource "aws_eks_access_policy_association" "operator_argocd_read" {
   depends_on = [module.eks]
 }
 
-# Detective controls (Phase 7 step 1): Security Hub, GuardDuty and a single-region CloudTrail.
+# Detective controls: Security Hub, GuardDuty and a single-region CloudTrail.
 locals {
   trail_name           = "${var.name_prefix}-trail"
   detective_topic_name = "${var.name_prefix}-cloudtrail"

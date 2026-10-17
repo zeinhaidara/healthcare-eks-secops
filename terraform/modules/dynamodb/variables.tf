@@ -26,8 +26,7 @@ variable "list_attributes" {
   default     = ["conditions", "medications", "allergies", "care_team"]
 }
 
-# Must stay "synthetic". Do not set "phi" anywhere until the Phase 7 items are closed (state
-# encrypted with KMS, EXC-008; plan-role read of items, EXC-004; real-data handling reviewed).
+# Must stay "synthetic" until EXC-004 and EXC-008 are closed and real-data handling is reviewed.
 variable "data_classification" {
   description = "DataClassification tag on the patients table."
   type        = string

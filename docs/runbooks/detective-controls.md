@@ -1,87 +1,51 @@
-# Runbook: detective controls (Security Hub, GuardDuty, CloudTrail), Phase 7
+# Runbook: detective controls
 
-Region us-east-2 only. Terraform module: `terraform/modules/detective`. Applied with the rest of the root by `terraform-apply.yml` (read the plan in `tf-plan`, then approve `tf-apply`).
+Security Hub, GuardDuty and CloudTrail, in us-east-2 only. Module: `terraform/modules/detective`. Applied with the root by `terraform-apply.yml`. No steps by hand.
 
-## Enable order
+## What gets built, in order
 
-Terraform orders it; this is what happens and why:
-1. **KMS key policy** gains a statement for the named trail (in-place update of the existing key).
-2. **Trail bucket** `<prefix>-logs-cloudtrail-<account id>`: public access blocked, versioning, KMS default encryption, lifecycle (logs expire after 365 days), TLS-only policy, and a policy that lets only this trail write.
-3. **CloudTrail trail** (single region, log file validation on, KMS-encrypted). It is created after the bucket policy.
-4. **GuardDuty detector** (15-minute publishing) with the S3 data events and EKS audit logs features.
-5. **Security Hub** account, then the AWS Foundational Security Best Practices standard.
+1. The KMS key policy gains a statement for the named trail.
+2. Trail bucket `<prefix>-logs-cloudtrail-<account id>`: private, versioned, KMS, TLS only, 365-day expiry, writable only by this trail. Its access logs go to `<prefix>-logs-cloudtrail-access-<account id>` (SSE-S3, EXC-014).
+3. CloudTrail: single region, log file validation, KMS. Delivers to the bucket, CloudWatch Logs (`/<prefix>/cloudtrail`) and SNS (`<prefix>-cloudtrail`).
+4. GuardDuty detector, 15-minute publishing, with S3 data events and EKS audit logs.
+5. Security Hub with the AWS Foundational Security Best Practices standard.
 
-Nothing needs manual steps. The live apply role already has the permissions (`docs/bootstrap-policies/README.md`).
+GuardDuty allows one detector per region. If one already exists before a rebuild, adopt it with an `import {}` block, then remove the block.
 
-## Cost note
+## Checks
 
-Estimates, not measured. GuardDuty and Security Hub include a 30-day free trial on first enablement, so month one is mostly free.
-
-| Item | Driver | Rough monthly cost for this small stack |
-|---|---|---|
-| Security Hub (security checks) | per check; first 100,000 checks per month in the lowest tier. Control findings need AWS Config (priced separately, per configuration item) | a few dollars if Config is on; about zero without it |
-| Security Hub (findings) | free for security checks; 10,000 other finding events per month free | near zero |
-| GuardDuty foundational sources | CloudTrail management events, VPC flow logs and DNS logs, per volume | about $1 to $5 |
-| GuardDuty S3 data events | per million events (first 500 million at $0.80 per million) | near zero (few buckets, low traffic) |
-| GuardDuty EKS audit logs | per million audit logs, volume-discounted | well under $1 on a small cluster |
-| CloudTrail | the first copy of management events is free; the cost is S3 storage and KMS requests | under $1 |
-
-Total: very roughly $2 to $10 a month after the free trials, depending mostly on Config. Check the real numbers in the Billing console and the Security Hub and GuardDuty usage pages after a few days. This is on top of the $75 budget.
-
-## Check that Security Hub shows findings after enablement
-
-Control findings from the FSBP standard depend on AWS Config recording, which is **not** part of this module. Without Config, expect an empty or "no data" security score. GuardDuty findings still reach Security Hub on their own.
-
-1. Console: Security Hub, Summary. The account should show as enabled with the FSBP standard listed.
-2. Generate GuardDuty sample findings (an AWS write action, run by the operator):
-   ```sh
-   aws guardduty create-sample-findings --detector-id "$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text)" \
-     --finding-types Recon:EC2/PortProbeUnprotectedPort
-   ```
-3. After a few minutes, Security Hub, Findings, filter product name `GuardDuty`: the sample finding appears.
-4. If FSBP controls show "no data" after about a day, turn on AWS Config recording (service-linked recorder), then turn the standard off and on again.
-
-Trail checks:
 ```sh
 aws cloudtrail get-trail-status --name <trail name> --query '{logging:IsLogging,last:LatestDeliveryTime,error:LatestDeliveryError}'
 aws cloudtrail validate-logs --trail-arn <trail arn> --start-time <ISO time>
-aws s3 ls "s3://<trail bucket>/AWSLogs/" --recursive | head
 ```
-`LatestDeliveryError` must be empty. A `KMS` or `AccessDenied` error means the key policy or the bucket policy does not match the trail name.
 
-## The GuardDuty detector was imported
+`LatestDeliveryError` must be empty. A `KMS` or `AccessDenied` error means the key or bucket policy does not match the trail name.
 
-GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopted it with an `import {}` block (since removed, see the status below). The root looked up its ID with a `data "aws_guardduty_detector"` block at the time (no ID in code); that lookup is now removed. The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
+Security Hub control findings need AWS Config, which is not built. Expect "no data" for the FSBP score. GuardDuty findings still arrive. To test, generate a sample finding:
 
-Status (2026-10-10): the apply succeeded and the `import {}` block was removed, together with the two bucket import blocks from the SEC-037 repair. All three resources stay in state.
+```sh
+aws guardduty create-sample-findings --detector-id "$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text)" \
+  --finding-types Recon:EC2/PortProbeUnprotectedPort
+```
 
-Follow-up, done in code (removal of the lookup):
-1. The `data "aws_guardduty_detector" "existing"` lookup in `terraform/main.tf` and the module's `guardduty_detector_id` variable are removed. Nothing read them: the module manages the detector from state, and the import block is gone. The plan should show no change.
-2. `terraform-destroy.yml` deletes the detector (it is managed). A rebuild after a destroy no longer needs any edit first: with no lookup, GuardDuty is created normally. If a detector already exists in the region by then, adopt it with an `import {}` block, as on 2026-10-10.
+It appears in Security Hub, Findings, product `GuardDuty`, after a few minutes.
 
 ## Destructive plan guard
 
-`tf-plan` in `.github/workflows/terraform-apply.yml` runs a `destructive plan guard` step after `terraform plan` (SEC-037). It reads `plan.txt` and fails the job, printing the matching lines, if any `aws_s3_bucket`, `aws_s3_bucket_*` (policy, public access block, versioning, encryption, lifecycle, notification, logging and so on), `aws_kms_key` or `aws_dynamodb_table` resource `will be destroyed`, `must be replaced` or `will be replaced`. The step runs before the plan artifact is uploaded, so `tf-apply` has nothing to apply. Creates, imports and in-place updates pass. `aws_dynamodb_table_item`, `aws_kms_alias` and `aws_kms_key_policy` are not covered.
+`tf-plan` fails, before the plan is uploaded, if any `aws_s3_bucket`, `aws_s3_bucket_*`, `aws_kms_key` or `aws_dynamodb_table` will be destroyed or replaced (SEC-037). It fails closed on a missing plan or a grep error. Creates, imports and in-place updates pass. Table items, KMS aliases and key policies are not covered.
 
-- The guard fails closed if `plan.txt` is missing or empty.
-- The guard fails closed on any grep error (any exit code other than 0 or 1); only exit 1, no match, passes.
+There is no override. When it fails:
 
-There is no override input. When the guard fails:
-1. Do not re-run the workflow hoping it passes. Read the printed lines and the refresh section of the plan log: a `has been deleted` on a bucket that exists means the plan role could not read it (SEC-037), not that it is gone.
-2. Fix the cause (permissions, state, an unintended code change) and run the plan again.
-3. If the replacement is really wanted (for example a renamed bucket or a new table key), that is a human decision made in a separate PR, reviewed on its own, that states why, what data is lost or moved, and any change to the guard it needs. It is never folded into another change.
+1. Do not rerun hoping it passes. Read the printed lines and the refresh section. A bucket that "has been deleted" but exists means the plan role could not read it.
+2. Fix the cause and plan again.
+3. A wanted replacement is a separate PR that says why and what data is lost.
 
-The session destroy (`terraform-destroy.yml`) is a separate workflow and is not affected.
+## Cost
+
+Estimates, not measured. GuardDuty and Security Hub have a 30-day free trial. After it, roughly $2 to $10 a month, mostly GuardDuty foundational sources, plus Config if it is turned on. This is on top of the $75 budget.
 
 ## Known gaps
 
-- The trail is single-region (us-east-2). IAM and STS events originate in us-east-1 and are not captured.
-- The SNS topic has no subscriber yet (alert delivery is not built; older text names Phase 6, which the tracked docs do not record), so notifications are published but not delivered anywhere.
-- The access-log bucket uses SSE-S3, not the project key, because S3 server access logging requires it (SEC-036).
-- `force_destroy` is true on both log buckets so the session destroy works, which deletes the audit logs with the stack (EXC-013).
-
-## What SEC-036 added
-
-- CloudWatch Logs: `/<prefix>/cloudtrail` receives the trail (check `aws logs describe-log-streams --log-group-name /<prefix>/cloudtrail`).
-- SNS topic `<prefix>-cloudtrail` for trail delivery and new-object notifications.
-- Access logs of the trail bucket in `<prefix>-logs-cloudtrail-access-<account id>` under `access/`.
+- Single-region trail: IAM and STS events from us-east-1 are not captured (EXC-010).
+- The SNS topic has no subscriber, so nothing is alerted.
+- `force_destroy` on both log buckets: the session destroy deletes the audit logs (EXC-013).

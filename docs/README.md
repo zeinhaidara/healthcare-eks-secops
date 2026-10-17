@@ -1,44 +1,30 @@
 # Docs index
 
-Everything under `docs/`, grouped by purpose, one line each. The project overview is in the [top-level README](../README.md). File names use topic names; the phase numbers used in older text are explained in the [phase map](phase-map.md).
+Everything under `docs/`, one line each. The project overview is in the [top-level README](../README.md).
 
-## Architecture and history
-- [architecture.md](architecture.md): three diagrams of the AWS architecture, the CI/CD flow and the access model.
-- [phase-map.md](phase-map.md): the numbered phases, what the tracked repo records for each, and the gaps (Phases 5 and 6 are not recorded).
-
-## Bootstrap and policies
-- [bootstrap.md](bootstrap.md): the one-time manual setup: roles, environments, rulesets, the secret value.
-- [bootstrap-policies/README.md](bootstrap-policies/README.md): the CI role policies, how to apply them, and the wildcard review notes.
-- [bootstrap-policies/plan-policy.json](bootstrap-policies/plan-policy.json): read-only policy for the plan role.
-- [bootstrap-policies/apply-policy.json](bootstrap-policies/apply-policy.json): project-scoped write policy for the apply role.
-- [bootstrap-policies/deploy-dev-policy.json](bootstrap-policies/deploy-dev-policy.json): deploy role for the dev namespace.
-- [bootstrap-policies/deploy-prod-policy.json](bootstrap-policies/deploy-prod-policy.json): deploy role for the prod namespace.
-
-## Security
-- [security/controls.md](security/controls.md): every control by layer, with its status, owner ID, evidence and source line.
-- [security/improvement-log.md](security/improvement-log.md): one entry per security change (SEC IDs), with before and after evidence.
-- [security/exceptions-register.md](security/exceptions-register.md): every accepted risk (EXC IDs) with owner and expiry.
-- [security/prowler-triage.md](security/prowler-triage.md): the 2026-10-10 Prowler scan triaged against the register.
-- [security/dast-baseline-results.md](security/dast-baseline-results.md): the ZAP baseline on dev before and after the response-header fixes.
-- [security/triage-process.md](security/triage-process.md): who owns findings and the proposed response times.
-- [security/rbac-review.md](security/rbac-review.md): IAM and Kubernetes RBAC review tables (not filled in).
-- [security/findings-report.md](security/findings-report.md): outline of the final findings report plus early control notes.
-- Raw scan evidence is under [`evidence/security/`](../evidence/security/).
+## Start here
+- [architecture.md](architecture.md): diagrams of the AWS stack, the CI/CD flow and the access model.
+- [bootstrap.md](bootstrap.md): one-time setup by hand: roles, GitHub rulesets and environments, the API key value.
+- [bootstrap-policies/](bootstrap-policies/README.md): the CI role policies, how to apply them, and the remaining wildcards.
 
 ## Runbooks
-- [runbooks/argocd-bootstrap.md](runbooks/argocd-bootstrap.md): installing Argo CD, metrics-server and External Secrets on Fargate, and how the GitHub App credential reaches Argo.
-- [runbooks/argocd-github-app-rotation.md](runbooks/argocd-github-app-rotation.md): rotating the GitHub App private key that Argo CD uses, synced by External Secrets.
-- [runbooks/gitops-deploy.md](runbooks/gitops-deploy.md): how an image reaches dev and prod through Argo CD, the prod approval, rollback with `git revert`, forcing a sync.
-- [runbooks/cluster-access.md](runbooks/cluster-access.md): checks that the cluster, Fargate, namespaces and roles are as designed.
-- [runbooks/dast-baseline.md](runbooks/dast-baseline.md): the weekly, report-only ZAP baseline scan of the dev app, what it covers and where its report is.
-- [runbooks/security-scans.md](runbooks/security-scans.md): every report-only scan (tflint, Kubescape, pip-audit, ZAP baseline, API and full, Prowler), when it runs and where its report is.
-- [runbooks/detective-controls.md](runbooks/detective-controls.md): Security Hub, GuardDuty and CloudTrail: enable order, imports, the destructive plan guard, known gaps.
-- [runbooks/eks-operator-import.md](runbooks/eks-operator-import.md): how the operator's read-only cluster access was brought under Terraform.
-- [runbooks/failed-deploy.md](runbooks/failed-deploy.md): known failure messages and what they mean.
-- [runbooks/rotation.md](runbooks/rotation.md): API key rotation and what to do after one.
+- [gitops-deploy.md](runbooks/gitops-deploy.md): how an image reaches dev and prod, rollback, and checking a deploy.
+- [argocd.md](runbooks/argocd.md): Argo CD install, sign-in, the repo credential, and both key rotations.
+- [rotation.md](runbooks/rotation.md): API key rotation and what to do after one.
+- [cluster-access.md](runbooks/cluster-access.md): checks that the cluster, Fargate, namespaces and roles are as designed.
+- [failed-terraform-run.md](runbooks/failed-terraform-run.md): known Terraform failures by log line.
+- [detective-controls.md](runbooks/detective-controls.md): CloudTrail, GuardDuty, Security Hub and the destructive plan guard.
+- [security-scans.md](runbooks/security-scans.md): report-only scans (tflint, Kubescape, pip-audit, ZAP) and their latest results.
+- [eks-operator-import.md](runbooks/eks-operator-import.md): the operator's EKS access entry and its break-glass read.
+
+## Security records
+- [controls.md](security/controls.md): every control by layer, with status and evidence.
+- [exceptions-register.md](security/exceptions-register.md): accepted risks (EXC IDs) with owner and expiry.
+- [improvement-log.md](security/improvement-log.md): one entry per security change (SEC IDs), with before and after evidence.
+- [triage-process.md](security/triage-process.md): how a finding is fixed, accepted or deferred.
+- [prowler-triage.md](security/prowler-triage.md): the 2026-10-10 Prowler scan, triaged.
+- [talk/presentation-facts.md](security/talk/presentation-facts.md): the facts behind the presentation, each with its source.
+- Raw scan output: [`evidence/security/`](../evidence/security/).
 
 ## Cost
-- [cost/budget.md](cost/budget.md): the $75 monthly budget: scope and tag, status, what the filter does not count, estimates and rules.
-
-## Talk
-- [security/talk/presentation-facts.md](security/talk/presentation-facts.md): the plain facts behind the presentation, each with its source.
+- [budget.md](cost/budget.md): the $75 budget, its tag scope, observed spend and estimates.
