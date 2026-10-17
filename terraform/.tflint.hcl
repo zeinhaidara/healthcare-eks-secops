@@ -1,4 +1,4 @@
-# tflint for this Terraform root (job `tflint` in .github/workflows/security-scans.yml). Report-only in CI.
+# tflint for this Terraform root (job `tflint` in .github/workflows/ci.yml). Report-only in CI.
 # The terraform ruleset uses its recommended preset; the AWS ruleset is pinned to a version and verified
 # by tflint against the ruleset's signing key when it is installed with `tflint --init`.
 plugin "terraform" {
