@@ -5,12 +5,15 @@
 #
 # Hardening from the Kubescape scan (docs/runbooks/security-scans.md), none of which changes how Argo CD or Dex work:
 # - runAsGroup is set to the group each image already runs with (argocd 999, dex 1001, the alpine redis user's
-#   group 1000), so the processes keep the same IDs and the scan sees an explicit non-root group.
+#   group 1000), so the processes keep the same IDs and the scan sees an explicit non-root group. Every
+#   runAsGroup has a runAsUser next to it: Fargate rejects a group without a user ("user group is specified
+#   without user"). 999 is the argocd image's user (USER 999 in its image config).
 # - CPU limits are 250m, the smallest Fargate vCPU size, so no pod's Fargate size or CPU headroom changes.
 # - Only redis gets no service-account token: it runs as the default account with no role. Every other component
 #   has a Role or ClusterRole binding and reads the Kubernetes API, so their tokens stay.
 global:
   securityContext: # pod level for the controller, server, repo server, ApplicationSet controller and Dex
+    runAsUser: 999
     runAsGroup: 999
 
 dex:
@@ -91,7 +94,8 @@ redis:
 
 # The Job that creates the redis password Secret (it needs its token: its Role lets it write that Secret).
 redisSecretInit:
-  securityContext:
+  securityContext: # the Job runs the argocd image, whose user is 999
+    runAsUser: 999
     runAsGroup: 999
   resources:
     requests:

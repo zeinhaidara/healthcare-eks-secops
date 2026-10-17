@@ -426,3 +426,33 @@ jobs:
         continue-on-error: true
         with:
           inputs: app/requirements.txt
+
+  # Fails if a rendered pod or container sets runAsGroup without runAsUser. EKS Fargate rejects such a pod
+  # ("user group is specified without user"), and terraform-apply then hangs on the Argo CD release.
+  # Renders the Argo CD chart (values/argocd.yaml, chart version from Terraform) and healthcare-api (dev, prod).
+  securitycontext-check:
+    name: securitycontext-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Render the charts
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          argo_version="$(sed -n '/variable "argocd_chart_version"/,/^}/s/.*default *= *"\(.*\)"/\1/p' terraform/cluster-addons/variables.tf)"
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm template argocd argo/argo-cd --version "$argo_version" -n argocd             -f terraform/cluster-addons/values/argocd.yaml > rendered/argocd.yaml
+          for env in dev prod; do
+            helm template healthcare-api helm/healthcare-api -n "cloudbatch818-healthcare-$env"               -f helm/healthcare-api/values.yaml -f "helm/healthcare-api/values-$env.yaml"               --set image.repository=registry.invalid/healthcare-api --set ingress.certificateArn=placeholder               --set networkPolicy.vpcCidr=placeholder --set env.apiKeySecretName=placeholder > "rendered/healthcare-api-$env.yaml"
+          done
+      - name: Check runAsGroup has runAsUser
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 scripts/check_run_as_user.py rendered/*.yaml
+
