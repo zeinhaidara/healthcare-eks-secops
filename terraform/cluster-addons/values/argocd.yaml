@@ -1,5 +1,5 @@
 # Argo CD on Fargate. Git is read with the GitHub App credential in the Secret "healthcare-repo", which External
-# Secrets builds from Secrets Manager (docs/runbooks/argocd-bootstrap.md). Argo has no AWS role. The UI ingress, host, certificate, the Dex
+# Secrets builds from Secrets Manager (docs/runbooks/argocd.md). Argo has no AWS role. The UI ingress, host, certificate, the Dex
 # GitHub connector and RBAC are set in main.tf (helm_release.argocd) from variables. Notifications are off.
 # Requests are set because Fargate sizes a pod from them.
 #

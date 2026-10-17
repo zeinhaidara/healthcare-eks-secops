@@ -1,4 +1,4 @@
-# Presentation facts (wrap-up, Phase 8)
+# Presentation facts
 
 One fact per line, each with its source: a SEC or EXC ID, or a file or setting where no ID exists. **GAP** marks anything not confirmed in the repo or in a setting that was read. No account IDs, ARNs, emails or hostnames. Status as of 2026-10-11.
 
@@ -9,7 +9,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - Pods run under Pod Security `restricted` in the app namespaces (SEC-030).
 - One KMS project key encrypts the table, the API key secret, ECR, CloudWatch Logs and the CloudTrail bucket (SEC-005, EXC-001).
 - The API key lives in Secrets Manager and a VPC Lambda rotates it every 30 days (SEC-003, SEC-027, EXC-009).
-- Pods roll automatically when the API key secret version changes (SEC-034).
+- Deploys run through Argo CD from Git; CI never runs Helm or kubectl. Pods are restarted by hand after a key rotation (SEC-034).
 - Images are pushed to ECR with immutable tags and scan on push; deploys pin the digest that passed the Trivy scan (SEC-031).
 - Detective controls: a single-region CloudTrail with log file validation, GuardDuty with S3 data events and EKS audit logs, and Security Hub with the FSBP standard (SEC-035, SEC-036).
 - Terraform state is AES256-encrypted, not KMS, and holds synthetic seed values only (EXC-008).
@@ -28,7 +28,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - CI uses GitHub OIDC; no long-lived AWS keys are stored in GitHub (SEC-011, `docs/bootstrap.md`).
 - The plan role is read-only and has no cluster access (SEC-019, SEC-037, `docs/bootstrap-policies/plan-policy.json`).
 - The apply role has project-scoped write and is EKS cluster admin, behind a self-review gate on the `infra` and `infra-destroy` environments (EXC-006, SEC-019).
-- Each deploy role has `AmazonEKSEditPolicy` scoped to one namespace and read-only AWS calls (SEC-019, `docs/bootstrap-policies/deploy-dev-policy.json`).
+- The two deploy roles (namespace-scoped `AmazonEKSEditPolicy`) are unused since the move to Argo CD and still to be removed (SEC-019).
 - The operator has `AmazonEKSViewPolicy` at cluster scope and read-only AWS access (SEC-029).
 - The operator IAM user has a long-lived access key (SEC-029 residual risk) and no MFA (Prowler triage N2; no SEC ID yet).
 - The EKS API endpoint is public (0.0.0.0/0) and private, because GitHub-hosted runners need it; authentication is by access entries only, with no creator admin (EXC-005, SEC-018).
@@ -76,7 +76,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - The budget is `cloudbatch818-zein-hcsecops-monthly`: $75 a month, with four alerts (actual spend at 50, 80 and 100 percent, forecast at 100 percent), all set in Terraform (SEC-038, `terraform/modules/budget`).
 - The budget is filtered to the `Project=cloudbatch818` cost tag (SEC-038).
 - The filter was applied on 2026-10-11 (SEC-038, operator-confirmed).
-- October 2026 tagged spend is $9.80 of $75. This is the 2026-10-11 reading and a possible lower bound: Fargate attribution is not confirmed (check Cost Explorer). The tags match (`PROJECT_NAME` = `cloudbatch818`) and the ALB carries the same tag since PR #56 (checked by the operator on 2026-10-12, not verified from the repo) (SEC-038, SEC-041).
+- October 2026 tagged spend is $9.80 of $75. This is the 2026-10-11 reading and a possible lower bound: Fargate attribution is not confirmed (check Cost Explorer). The tags match (`PROJECT_NAME` = `cloudbatch818`) and the ALB carries the same tag (checked by the operator on 2026-10-12, not verified from the repo) (SEC-038, SEC-041).
 - The scoped-spend history shows $0 before October 2026. That reflects the filter and tag activation, not zero project cost before then (SEC-038, `docs/cost/budget.md`).
 - The `Project` cost allocation tag is active in Billing. The management account activated it, because this account is an Organization member (SEC-038, operator-confirmed).
 - **GAP:** the alert subscriber is unverified, so no alert delivery has been confirmed. The operator identity lacks permission to view the notification settings (SEC-038).
@@ -84,27 +84,12 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 
 ## Risk register
 
-| ID | Accepted risk | Owner | Expiry | Status |
-|---|---|---|---|---|
-| EXC-001 | KMS key policy account-root statement | Moulaye | 2027-04-08 | open (SEC-005) |
-| EXC-002 | No Lambda code signing | Moulaye | 2027-04-08 | open (SEC-006) |
-| EXC-003 | 0 required approvals on `main`, single maintainer | Moulaye | 2027-04-08 | open (SEC-009) |
-| EXC-004 | Plan role trusts `pull_request` subjects | Moulaye | 2027-04-08 | open (SEC-011) |
-| EXC-005 | Public EKS API endpoint (0.0.0.0/0) | Moulaye | 2027-04-08 | open (SEC-018) |
-| EXC-006 | Apply role is EKS cluster admin | Moulaye | 2027-04-08 | open (SEC-019) |
-| EXC-007 | Pod security group check (CKV2_AWS_5) | Moulaye | 2027-04-08 | closed for dev and prod 2026-10-09 (SEC-032) |
-| EXC-008 | Terraform state AES256, not KMS | Moulaye | 2027-04-08 | open (SEC-026) |
-| EXC-009 | Lambda ENI actions on `*` | Moulaye | 2027-04-08 | open (SEC-028) |
-| EXC-010 | Single-region CloudTrail | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-011 | GuardDuty org-level check | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-012 | No cross-region replication for log buckets | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-013 | `force_destroy` on log buckets | Moulaye | 2027-04-08 | open (SEC-035, SEC-036) |
-| EXC-014 | Access-log bucket uses SSE-S3 | Moulaye | 2027-04-08 | open (SEC-036) |
+16 accepted risks, EXC-001 to EXC-016, all owned by Moulaye and expiring in April 2027. EXC-007 is closed. Full list: `docs/security/exceptions-register.md`.
 
 ## Built, planned, next
 
 - **Built:** VPC with flow logs, EKS on Fargate, ECR, DynamoDB, Secrets Manager with rotation, KMS, CloudTrail, GuardDuty, Security Hub, OIDC CI/CD with scan gates, a destructive plan guard and a project-scoped budget (SEC-001 to SEC-041).
-- **Next:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033, still open), the `sns_topic_name` drift fix and removal of the GuardDuty lookup (SEC-037), and the ALB tag lookup evidence (SEC-041, TODO).
+- **Next:** Prowler items N1 to N8 (`docs/security/prowler-triage.md`), a DNS alias check before a deploy is called verified (SEC-033), the `sns_topic_name` drift fix (SEC-037), and the ALB tag lookup evidence (SEC-041).
 - **Planned:** AWS Config, WAF, Inspector, CloudWatch alarms with alert delivery, and a full incident simulation (`docs/security/controls.md` section 7, README).
 
 ## Honest answers

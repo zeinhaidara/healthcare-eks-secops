@@ -1,11 +1,6 @@
 name: dast
 
-# OWASP ZAP scans of the dev app, one job each: baseline (passive), api (OpenAPI-driven active scan) and full
-# (active attack traffic). Report-only: findings never fail a job. Dev only: the target is the repository
-# variable DEV_BASE_URL. No secrets, no AWS credentials, no OIDC; every job has contents: read.
-# Weekly per scan, or by hand with a choice of scan. With "all", the jobs run one after another, so two ZAP
-# scans never hit dev at once. The ZAP actions upload their own artifacts (no retention setting).
-# Scheduled and manual runs use the file on the default branch (main). See docs/runbooks/security-scans.md.
+# Report-only ZAP scans of dev, never prod. See docs/runbooks/security-scans.md.
 on:
   workflow_dispatch: # checkov:skip=CKV_GHA_7:EXC-016 the input only picks which pinned ZAP scan runs against dev; it feeds no build output. owner Moulaye, expires 2027-04-17.
     inputs:
@@ -57,12 +52,10 @@ jobs:
           target: ${{ vars.DEV_BASE_URL }}
           fail_action: false
           allow_issue_writing: false # report only; no GitHub issue (that would need issues: write)
-          # ZAP 2.17.0, pinned by digest (the multi-arch index, linux/amd64 and arm64). The action's default is
-          # the moving "stable" tag. To update: read the new version and its digest from the registry and change both parts of the image reference.
+          # Pinned by digest; the action's default is the moving "stable" tag.
           docker_name: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6
 
-  # OpenAPI-driven API scan: imports dev's /openapi.json and actively scans the endpoints it lists. No API
-  # key is sent, so keyed endpoints answer 403. Refuses a DEV_BASE_URL that names prod.
+  # No API key is sent, so keyed endpoints answer 403.
   zap-api:
     name: zap-api
     needs: zap-baseline
@@ -99,11 +92,9 @@ jobs:
           fail_action: false
           allow_issue_writing: false # report only; no GitHub issue (that would need issues: write)
           artifact_name: zap_api_scan
-          # ZAP 2.17.0 by digest, the same image as the baseline scan (dast.yml).
           docker_name: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6
 
-  # WARNING: the ZAP full scan sends ACTIVE ATTACK TRAFFIC (injection, traversal and similar payloads).
-  # It must only ever target dev. Never point it at prod. The job refuses a DEV_BASE_URL that names prod.
+  # WARNING: sends active attack traffic. Dev only, never prod.
   zap-full:
     name: zap-full
     needs: [zap-baseline, zap-api]

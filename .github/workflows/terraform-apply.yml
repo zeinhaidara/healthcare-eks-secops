@@ -1,7 +1,6 @@
 name: terraform-apply
 
 # Manual only, no inputs. Read the plan in tf-plan, then approve tf-apply (environment infra).
-# tf-apply applies the exact plan file produced by tf-plan.
 on:
   workflow_dispatch:
 
@@ -61,13 +60,10 @@ jobs:
         run: |
           terraform plan -out=tfplan
           terraform show -no-color tfplan > plan.txt
-          # The archive_file data source builds the Lambda zip during plan. tf-apply runs on a different
-          # runner where that file would not exist, so record its hash and ship the exact zip with the plan.
+          # The Lambda zip is built at plan time, so ship it and its hash to the apply runner.
           find modules -path '*/build/*.zip' -print0 | xargs -0 -r sha256sum > zips.sha256
           test -s zips.sha256
-      # SEC-037: fail before the plan artifact exists, so tf-apply cannot run, if the plan deletes or
-      # replaces an S3 bucket or bucket sub-resource, a KMS key or a DynamoDB table. No override: a
-      # legitimate replacement is a human decision made in a separate PR (docs/runbooks/detective-controls.md).
+      # Runs before the plan upload, so a blocked plan leaves tf-apply nothing to apply. No override.
       - name: destructive plan guard
         working-directory: terraform
         run: |
@@ -116,7 +112,6 @@ jobs:
         with:
           name: tfplan
           path: terraform
-      # tf-apply applies the exact Lambda zip that tf-plan built; fail if it is missing or changed.
       - name: verify Lambda package
         working-directory: terraform
         run: |
@@ -132,9 +127,7 @@ jobs:
         working-directory: terraform
         run: terraform apply tfplan
 
-  # Second root (D2b): namespaces and the Load Balancer Controller. Runs under the apply role
-  # behind a second infra approval, after the cluster exists. Read the add-ons plan in
-  # addons-plan before approving addons-apply.
+  # Second root (cluster-addons); it needs the cluster from tf-apply.
   addons-plan:
     name: addons-plan
     needs: apply

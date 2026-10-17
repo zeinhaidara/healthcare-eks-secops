@@ -129,7 +129,7 @@ resource "aws_iam_role_policy" "vpc_eni" {
 }
 
 resource "aws_lambda_function" "this" {
-  # checkov:skip=CKV_AWS_272:Code signing needs an AWS Signer profile and a signing step before deploy, a pipeline change planned for Phase 7. Code is a small file in this repo, packaged by Terraform from reviewed source. owner Moulaye, expires 2027-04-08. EXC-002
+  # checkov:skip=CKV_AWS_272:Code signing needs an AWS Signer profile and a signing step before deploy, a pipeline change not yet scheduled. Code is a small file in this repo, packaged by Terraform from reviewed source. owner Moulaye, expires 2027-04-08. EXC-002
   function_name = var.name
   role          = aws_iam_role.this.arn
   runtime       = "python3.12"

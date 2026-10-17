@@ -139,7 +139,7 @@ locals {
 }
 
 # Argo has no AWS role. It reads Git as a GitHub App; the Secret "healthcare-repo" is built by External
-# Secrets below (docs/runbooks/argocd-bootstrap.md). It deploys with the in-cluster RBAC from its own
+# Secrets below (docs/runbooks/argocd.md). It deploys with the in-cluster RBAC from its own
 # install. The "argocd" Fargate profile is created in the root.
 resource "kubernetes_namespace_v1" "argocd" {
   metadata {

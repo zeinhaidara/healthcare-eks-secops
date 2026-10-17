@@ -1,9 +1,4 @@
-"""Fail if a rendered workload sets runAsGroup without runAsUser.
-
-EKS Fargate rejects such a pod ("user group is specified without user"), and a Helm release then waits on it
-until it times out. Checks the pod securityContext and every container and init container (container values
-override the pod's). Usage: check_run_as_user.py RENDERED.yaml [...]
-"""
+"""Fail if a rendered workload sets runAsGroup without runAsUser (Fargate rejects it). Usage: FILE.yaml [...]"""
 
 import sys
 

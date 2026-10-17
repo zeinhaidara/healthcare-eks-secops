@@ -1,8 +1,6 @@
 name: ci
 
-# Checks only. No AWS credentials, no OIDC, no registry push. All AWS access lives in cd.yml and the
-# terraform-* workflows. No paths filter so every required check always reports.
-# Job names are the required status check names on main; do not rename them.
+# No AWS access and no paths filter, so every required check always reports. Job names are required checks.
 on:
   pull_request:
     branches: [main, dev]
@@ -71,8 +69,7 @@ jobs:
           scan-type: fs
           scan-ref: app
           trivy-config: security/trivy/trivy.yaml
-          # The action exports its own defaults (all severities, ignore-unfixed false) that override
-          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          # The action's defaults override trivy.yaml, so these repeat it; keep them in sync.
           severity: HIGH,CRITICAL
           ignore-unfixed: "true"
           exit-code: "1"
@@ -119,8 +116,7 @@ jobs:
           scan-type: image
           input: image.tar
           trivy-config: security/trivy/trivy.yaml
-          # The action exports its own defaults (all severities, ignore-unfixed false) that override
-          # trivy.yaml, so the same values are set here. Keep in sync with security/trivy/trivy.yaml.
+          # The action's defaults override trivy.yaml, so these repeat it; keep them in sync.
           severity: HIGH,CRITICAL
           ignore-unfixed: "true"
           exit-code: "1"
@@ -142,8 +138,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install checkov==3.3.26
-      # security/checkov/app.yaml covers the Dockerfile and all workflows. Add the rendered
-      # Helm output (helm template) here when the chart lands in Phase 4.
       - name: Checkov (Dockerfile, workflows)
         run: |
           mkdir reports
@@ -200,8 +194,7 @@ jobs:
           path: reports/
           retention-days: 90
 
-  # CodeQL analyses Python (app/) and GitHub Actions workflows. CodeQL does not support
-  # Terraform; Checkov (tf-checkov) covers it.
+  # CodeQL has no Terraform support; tf-checkov covers it.
   codeql:
     name: codeql
     runs-on: ubuntu-latest
@@ -258,9 +251,7 @@ jobs:
         with:
           name: coverage-lambda
           path: .
-      # The quality gate is enforced on pull requests (this job is a required check). Push runs to
-      # non-main branches only upload the analysis: the SonarCloud free plan cannot return gate status
-      # for non-main branches ("Organization is not allowed to access data from non main branches").
+      # Gate waits on pull requests only: the free plan cannot return gate status for non-main branches.
       - uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         with:
           args: >
@@ -268,16 +259,10 @@ jobs:
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.qualitygate.wait=${{ github.event_name == 'pull_request' && 'true' || 'false' }}
 
-  # Secrets scan over the full history (--log-opts=--all): every commit on every ref, including the commits a
-  # release merge brings in on its second parent. gitleaks-action cannot do this: it hard-codes
-  # --no-merges --first-parent for pushes and pull requests, so a release merge scanned 0 commits. This runs
-  # the gitleaks CLI directly. The version is pinned and its SHA-256 (from the release's checksums file) is
-  # checked before it runs. Default rules plus .gitleaks.toml; a finding fails the job. No licence needed.
+  # The CLI, not gitleaks-action: the action skips merge parents, so a release merge scanned 0 commits.
   gitleaks:
     name: gitleaks
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     env:
       GITLEAKS_VERSION: "8.30.1"
       GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb" # gitleaks_8.30.1_linux_x64.tar.gz
@@ -297,14 +282,10 @@ jobs:
           "$RUNNER_TEMP/gitleaks" detect --source . --config .gitleaks.toml --redact --no-banner -v \
             --exit-code 2 --log-opts=--all
 
-  # ---------- Report-only scans: findings never fail the build ----------
-  # tflint, Kubescape (rendered Helm output, no cluster) and pip-audit. Each job has contents: read (the
-  # workflow default), its own timeout, and no secrets. See docs/runbooks/security-scans.md.
+  # Report-only scans (tflint, kubescape, pip-audit): findings never fail the build.
   tflint:
     name: tflint
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -312,12 +293,11 @@ jobs:
         with:
           tflint_version: v0.64.0
           checksums: cca9d13e2e1d7a2c627af60ff899a3c9b74212899416aeb96ec764d2ef954537 # tflint_linux_amd64.zip
-      # Installs the AWS ruleset at the version pinned in .tflint.hcl; tflint checks its signature.
       - name: Install the rulesets
         run: tflint --chdir=terraform --init
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      # Both roots and every module, with the root config (the modules have none of their own).
+      # Modules have no config of their own, so the root one is passed explicitly.
       - name: Lint (report only)
         run: |
           tflint --chdir=terraform --recursive --config="$GITHUB_WORKSPACE/terraform/.tflint.hcl" \
@@ -342,17 +322,13 @@ jobs:
   kubescape:
     name: kubescape
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 20
     env:
       KUBESCAPE_VERSION: "4.0.16"
       KUBESCAPE_SHA256: "fcf172f0d1fb5683379586bcf8875091da4d0d815bd304f8098d58be65ecab0d" # kubescape_4.0.16_linux_amd64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # healthcare-api with the dev values; values that come from Terraform at deploy time get placeholders.
-      # Argo CD at the chart version Terraform installs, with values/argocd.yaml only: the ingress, Dex and
-      # RBAC values that Terraform adds in main.tf are not part of this render.
+      # Values Terraform passes at deploy time get placeholders; Argo CD's main.tf values are not rendered.
       - name: Render the charts
         env:
           VPC_CIDR: ${{ vars.VPC_CIDR }}
@@ -377,8 +353,7 @@ jobs:
             "https://github.com/kubescape/kubescape/releases/download/v${KUBESCAPE_VERSION}/kubescape_${KUBESCAPE_VERSION}_linux_amd64"
           echo "${KUBESCAPE_SHA256}  $RUNNER_TEMP/kubescape" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/kubescape"
-      # One framework per run: kubescape drops the second framework of a comma-separated list. cis-v1.12.0
-      # is the Kubernetes CIS benchmark; the EKS one checks nodes and the cluster, so it finds nothing in files.
+      # One framework per run (a comma list drops the second); the EKS CIS framework finds nothing in files.
       - name: Scan with NSA and CIS (report only)
         run: |
           for fw in nsa cis-v1.12.0; do
@@ -412,29 +387,21 @@ jobs:
   pip-audit:
     name: pip-audit
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      # Report only: a known vulnerability shows in the job summary but does not fail the build.
-      # There is no frontend package file (no package.json), so there is nothing for npm audit.
       - uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
         continue-on-error: true
         with:
           inputs: app/requirements.txt
 
-  # Fails if a rendered pod or container sets runAsGroup without runAsUser. EKS Fargate rejects such a pod
-  # ("user group is specified without user"), and terraform-apply then hangs on the Argo CD release.
-  # Renders the Argo CD chart (values/argocd.yaml, chart version from Terraform) and healthcare-api (dev, prod).
+  # Fargate rejects runAsGroup without runAsUser, which makes terraform-apply hang on the Argo CD release.
   securitycontext-check:
     name: securitycontext-check
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -447,9 +414,13 @@ jobs:
           mkdir -p rendered
           argo_version="$(sed -n '/variable "argocd_chart_version"/,/^}/s/.*default *= *"\(.*\)"/\1/p' terraform/cluster-addons/variables.tf)"
           helm repo add argo https://argoproj.github.io/argo-helm
-          helm template argocd argo/argo-cd --version "$argo_version" -n argocd             -f terraform/cluster-addons/values/argocd.yaml > rendered/argocd.yaml
+          helm template argocd argo/argo-cd --version "$argo_version" -n argocd \
+            -f terraform/cluster-addons/values/argocd.yaml > rendered/argocd.yaml
           for env in dev prod; do
-            helm template healthcare-api helm/healthcare-api -n "cloudbatch818-healthcare-$env"               -f helm/healthcare-api/values.yaml -f "helm/healthcare-api/values-$env.yaml"               --set image.repository=registry.invalid/healthcare-api --set ingress.certificateArn=placeholder               --set networkPolicy.vpcCidr=placeholder --set env.apiKeySecretName=placeholder > "rendered/healthcare-api-$env.yaml"
+            helm template healthcare-api helm/healthcare-api -n "cloudbatch818-healthcare-$env" \
+              -f helm/healthcare-api/values.yaml -f "helm/healthcare-api/values-$env.yaml" \
+              --set image.repository=registry.invalid/healthcare-api --set ingress.certificateArn=placeholder \
+              --set networkPolicy.vpcCidr=placeholder --set env.apiKeySecretName=placeholder > "rendered/healthcare-api-$env.yaml"
           done
       - name: Check runAsGroup has runAsUser
         run: |
