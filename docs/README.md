@@ -31,6 +31,7 @@ Everything under `docs/`, grouped by purpose, one line each. The project overvie
 - [runbooks/gitops-deploy.md](runbooks/gitops-deploy.md): how an image reaches dev and prod through Argo CD, the prod approval, rollback with `git revert`, forcing a sync.
 - [runbooks/cluster-access.md](runbooks/cluster-access.md): checks that the cluster, Fargate, namespaces and roles are as designed.
 - [runbooks/dast-baseline.md](runbooks/dast-baseline.md): the weekly, report-only ZAP baseline scan of the dev app, what it covers and where its report is.
+- [runbooks/security-scans.md](runbooks/security-scans.md): every report-only scan (tflint, Kubescape, pip-audit, ZAP baseline, API and full, Prowler), when it runs and where its report is.
 - [runbooks/detective-controls.md](runbooks/detective-controls.md): Security Hub, GuardDuty and CloudTrail: enable order, imports, the destructive plan guard, known gaps.
 - [runbooks/eks-operator-import.md](runbooks/eks-operator-import.md): how the operator's read-only cluster access was brought under Terraform.
 - [runbooks/failed-deploy.md](runbooks/failed-deploy.md): known failure messages and what they mean.

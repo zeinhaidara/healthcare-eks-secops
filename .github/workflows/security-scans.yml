@@ -1,0 +1,142 @@
+name: security-scans
+
+# Report-only scans: tflint (Terraform), Kubescape (rendered Helm output, no cluster) and pip-audit (app
+# requirements). Findings never fail the build; read them in the job summary and the artifacts.
+# contents: read only. No secrets, no AWS access, no cluster access. See docs/runbooks/security-scans.md.
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [dev]
+  schedule:
+    - cron: "43 4 * * 1" # Mondays, 04:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scans-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: v0.64.0
+          checksums: cca9d13e2e1d7a2c627af60ff899a3c9b74212899416aeb96ec764d2ef954537 # tflint_linux_amd64.zip
+      # Installs the AWS ruleset at the version pinned in .tflint.hcl; tflint checks its signature.
+      - name: Install the rulesets
+        run: tflint --chdir=terraform --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      # Both roots and every module, with the root config (the modules have none of their own).
+      - name: Lint (report only)
+        run: |
+          tflint --chdir=terraform --recursive --config="$GITHUB_WORKSPACE/terraform/.tflint.hcl" \
+            --format=json --force > "$RUNNER_TEMP/tflint.json"
+          python3 - "$RUNNER_TEMP/tflint.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import collections, json, sys
+          r = json.load(open(sys.argv[1]))
+          c = collections.Counter(i["rule"]["name"] for i in r.get("issues", []))
+          print(f"### tflint: {sum(c.values())} issue(s), {len(r.get('errors', []))} error(s)\n")
+          print("| Rule | Count |\n|---|---|")
+          for rule, n in c.most_common():
+              print(f"| `{rule}` | {n} |")
+          PY
+          cp "$RUNNER_TEMP/tflint.json" tflint.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: tflint-report
+          path: tflint.json
+          retention-days: 14
+
+  kubescape:
+    name: kubescape
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KUBESCAPE_VERSION: "4.0.16"
+      KUBESCAPE_SHA256: "fcf172f0d1fb5683379586bcf8875091da4d0d815bd304f8098d58be65ecab0d" # kubescape_4.0.16_linux_amd64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # healthcare-api with the dev values; values that come from Terraform at deploy time get placeholders.
+      # Argo CD at the chart version Terraform installs, with values/argocd.yaml only: the ingress, Dex and
+      # RBAC values that Terraform adds in main.tf are not part of this render.
+      - name: Render the charts
+        env:
+          VPC_CIDR: ${{ vars.VPC_CIDR }}
+        run: |
+          set -euo pipefail
+          mkdir -p rendered reports
+          helm version --short
+          helm template healthcare-api helm/healthcare-api -n cloudbatch818-healthcare-dev \
+            -f helm/healthcare-api/values.yaml -f helm/healthcare-api/values-dev.yaml \
+            --set image.repository=registry.invalid/healthcare-api \
+            --set ingress.certificateArn=placeholder \
+            --set networkPolicy.vpcCidr="${VPC_CIDR:-placeholder}" \
+            --set env.apiKeySecretName=placeholder > rendered/healthcare-api.yaml
+          argo_version="$(sed -n '/variable "argocd_chart_version"/,/^}/s/.*default *= *"\(.*\)"/\1/p' terraform/cluster-addons/variables.tf)"
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm template argocd argo/argo-cd --version "$argo_version" -n argocd \
+            -f terraform/cluster-addons/values/argocd.yaml > rendered/argocd.yaml
+      - name: Install kubescape (checked against the pinned SHA-256)
+        run: |
+          set -euo pipefail
+          curl -sSfL -o "$RUNNER_TEMP/kubescape" \
+            "https://github.com/kubescape/kubescape/releases/download/v${KUBESCAPE_VERSION}/kubescape_${KUBESCAPE_VERSION}_linux_amd64"
+          echo "${KUBESCAPE_SHA256}  $RUNNER_TEMP/kubescape" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/kubescape"
+      # One framework per run: kubescape drops the second framework of a comma-separated list. cis-v1.12.0
+      # is the Kubernetes CIS benchmark; the EKS one checks nodes and the cluster, so it finds nothing in files.
+      - name: Scan with NSA and CIS (report only)
+        run: |
+          for fw in nsa cis-v1.12.0; do
+            for chart in healthcare-api argocd; do
+              "$RUNNER_TEMP/kubescape" scan framework "$fw" "rendered/$chart.yaml" \
+                --format json --output "reports/$fw-$chart.json" || true
+            done
+          done
+          python3 - reports >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, pathlib, sys
+          print("### Kubescape: failed controls by ID (resources failing)\n")
+          for f in sorted(pathlib.Path(sys.argv[1]).glob("*.json")):
+              r = json.loads(f.read_text())
+              ctrls = r.get("summaryDetails", {}).get("controls", {}) or {}
+              failed = sorted(((c.get("ResourceCounters") or {}).get("failedResources", 0), cid, c.get("name", ""))
+                              for cid, c in ctrls.items() if (c.get("ResourceCounters") or {}).get("failedResources", 0))
+              print(f"**{f.stem}**: {len(failed)} failed of {len(ctrls)} evaluated\n")
+              for n, cid, name in sorted(failed, reverse=True):
+                  print(f"- `{cid}` {name}: {n}")
+              print()
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: kubescape-reports
+          path: |
+            rendered/
+            reports/
+          retention-days: 14
+
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      # Report only: a known vulnerability shows in the job summary but does not fail the build.
+      # There is no frontend package file (no package.json), so there is nothing for npm audit.
+      - uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
+        continue-on-error: true
+        with:
+          inputs: app/requirements.txt
