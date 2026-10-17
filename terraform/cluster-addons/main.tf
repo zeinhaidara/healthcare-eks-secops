@@ -124,8 +124,8 @@ resource "helm_release" "metrics_server" {
 
 # ---------- Argo CD ----------
 # The UI is an internet-facing ALB at argocd.<domain>, behind the wildcard certificate and a TLS 1.2+ policy,
-# with no CIDR allowlist. Sign-in is GitHub through Argo's built-in Dex; the local admin login stays on until
-# SSO is verified (docs/runbooks/gitops-deploy.md). argocd-server runs plain HTTP behind the ALB
+# with no CIDR allowlist. Sign-in is GitHub through Argo's built-in Dex, and the local admin login is off
+# (admin.enabled below; docs/runbooks/gitops-deploy.md). argocd-server runs plain HTTP behind the ALB
 # (server.insecure); the ALB ends TLS. Host, certificate and the OAuth credential come from variables, the
 # certificate lookup and the Secret below, so none is committed.
 locals {
@@ -385,8 +385,8 @@ resource "helm_release" "argocd_repo_secret" {
 }
 
 # ---------- GitOps: AppProject and the dev and prod Applications ----------
-# CI builds, scans and pushes the image, then opens a pull request that sets the tag and digest in the
-# environment values file. Argo CD deploys from Git. dev tracks the dev branch and syncs automatically;
+# CI builds, scans and pushes the image, then commits the new tag and digest straight to the environment
+# values files on dev. Argo CD deploys from Git. dev tracks the dev branch and syncs automatically;
 # prod tracks main and syncs only when someone approves in Argo CD. The Applications are delivered by
 # a local chart for the same CRD-ordering reason as the repo credential above. Values that depend on the
 # AWS account are looked up here and passed as Application parameters, so they live in the cluster and

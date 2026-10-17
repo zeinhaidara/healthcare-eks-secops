@@ -144,7 +144,7 @@
       "Effect": "Allow",
       "Action": "route53:*",
       "Resource": [
-        "arn:aws:route53:::hostedzone/Z0900957ARJDK4SXKDV0",
+        "arn:aws:route53:::hostedzone/<zone-id>",
         "arn:aws:route53:::change/*"
       ]
     },

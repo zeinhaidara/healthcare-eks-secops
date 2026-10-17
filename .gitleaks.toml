@@ -26,3 +26,39 @@ regexes = [
   '''GPG_KEY=[0-9A-F]{40}''',
   '''healthcare-api:[0-9a-f]{40}''',
 ]
+
+# Project identifiers. These two rules fail the scan if this project's AWS account ID or its Route 53 hosted
+# zone ID is committed. Each matches on a fixed prefix plus the exact length, not the full value, so this file
+# does not publish either ID. Use placeholders such as <account-id> and <zone-id> instead.
+[[rules]]
+id = "project-aws-account-id"
+description = "This project's AWS account ID: 12 digits, matched by the first 4 and the length"
+regex = '''(?:^|[^0-9])(8669[0-9]{8})(?:[^0-9]|$)'''
+secretGroup = 1
+keywords = ["8669"]
+
+[[rules]]
+id = "project-route53-zone-id"
+description = "This project's Route 53 hosted zone ID: 20 characters, matched by the first 5 and the length"
+regex = '''\b(Z0900[A-Z0-9]{15})\b'''
+secretGroup = 1
+keywords = ["z0900"]
+
+# The placeholders cannot match the rules above; they are listed so a looser rule later does not flag them.
+[[allowlists]]
+description = "Placeholders for the project IDs in docs and policies"
+targetRules = ["project-aws-account-id", "project-route53-zone-id"]
+regexes = ['''^<(account-id|ACCOUNT_ID|zone-id)>$''']
+
+# The zone ID is already in four old commits (docs/bootstrap-policies, before it became <zone-id>). History is
+# not rewritten, so the full-history scan allows those four commits for this rule only. A new commit with the
+# zone ID still fails.
+[[allowlists]]
+description = "Old commits that already contain the hosted zone ID"
+targetRules = ["project-route53-zone-id"]
+commits = [
+  "0fc525d857ac18037994fe93d7009526a4cabdb8",
+  "13bc00c429f748b71dbc199a795119f6a93c11f2",
+  "1cdcc3e3be3d9d2c453523140e061d9dd6e83422",
+  "ac0b1e3ae5bb00209852b0fd5aa005858591e961",
+]

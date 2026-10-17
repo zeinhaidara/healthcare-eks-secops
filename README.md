@@ -10,7 +10,7 @@ Diagrams (architecture, CI/CD, access model): [docs/architecture.md](docs/archit
 |---|---|---|
 | VPC | Public subnets (internet-facing ALB, one NAT gateway) and private subnets (Fargate pods, rotation Lambda) in pinned availability zones; VPC flow logs to KMS-encrypted CloudWatch Logs, 365 days | SEC-001, SEC-002 |
 | EKS on Fargate | One cluster, Fargate profiles for `kube-system` and the `dev` and `prod` app namespaces. Pod Security `restricted` on the app namespaces; per-namespace pod security groups attached by `SecurityGroupPolicy` | SEC-018, SEC-030, SEC-021, SEC-032 (EXC-007 closed) |
-| Ingress | AWS Load Balancer Controller creates an internet-facing ALB per environment, HTTPS with an ACM certificate, HTTP redirected to HTTPS. Hostnames `dev.cloudbatch818.click` and `prod.cloudbatch818.click` | SEC-033 |
+| Ingress | AWS Load Balancer Controller creates an internet-facing ALB per environment, HTTPS with an ACM certificate, HTTP redirected to HTTPS. Hostnames `dev.cloudbatch818.click` and `prod.cloudbatch818.click`. A separate internet-facing ALB serves the Argo CD UI at `argocd.<domain>`, with GitHub sign-in | SEC-033 |
 | ECR | Immutable tags, scan on push, KMS encryption. Deploys pin the image digest that passed the Trivy scan | SEC-031 |
 | DynamoDB | Patients table, KMS-encrypted, point-in-time recovery, seeded by Terraform with synthetic records; the app only reads | SEC-022, SEC-023, SEC-026, EXC-008 |
 | Secrets Manager | API key secret, rotated every 30 days by a VPC Lambda; pods roll when the secret version changes | SEC-003, SEC-027, SEC-034, EXC-009 |
@@ -55,7 +55,7 @@ Branch flow: `feature/*` -> PR into `dev` -> PR `dev` into `main` (merge commit,
 | Workflow | Trigger | AWS access | What it does |
 |---|---|---|---|
 | `ci.yml` | PRs to `main` or `dev`, pushes to `dev` | none | `app-test-lint`, `lambda-test`, `app-trivy`, `app-build`, `app-image-scan`, `app-checkov`, `tf-validate`, `tf-checkov`, `codeql`, `sonar` |
-| `cd.yml` | push to `main` changing `app/`, or run by hand | OIDC role | `build` (Trivy image scan, no credentials) -> `push` (ECR push role, reads the digest) -> `bump-image` (pull request to `dev` that sets the image tag and digest). Argo CD deploys from Git; CI never runs Helm or kubectl (`docs/runbooks/gitops-deploy.md`) |
+| `cd.yml` | push to `dev` changing `app/`, or run by hand | OIDC role | `build` (Trivy image scan, no credentials) -> `push` (ECR push role, reads the digest) -> `bump-image` (commits the image tag and digest to both values files on `dev`). Argo CD deploys from Git; CI never runs Helm or kubectl (`docs/runbooks/gitops-deploy.md`) |
 | `terraform-apply.yml` | manual, no inputs | OIDC roles | `tf-plan` (read-only plan role, destructive plan guard) -> `tf-apply` (environment `infra`, apply role) -> `addons-plan` and `addons-apply` (environment `infra`) |
 | `terraform-destroy.yml` | manual, no inputs | OIDC role | `tf-destroy` behind its own `infra-destroy` approval |
 
