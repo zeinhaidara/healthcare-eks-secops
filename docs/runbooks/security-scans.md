@@ -1,38 +1,37 @@
-# Runbook: scheduled and report-only security scans
+# Runbook: report-only security scans
 
-These scans report; they never fail the build on a finding. Each runs with `contents: read` only, no secrets and no AWS credentials. Actions are pinned to commit SHAs, and the tools downloaded by hand (gitleaks, Kubescape) are pinned by SHA-256. Dynamic scans (ZAP) run against dev only, never prod.
+These jobs report; they never fail the build on a finding. Each has `contents: read` only, no secrets and no AWS credentials. Actions are pinned to commit SHAs, and the tools downloaded by hand (gitleaks, Kubescape) are pinned by SHA-256. The ZAP scans run against dev only, never prod.
 
-| Scan | What it covers | When it runs | Where the report is | Who reads it |
-|---|---|---|---|---|
-| tflint (`security-scans.yml`, job `tflint`) | Both Terraform roots and every module: the terraform ruleset (recommended preset) and the AWS ruleset (pinned in `.tflint.hcl`) | Every pull request, every push to `dev`, Mondays 04:43 UTC, by hand | Job summary (count by rule); artifact `tflint-report`, 14 days | Owner (Moulaye), in the PR |
-| Kubescape (`security-scans.yml`, job `kubescape`) | The rendered Helm output of `helm/healthcare-api` (dev values) and of Argo CD (`values/argocd.yaml`), scanned as files with the NSA and CIS (`cis-v1.12.0`) frameworks. No cluster access | Same as tflint | Job summary (failed controls by ID and count); artifact `kubescape-reports` with the rendered YAML, 14 days | Owner, in the PR |
-| pip-audit (`security-scans.yml`, job `pip-audit`) | Known vulnerabilities in `app/requirements.txt` (PyPI advisory data) | Same as tflint | Job summary | Owner, in the PR |
-| npm audit | Not run: the repo has no frontend package file | - | - | - |
-| ZAP baseline (`dast.yml`) | Passive scan of the public pages of the dev app, no login | Mondays 05:17 UTC, by hand | Artifact `zap_scan` | Owner; summary in `docs/security/dast-baseline-results.md` |
-| ZAP API scan (`dast-api.yml`) | The API endpoints listed in dev's `/openapi.json`, with an active scan. No API key is sent, so keyed endpoints answer 403 | Wednesdays 05:17 UTC, by hand | Artifact `zap_api_scan` | Owner |
-| ZAP full scan (`dast-full.yml`) | Spider plus active attack traffic against dev. Never prod | Sundays 02:37 UTC (off-hours), by hand; 60-minute timeout | Artifact `zap_full_scan` | Owner |
-| Prowler | AWS account posture | Not scheduled: there is no CI setup or CI role for it. One manual run on 2026-10-10 with the operator's read-only profile | Local only (`evidence/security/prowler/`, gitignored); triage in `docs/security/prowler-triage.md` | Owner |
+| Job | What it covers | Trigger | Where the report is |
+|---|---|---|---|
+| `ci.yml` / `tflint` | Both Terraform roots and every module: terraform ruleset (recommended) and AWS ruleset (pinned in `.tflint.hcl`) | Every pull request; every push to `dev` and `main` | Job summary (count by rule); artifact `tflint-report`, 14 days |
+| `ci.yml` / `kubescape` | Rendered Helm output of `helm/healthcare-api` (dev values) and Argo CD (`values/argocd.yaml`), as files, NSA and CIS `cis-v1.12.0`. No cluster | Same as tflint | Job summary (failed controls by ID); artifact `kubescape-reports` with the rendered YAML, 14 days |
+| `ci.yml` / `pip-audit` | Known vulnerabilities in `app/requirements.txt` | Same as tflint | Job summary |
+| `dast.yml` / `zap-baseline` | Passive scan of dev's public pages, no login | Mondays 05:17 UTC; by hand (`baseline` or `all`) | Artifact `zap_scan` |
+| `dast.yml` / `zap-api` | Active scan of the endpoints in dev's `/openapi.json`; no API key, so keyed endpoints answer 403 | Wednesdays 05:17 UTC; by hand (`api` or `all`) | Artifact `zap_api_scan` |
+| `dast.yml` / `zap-full` | Spider plus active attack traffic against dev. Never prod. 60-minute timeout | Sundays 02:37 UTC; by hand (`full` or `all`) | Artifact `zap_full_scan` |
+
+Not run: npm audit (no frontend package file). Prowler stays manual (one run on 2026-10-10 with the operator's read-only profile; triage in `docs/security/prowler-triage.md`). Already in `ci.yml`: gitleaks, Trivy, Checkov, CodeQL and SonarCloud.
 
 ## Notes
 
-- The three ZAP workflows share the concurrency group `dast`, so two ZAP scans never hit dev at the same time. Each refuses a `DEV_BASE_URL` that is empty, not `http(s)://`, or names prod.
-- ZAP artifacts are uploaded by the ZAP actions, which have no retention setting, so they follow the repository's default artifact retention. Download what you want to keep.
-- The Kubescape render of Argo CD uses `values/argocd.yaml` only. The ingress, Dex and RBAC values that Terraform adds in `terraform/cluster-addons/main.tf` are not in it.
-- Kubescape runs one framework at a time: a comma-separated list drops the second framework. The EKS CIS benchmark (`cis-eks-*`) checks nodes and the cluster, so it finds nothing in files; `cis-v1.12.0` is used instead.
-- Scheduled runs and manual runs use the workflow files on `main`, so a scan starts after the release that carries it.
-- Already in CI and not repeated here: gitleaks, Trivy, Checkov, CodeQL and SonarCloud (`ci.yml`).
+- `dast.yml` is one workflow (concurrency group `dast`). With `all`, the three jobs run one after another, so two ZAP scans never hit dev at once; `zap-full` also has its own group. The API and full jobs refuse a `DEV_BASE_URL` that names prod.
+- The ZAP actions upload their own artifacts and have no retention setting, so those follow the repository default. Download what you want to keep.
+- Scheduled and manual `dast.yml` runs use the file on `main`, so a change starts after the release that carries it.
+- The Argo CD render uses `values/argocd.yaml` only; the ingress, Dex and RBAC values Terraform adds in `terraform/cluster-addons/main.tf` are not in it.
+- Kubescape runs one framework per command: a comma-separated list drops the second. The EKS CIS benchmark checks nodes, so it finds nothing in files.
 
 ## Open Kubescape findings
 
-Fixed: Argo CD now sets `runAsGroup` (C-0013), CPU limits (C-0270, C-0271) and no token for redis (one of C-0034 and C-0190), in `values/argocd.yaml`. healthcare-api sets `fsGroup` and `fsGroupChangePolicy`. Open on purpose:
+Fixed: Argo CD sets `runAsGroup` (C-0013), CPU limits (C-0270, C-0271) and no token for redis (one of C-0034 and C-0190); healthcare-api sets `fsGroup` and `fsGroupChangePolicy`. Open on purpose:
 
 - `C-0211` (both charts): needs `seLinuxOptions`, which cannot be checked on EKS Fargate without deploying it.
-- `C-0012` (healthcare-api, and `argocd-cm`): false positives. The values are a secret's name and a label key, not credentials.
-- `C-0034`, `C-0190` (6 Argo CD pods): each has a Role or ClusterRole binding and reads the Kubernetes API, so it keeps its token.
-- `C-0002`, `C-0035`, `C-0186` to `C-0188`, `C-0191`, `C-0278` to `C-0282`: Argo CD's own RBAC. Narrowing it could break syncs, so it is not changed.
-- `C-0207` (4 Argo CD workloads): they read the redis credentials from the `argocd-redis` Secret as environment variables, by the chart's design.
-- `C-0030`: the default Argo CD NetworkPolicy gap (ApplicationSet controller and the redis init Job). A known gap: no allow-list until the needed traffic is shown from the manifests.
+- `C-0012` (healthcare-api, `argocd-cm`): false positives; the values are a secret's name and a label key.
+- `C-0034`, `C-0190` (6 Argo CD pods): each has a Role or ClusterRole binding and reads the API, so it keeps its token.
+- `C-0002`, `C-0035`, `C-0186` to `C-0188`, `C-0191`, `C-0278` to `C-0282`: Argo CD's own RBAC; narrowing it could break syncs.
+- `C-0207` (4 Argo CD workloads): redis credentials come from the `argocd-redis` Secret as environment variables, by the chart's design.
+- `C-0030`: the default Argo CD NetworkPolicy gap (ApplicationSet controller, redis init Job). A known gap until the needed traffic is shown from the manifests.
 
 ## Reading a finding
 
-Open the run, read the job summary, then download the artifact for detail. Triage it the way `docs/security/triage-process.md` describes. A finding stays a report until someone decides to fix it, accept it in `docs/security/exceptions-register.md`, or mark it a false positive with the reason.
+Open the run, read the job summary, then download the artifact. Triage it as `docs/security/triage-process.md` describes: fix it, accept it in `docs/security/exceptions-register.md`, or mark it a false positive with the reason.

@@ -10,7 +10,7 @@
 
 ## When it runs
 
-- Weekly, Mondays at 05:17 UTC, and by hand: Actions tab, `dast`, Run workflow.
+- Weekly, Mondays at 05:17 UTC, and by hand: Actions tab, `dast`, Run workflow, scan `baseline`. The API and full scans are in the same workflow (`docs/runbooks/security-scans.md`).
 - Scheduled and manual runs need the file on `main`, so it starts after the first release that carries it.
 - If `DEV_BASE_URL` is empty or not an `http(s)://` URL, the job fails at once with a message saying so.
 
