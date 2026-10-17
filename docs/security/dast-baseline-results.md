@@ -14,7 +14,7 @@ The ZAP baseline (`.github/workflows/dast.yml`, runbook `docs/runbooks/dast-base
 - **Medium, gone:** the CSP had no `form-action`, a directive that does not fall back to `default-src`. It is now `form-action 'self'`.
 - **Low, four gone:** missing Strict-Transport-Security, Permissions-Policy, Cross-Origin-Opener-Policy and Cross-Origin-Resource-Policy.
 - **Low, one left:** Cross-Origin-Embedder-Policy (COEP).
-- **Informational, unchanged (4):** comments in `static/app.js` that match SQL-like words, the modern-web-application note, `no-store` marking responses non-storable, and the cache-control note. All four are open.
+- **Informational, unchanged (4):** comments in `app/static/app.js` that match SQL-like words, the modern-web-application note, `no-store` marking responses non-storable, and the cache-control note. All four are open.
 
 ## Where the headers are set
 

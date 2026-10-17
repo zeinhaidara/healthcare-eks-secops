@@ -12,6 +12,7 @@ flowchart TB
     subgraph vpc["VPC, us-east-2"]
         subgraph pub["Public subnets"]
             alb["ALB per environment, internet-facing, HTTPS"]
+            argoalb["ALB for the Argo CD UI at argocd.<domain>, internet-facing, HTTPS, GitHub sign-in"]
             nat["NAT gateway (one)"]
         end
         subgraph priv["Private subnets"]
@@ -19,6 +20,7 @@ flowchart TB
                 lbc["kube-system: AWS Load Balancer Controller"]
                 appdev["dev namespace: healthcare-api pods"]
                 appprod["prod namespace: healthcare-api pods"]
+                argocdns["argocd namespace: Argo CD"]
             end
             rot["Rotation Lambda"]
         end
@@ -43,6 +45,8 @@ flowchart TB
     alb --> appdev
     alb --> appprod
     lbc -. "manages" .-> alb
+    dns --> argoalb --> argocdns
+    lbc -. "manages" .-> argoalb
     appdev -- "IRSA, read only, via NAT" --> ddb
     appprod -- "IRSA, read only, via NAT" --> ddb
     appdev -- "IRSA, read secret, via NAT" --> sm
@@ -88,14 +92,14 @@ flowchart LR
     prdev -. "runs" .-> ci
     prmain -. "runs" .-> ci
 
-    subgraph cd["cd.yml (push to main changing app, or a manual run)"]
+    subgraph cd["cd.yml (push to dev changing app, or a manual run)"]
         build["build and Trivy image scan, no credentials"]
         push["push to ECR by commit SHA, ECR push role"]
-        bump["bump-image: PR into dev that sets the image tag and digest"]
+        bump["bump-image: commits the image tag and digest to dev"]
         build --> push --> bump
     end
-    mainbr --> build
-    bump --> prdev
+    devbr --> build
+    bump --> devbr
 
     subgraph argo["Argo CD in the cluster, no AWS role"]
         adev["healthcare-api-dev: tracks dev, automatic sync"]

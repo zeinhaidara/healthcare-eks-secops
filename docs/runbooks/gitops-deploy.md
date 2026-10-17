@@ -28,13 +28,13 @@ To check the role you got, open User Info in the UI (or `/api/v1/session/userinf
 
 To add or change a person, edit `argocd_rbac` in `terraform/cluster-addons/variables.tf` through a pull request into `dev`, release to `main`, and run `terraform-apply`.
 
-**Local admin (fallback, until SSO is verified).** The `admin` login is still on. Its password is the Kubernetes Secret `argocd-initial-admin-secret` in the `argocd` namespace, key `password`; read it on your own machine and do not paste it anywhere. If the endpoint is not up yet, `kubectl -n argocd port-forward svc/argocd-server 8443:443` and `https://localhost:8443` still work. The clean-up at the end of this page turns the local admin off.
+**Local admin login: off.** `admin.enabled` is `"false"` in `terraform/cluster-addons/main.tf` (`helm_release.argocd`), so GitHub sign-in is the only way in. If GitHub sign-in ever breaks, the way back is a pull request that sets it to `"true"`, released to `main` and applied with `terraform-apply`.
 
 ## Roll back
 
 Roll back with a revert, not a cluster command.
 
-- dev: revert the merged bump pull request on `dev` (a revert pull request into `dev`). Argo syncs the previous tag.
+- dev: revert the bump commit on `dev` (a revert pull request into `dev`). Argo syncs the previous tag.
 - prod: revert the bump on `main` through the normal `dev` to `main` release, then approve the sync in Argo CD.
 - A bad image tag also stops dev: Argo shows the Application Degraded, and the previous ReplicaSet keeps serving until the new pods are ready.
 
@@ -126,12 +126,10 @@ Auto-rotation is off on purpose: GitHub has no API a Secrets Manager rotation fu
 4. Dex does not reload the Secret by itself. Once the ExternalSecret shows `SecretSynced`, restart it: `kubectl -n argocd rollout restart deployment argocd-dex-server`. Then sign in with GitHub to confirm.
 5. Back in GitHub, delete the old client secret.
 
-## Later clean-up (not yet done)
+## Later clean-up (one step left)
 
-Do this by hand only after you have signed in with GitHub and seen the right role (see Open the Argo CD UI). It has **not** been done.
-
-1. **Turn the local admin login off.** In `terraform/cluster-addons/main.tf` (`helm_release.argocd`), set `"admin.enabled"` to `"false"`. Open a pull request into `dev`, release to `main`, and run `terraform-apply`. Check that the login page shows only the GitHub button.
-2. **Remove the manual admin association on the `argocd` namespace.** It was added by hand and is not in Terraform, so Terraform will not remove it. Run this as the owner (the cluster name and principal are yours, not in Git):
+1. **Turn the local admin login off. Done in code:** `"admin.enabled"` is `"false"` (pull request #121). Once it is applied, the login page shows only the GitHub button.
+2. **Remove the manual admin association on the `argocd` namespace. Not yet done.** It was added by hand and is not in Terraform, so Terraform will not remove it. Run this as the owner (the cluster name and principal are yours, not in Git):
 
    ```sh
    aws eks disassociate-access-policy \

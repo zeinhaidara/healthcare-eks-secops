@@ -93,8 +93,8 @@ data "aws_iam_policy_document" "permissions" {
 # exists, so ARN- or condition-scoped grants fail that check ("does not have permissions to call
 # DeleteNetworkInterface on EC2"). No other ec2: action is granted.
 data "aws_iam_policy_document" "vpc_eni" {
-  # checkov:skip=CKV_AWS_111:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Phase 7 tightening.
-  # checkov:skip=CKV_AWS_356:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Phase 7 tightening.
+  # checkov:skip=CKV_AWS_111:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Tightening open, not scheduled. owner Moulaye, expires 2027-04-08.
+  # checkov:skip=CKV_AWS_356:EXC-009: VPC Lambda create-time ENI checks require wildcard resource (AWS managed policy AWSLambdaVPCAccessExecutionRole). Tightening open, not scheduled. owner Moulaye, expires 2027-04-08.
   statement {
     sid = "VpcLambdaNetworkInterfaces"
     actions = [
