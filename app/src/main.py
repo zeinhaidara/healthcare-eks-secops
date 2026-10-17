@@ -21,8 +21,16 @@ from .store import DynamoStore, MemoryStore
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; "
-    "connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'"
+    "connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 )
+# Added to every response next to the CSP. Cross-Origin-Embedder-Policy is not set (open, see
+# docs/security/controls.md).
+SECURITY_HEADERS = {
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+    "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-origin",
+}
 
 log = logging.getLogger("api")
 request_count: dict[tuple[str, str, int], int] = defaultdict(int)
@@ -92,6 +100,7 @@ async def observe(request: Request, call_next):
     response.headers["content-security-policy"] = CSP
     response.headers["x-content-type-options"] = "nosniff"
     response.headers["cache-control"] = "no-store"
+    response.headers.update(SECURITY_HEADERS)
     # Only request metadata is logged, never patient fields.
     log.info(
         "request",
