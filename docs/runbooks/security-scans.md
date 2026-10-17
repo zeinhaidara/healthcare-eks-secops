@@ -22,6 +22,17 @@ These scans report; they never fail the build on a finding. Each runs with `cont
 - Scheduled runs and manual runs use the workflow files on `main`, so a scan starts after the release that carries it.
 - Already in CI and not repeated here: gitleaks, Trivy, Checkov, CodeQL and SonarCloud (`ci.yml`).
 
+## Open Kubescape findings
+
+Fixed: Argo CD now sets `runAsGroup` (C-0013), CPU limits (C-0270, C-0271) and no token for redis (one of C-0034 and C-0190), in `values/argocd.yaml`. healthcare-api sets `fsGroup` and `fsGroupChangePolicy`. Open on purpose:
+
+- `C-0211` (both charts): needs `seLinuxOptions`, which cannot be checked on EKS Fargate without deploying it.
+- `C-0012` (healthcare-api, and `argocd-cm`): false positives. The values are a secret's name and a label key, not credentials.
+- `C-0034`, `C-0190` (6 Argo CD pods): each has a Role or ClusterRole binding and reads the Kubernetes API, so it keeps its token.
+- `C-0002`, `C-0035`, `C-0186` to `C-0188`, `C-0191`, `C-0278` to `C-0282`: Argo CD's own RBAC. Narrowing it could break syncs, so it is not changed.
+- `C-0207` (4 Argo CD workloads): they read the redis credentials from the `argocd-redis` Secret as environment variables, by the chart's design.
+- `C-0030`: the default Argo CD NetworkPolicy gap (ApplicationSet controller and the redis init Job). A known gap: no allow-list until the needed traffic is shown from the manifests.
+
 ## Reading a finding
 
 Open the run, read the job summary, then download the artifact for detail. Triage it the way `docs/security/triage-process.md` describes. A finding stays a report until someone decides to fix it, accept it in `docs/security/exceptions-register.md`, or mark it a false positive with the reason.
