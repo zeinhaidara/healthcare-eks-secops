@@ -109,6 +109,10 @@ aws ec2 describe-network-interfaces --filters Name=description,Values='aws-k8s-b
 
 Do not use `helm rollback`: Argo CD owns the release and would sync it back. Revert the image bump in Git (see [Roll back](#roll-back)). For prod, approve the sync in Argo CD after the revert reaches `main`.
 
+## If terraform-apply hangs on the Argo CD release
+
+Check the pod events first: `kubectl -n argocd get events --sort-by=.lastTimestamp`. A securityContext error such as "user group is specified without user" means Fargate rejected a pod, and Helm waits until it times out. Fix it in `terraform/cluster-addons/values/argocd.yaml` through a pull request; the `securitycontext-check` job in `ci.yml` catches this case.
+
 ## Not covered
 
 - API key rotation no longer rolls the pods by itself. The deploy job used to set a Secrets Manager version annotation. After a rotation, restart the pods (`docs/runbooks/rotation.md`) until an automatic method is chosen.
