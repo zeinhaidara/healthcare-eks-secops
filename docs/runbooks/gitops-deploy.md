@@ -144,4 +144,4 @@ Do this by hand only after you have signed in with GitHub and seen the right rol
    ```
 
    The list must no longer show `AmazonEKSAdminPolicy` for the `argocd` namespace.
-3. The Terraform-managed read-only association (`operator_argocd_read`, see `docs/runbooks/eks-operator-import.md`) is a separate thing and stays until you remove its resource through a pull request.
+3. The Terraform-managed read-only association (`operator_argocd_read`) is removed from Terraform; the apply after its release deletes it (`docs/runbooks/eks-operator-import.md`).
