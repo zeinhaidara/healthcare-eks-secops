@@ -33,6 +33,9 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
+        # The pod mounts no volumes, so these change nothing at runtime; set for the CIS security-context check.
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:

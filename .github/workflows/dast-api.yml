@@ -1,0 +1,53 @@
+name: dast-api
+
+# OWASP ZAP API scan of the dev app, driven by its OpenAPI spec (FastAPI serves /openapi.json). It imports
+# the API definition and runs an active scan of the endpoints it lists, so it sends attack traffic.
+# Dev only: the target is DEV_BASE_URL, and the job refuses a URL that names prod. Never point it at prod.
+# Report-only: findings never fail the job. No API key is sent, so endpoints behind the key answer 403.
+# contents: read only, no secrets, no AWS. Weekly or by hand. See docs/runbooks/security-scans.md.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 3" # Wednesdays, 05:17 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast # shared with the baseline and full scans, so two ZAP scans never hit dev at once
+  cancel-in-progress: false
+
+jobs:
+  zap-api:
+    name: zap-api
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require the dev target
+        id: target
+        env:
+          DEV_BASE_URL: ${{ vars.DEV_BASE_URL }}
+        run: |
+          if [ -z "$DEV_BASE_URL" ]; then
+            echo "::error::The repository variable DEV_BASE_URL is empty. Set it to the dev app URL (starting with https://) and run again."
+            exit 1
+          fi
+          case "$DEV_BASE_URL" in
+            http://* | https://*) ;;
+            *) echo "::error::DEV_BASE_URL must start with http:// or https://."; exit 1 ;;
+          esac
+          case "$DEV_BASE_URL" in
+            *prod*) echo "::error::DEV_BASE_URL names prod. This scan runs against dev only."; exit 1 ;;
+          esac
+          echo "spec=${DEV_BASE_URL%/}/openapi.json" >> "$GITHUB_OUTPUT"
+
+      - name: ZAP API scan
+        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d # v0.10.0
+        with:
+          target: ${{ steps.target.outputs.spec }}
+          format: openapi
+          fail_action: false
+          allow_issue_writing: false # report only; no GitHub issue (that would need issues: write)
+          artifact_name: zap_api_scan
+          # ZAP 2.17.0 by digest, the same image as the baseline scan (dast.yml).
+          docker_name: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6

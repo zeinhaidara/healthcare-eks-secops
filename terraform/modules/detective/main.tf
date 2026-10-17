@@ -8,7 +8,6 @@ locals {
   bucket_name = "${var.name}-logs-cloudtrail-${local.account_id}"
   # Server access logs for the trail bucket (same naming rule, so the apply role covers it).
   access_log_bucket_name = "${var.name}-logs-cloudtrail-access-${local.account_id}"
-  topic_arn              = "arn:aws:sns:${local.region}:${local.account_id}:${var.sns_topic_name}"
   trail_arn              = "arn:aws:cloudtrail:${local.region}:${local.account_id}:trail/${var.trail_name}"
 }
 
@@ -33,7 +32,7 @@ resource "aws_securityhub_standards_subscription" "fsbp" {
 # The detector existed before this module (GuardDuty allows one per region) and was adopted by import.
 # It is in state now; the import block was removed (docs/runbooks/detective-controls.md).
 resource "aws_guardduty_detector" "this" {
-  # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account
+  # checkov:skip=CKV2_AWS_3:EXC-011 org-level check cannot be satisfied by a single account. owner Moulaye, expires 2027-04-08.
   enable                       = true
   finding_publishing_frequency = "FIFTEEN_MINUTES"
 }
@@ -53,7 +52,7 @@ resource "aws_guardduty_detector_feature" "eks_audit_logs" {
 # ---------- CloudTrail bucket ----------
 
 resource "aws_s3_bucket" "trail" {
-  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
+  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session. owner Moulaye, expires 2027-04-08.
   bucket        = local.bucket_name
   force_destroy = var.force_destroy
 }
@@ -185,7 +184,7 @@ resource "aws_s3_bucket_policy" "trail" {
 # trail does not see them (known gap; a multi-region trail would).
 
 resource "aws_cloudtrail" "this" {
-  # checkov:skip=CKV_AWS_67:EXC-010 single-region design, the project runs only in us-east-2
+  # checkov:skip=CKV_AWS_67:EXC-010 single-region design, the project runs only in us-east-2. owner Moulaye, expires 2027-04-08.
   name                          = var.trail_name
   s3_bucket_name                = aws_s3_bucket.trail.id
   kms_key_id                    = var.kms_key_arn
@@ -314,8 +313,8 @@ resource "aws_iam_role_policy" "trail_logs" {
 # disabled by BucketOwnerEnforced).
 
 resource "aws_s3_bucket" "access_logs" {
-  # checkov:skip=CKV_AWS_145:EXC-014 S3 server access logging requires the target bucket to use SSE-S3
-  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session
+  # checkov:skip=CKV_AWS_145:EXC-014 S3 server access logging requires the target bucket to use SSE-S3. owner Moulaye, expires 2027-04-08.
+  # checkov:skip=CKV_AWS_144:EXC-012 no cross-region replication for logs in a stack destroyed after each session. owner Moulaye, expires 2027-04-08.
   bucket        = local.access_log_bucket_name
   force_destroy = var.force_destroy
 }

@@ -1,14 +1,37 @@
-# Argo CD on Fargate. Git is read with a deploy key in the Secret "healthcare-repo", created by hand
-# (docs/runbooks/argocd-bootstrap.md). Argo has no AWS role. The UI ingress, host, certificate, the Dex
+# Argo CD on Fargate. Git is read with the GitHub App credential in the Secret "healthcare-repo", which External
+# Secrets builds from Secrets Manager (docs/runbooks/argocd-bootstrap.md). Argo has no AWS role. The UI ingress, host, certificate, the Dex
 # GitHub connector and RBAC are set in main.tf (helm_release.argocd) from variables. Notifications are off.
 # Requests are set because Fargate sizes a pod from them.
+#
+# Hardening from the Kubescape scan (docs/runbooks/security-scans.md), none of which changes how Argo CD or Dex work:
+# - runAsGroup is set to the group each image already runs with (argocd 999, dex 1001, the alpine redis user's
+#   group 1000), so the processes keep the same IDs and the scan sees an explicit non-root group.
+# - CPU limits are 250m, the smallest Fargate vCPU size, so no pod's Fargate size or CPU headroom changes.
+# - Only redis gets no service-account token: it runs as the default account with no role. Every other component
+#   has a Role or ClusterRole binding and reads the Kubernetes API, so their tokens stay.
+global:
+  securityContext: # pod level for the controller, server, repo server, ApplicationSet controller and Dex
+    runAsGroup: 999
+
 dex:
   enabled: true
+  containerSecurityContext: # the chart default plus runAsGroup; used by the Dex container and its init container
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
   resources:
     requests:
       cpu: 100m
       memory: 128Mi
     limits:
+      cpu: 250m
       memory: 128Mi
 
 notifications:
@@ -20,6 +43,7 @@ controller:
       cpu: 250m
       memory: 512Mi
     limits:
+      cpu: 250m
       memory: 512Mi
 
 server:
@@ -28,6 +52,7 @@ server:
       cpu: 100m
       memory: 256Mi
     limits:
+      cpu: 250m
       memory: 256Mi
 
 repoServer:
@@ -36,6 +61,7 @@ repoServer:
       cpu: 100m
       memory: 256Mi
     limits:
+      cpu: 250m
       memory: 256Mi
 
 applicationSet:
@@ -44,12 +70,33 @@ applicationSet:
       cpu: 100m
       memory: 256Mi
     limits:
+      cpu: 250m
       memory: 256Mi
 
 redis:
+  automountServiceAccountToken: false
+  securityContext: # the chart default plus runAsGroup
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   resources:
     requests:
       cpu: 100m
       memory: 128Mi
     limits:
+      cpu: 250m
       memory: 128Mi
+
+# The Job that creates the redis password Secret (it needs its token: its Role lets it write that Secret).
+redisSecretInit:
+  securityContext:
+    runAsGroup: 999
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
