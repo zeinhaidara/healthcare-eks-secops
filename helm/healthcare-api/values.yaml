@@ -81,14 +81,11 @@ podDisruptionBudget:
 
 # Default-deny with the traffic the app needs. Kept for intent: the VPC CNI network policy agent does
 # not run on Fargate, so these are NOT enforced there (SEC-021). Pod isolation on Fargate comes from
-# security groups for pods (securityGroupPolicy below).
+# security groups for pods (see the note at the end of this file).
 networkPolicy:
   enabled: true
   vpcCidr: "" # required, an Argo CD Application parameter from Terraform (the VPC CIDR)
 
-# Security groups for pods (Fargate). The SecurityGroupPolicy is owned by terraform/cluster-addons
-# (created by the apply role), not by this chart: the deploy roles use AmazonEKSEditPolicy, which has
-# no rule for the vpcresources.k8s.aws API group (SEC-032). Keep this false; enabling it makes the
-# chart fail on purpose so two policies never select the same pods.
-securityGroupPolicy:
-  enabled: false
+# Security groups for pods (Fargate): the SecurityGroupPolicy is owned by terraform/cluster-addons (created by
+# the apply role), not by this chart. The deploy roles use AmazonEKSEditPolicy, which has no rule for the
+# vpcresources.k8s.aws API group (SEC-032), so this chart has no template for it.

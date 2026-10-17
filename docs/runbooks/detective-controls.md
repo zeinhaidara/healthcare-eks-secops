@@ -51,13 +51,13 @@ aws s3 ls "s3://<trail bucket>/AWSLogs/" --recursive | head
 
 ## The GuardDuty detector was imported
 
-GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopted it with an `import {}` block (since removed, see the status below). The root finds its ID with `data.aws_guardduty_detector.existing` (no ID in code). The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
+GuardDuty allows one detector per region and one already existed, so `terraform/modules/detective` adopted it with an `import {}` block (since removed, see the status below). The root looked up its ID with a `data "aws_guardduty_detector"` block at the time (no ID in code); that lookup is now removed. The first plan should show `will be imported` for `aws_guardduty_detector.this`, possibly an in-place update of `finding_publishing_frequency`, and creates for the two features. If the plan says it will **create** a detector, stop: the lookup or import did not match.
 
 Status (2026-10-10): the apply succeeded and the `import {}` block was removed, together with the two bucket import blocks from the SEC-037 repair. All three resources stay in state.
 
-Follow-up, not done yet:
-1. The `data "aws_guardduty_detector" "existing"` lookup in `terraform/main.tf` and the module's `guardduty_detector_id` variable remain. The module no longer uses the variable, but the lookup still runs at plan and needs a detector to exist. Remove both only when the detector is no longer managed here (or before a rebuild after a destroy, see below), and commit.
-2. Know that `terraform-destroy.yml` now deletes the detector (it is managed). While no detector exists, the lookup fails at plan. If you rebuild after a destroy with the lookup still in place, remove the lookup and the variable first (a fresh account or region needs neither; GuardDuty is then created normally).
+Follow-up, done in code (removal of the lookup):
+1. The `data "aws_guardduty_detector" "existing"` lookup in `terraform/main.tf` and the module's `guardduty_detector_id` variable are removed. Nothing read them: the module manages the detector from state, and the import block is gone. The plan should show no change.
+2. `terraform-destroy.yml` deletes the detector (it is managed). A rebuild after a destroy no longer needs any edit first: with no lookup, GuardDuty is created normally. If a detector already exists in the region by then, adopt it with an `import {}` block, as on 2026-10-10.
 
 ## Destructive plan guard
 

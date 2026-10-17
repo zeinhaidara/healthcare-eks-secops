@@ -8,7 +8,6 @@ locals {
   bucket_name = "${var.name}-logs-cloudtrail-${local.account_id}"
   # Server access logs for the trail bucket (same naming rule, so the apply role covers it).
   access_log_bucket_name = "${var.name}-logs-cloudtrail-access-${local.account_id}"
-  topic_arn              = "arn:aws:sns:${local.region}:${local.account_id}:${var.sns_topic_name}"
   trail_arn              = "arn:aws:cloudtrail:${local.region}:${local.account_id}:trail/${var.trail_name}"
 }
 

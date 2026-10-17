@@ -42,8 +42,4 @@ variable "log_retention_days" {
   default     = 365
 }
 
-variable "guardduty_detector_id" {
-  description = "ID of the GuardDuty detector that already exists in this region. It is imported, not created."
-  type        = string
-}
 
