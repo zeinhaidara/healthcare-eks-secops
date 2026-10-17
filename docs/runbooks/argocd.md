@@ -59,17 +59,9 @@ The OAuth App's client ID and secret live only in the Secrets Manager secret `cl
 4. Dex does not reload by itself: `kubectl -n argocd rollout restart deployment argocd-dex-server`. Sign in to confirm.
 5. Delete the old client secret in GitHub.
 
-## Open clean-up
+## Operator access
 
-The manual `AmazonEKSAdminPolicy` association on the `argocd` namespace was added by hand and is not in Terraform. Remove it as the owner:
-
-```sh
-aws eks disassociate-access-policy --cluster-name <cluster> --principal-arn <operator user ARN> \
-  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy --region us-east-2
-aws eks list-associated-access-policies --cluster-name <cluster> --principal-arn <operator user ARN> --region us-east-2
-```
-
-Once this is done and the Terraform removal of the read on `argocd` is applied, the list shows only `AmazonEKSViewPolicy` at cluster scope.
+Once the break-glass removal is applied, the operator's access list shows `AmazonEKSViewPolicy` at cluster scope only.
 
 ## Fargate notes
 
