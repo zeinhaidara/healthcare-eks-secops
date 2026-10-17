@@ -28,3 +28,7 @@ spec:
       kind: HorizontalPodAutoscaler
     - group: policy
       kind: PodDisruptionBudget
+    - group: apps
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
