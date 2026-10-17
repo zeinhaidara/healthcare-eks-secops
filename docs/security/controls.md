@@ -31,7 +31,7 @@ Where the page disagrees with another document, the row says so in the open. The
 
 ## 2. PR gate (no AWS access, no OIDC)
 
-`ci.yml` runs on pull requests to `main` or `dev` and on pushes to `dev`, with no path filter so every required check always reports (`.github/workflows/ci.yml:6-10`). Default token is read-only (`ci.yml:12-13`). The file holds no AWS credentials step (searched: zero `role-to-assume` or `configure-aws-credentials`).
+`ci.yml` runs on pull requests to `main` or `dev` and on pushes to `dev` and `main`, with no path filter so every required check always reports (`.github/workflows/ci.yml:6-10`). Default token is read-only (`ci.yml:12-13`). The file holds no AWS credentials step (searched: zero `role-to-assume` or `configure-aws-credentials`).
 
 | Check (job name) | Status | ID | Evidence | Source |
 |---|---|---|---|---|
@@ -44,6 +44,7 @@ Where the page disagrees with another document, the row says so in the open. The
 | `tf-checkov`: Terraform; any failed check fails the job | Live | SEC-001, SEC-002, SEC-005, EXC-001 to EXC-014 | `evidence/security/checkov/before/terraform/` (62 passed, 6 failed, 2026-10-08), `evidence/security/checkov/after/detective/full-final/` (355 passed, 0 failed, 15 skipped) | `ci.yml:178-201`; `security/checkov/terraform.yaml` |
 | `codeql`: Python and GitHub Actions, security-extended; fails on security severity 7.0 or more | Live | SEC-007 | `evidence/security/codeql/` (0 findings) | `ci.yml:205-229` (languages `:215`, gate `:228-229`) |
 | `sonar`: SonarCloud quality gate, waited on for pull requests only | Live | SEC-008, SEC-015 | `evidence/security/sonar/` | `ci.yml:231-269` (gate wait `:269`) |
+| `gitleaks`: secrets scan over the full git history, default rules plus the repo config; findings fail the job | Planned | none | First run is on the pull request that adds it; flip to Live after the first green run. Config: `.gitleaks.toml` (no allowlist entries yet) | `ci.yml:274-287` (action pinned to v3.0.0, config `:286`) |
 
 Supporting rules:
 - All 63 `uses:` lines in the four workflows are pinned by commit SHA (searched: none unpinned).

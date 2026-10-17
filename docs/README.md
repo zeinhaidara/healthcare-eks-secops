@@ -19,6 +19,7 @@ Everything under `docs/`, grouped by purpose, one line each. The project overvie
 - [security/improvement-log.md](security/improvement-log.md): one entry per security change (SEC IDs), with before and after evidence.
 - [security/exceptions-register.md](security/exceptions-register.md): every accepted risk (EXC IDs) with owner and expiry.
 - [security/prowler-triage.md](security/prowler-triage.md): the 2026-10-10 Prowler scan triaged against the register.
+- [security/dast-baseline-results.md](security/dast-baseline-results.md): the ZAP baseline on dev before and after the response-header fixes.
 - [security/triage-process.md](security/triage-process.md): who owns findings and the proposed response times.
 - [security/rbac-review.md](security/rbac-review.md): IAM and Kubernetes RBAC review tables (not filled in).
 - [security/findings-report.md](security/findings-report.md): outline of the final findings report plus early control notes.

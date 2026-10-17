@@ -1,0 +1,14 @@
+# Gitleaks configuration (job `gitleaks` in .github/workflows/ci.yml).
+# The default rules stay on. Add an allowlist entry only for a real false positive, one at a time, with a
+# comment that says why it is safe. Do not allowlist a whole directory.
+title = "healthcare-eks-secops"
+
+[extend]
+useDefault = true
+
+# No allowlist entries yet. The shape of one, for when a finding is confirmed as a false positive:
+#
+# [[allowlists]]
+# description = "why this is not a secret"
+# paths = ['''path/to/the/one/file''']
+# regexes = ['''the exact placeholder text''']

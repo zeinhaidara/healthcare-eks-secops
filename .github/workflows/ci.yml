@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main, dev]
   push:
-    branches: [dev]
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -267,3 +267,21 @@ jobs:
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.qualitygate.wait=${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+
+  # Secrets scan over the full history, with the default gitleaks rules plus .gitleaks.toml. Findings fail the job.
+  # No licence key: gitleaks-action only asks for one on organisation accounts, and this repo is on a personal one.
+  # PR comments are off, so the job needs no more than contents: read.
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml # the action only looks for gitleaks.toml on its own
+          GITLEAKS_ENABLE_COMMENTS: "false"
