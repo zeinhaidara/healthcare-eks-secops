@@ -91,7 +91,7 @@ Rules for the speaker:
 
 ## Slide 4. Deployment with GitOps
 
-**Headline:** Git is the only way to change what runs. No pipeline holds cluster credentials.
+**Headline:** App changes reach the cluster only through Git. The app pipeline holds no cluster credentials.
 
 - Argo CD in the cluster pulls from Git. CI never runs `kubectl` or Helm.
 - Dev syncs automatically, with self-heal. Prod syncs only when an admin approves.
