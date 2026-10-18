@@ -12,7 +12,7 @@ What protects the system, and how we know. Controls are HIPAA-aligned, not HIPAA
 |---|---|---|---|
 | Branch flow `feature/*` to `dev` to `main`, merge commits only | Manual | SEC-009, EXC-003 | `main` and `dev` rulesets |
 | `main`: PR with 0 approvals, no force push, no deletion, 10 required checks, CodeQL rule | Manual | SEC-009, SEC-010, EXC-003 | `main` ruleset; list in [bootstrap.md](../bootstrap.md) |
-| `dev`: PR with 0 approvals, no force push, no deletion | Manual | EXC-003 | `dev` ruleset |
+| `dev`: no force push, no deletion; no PR or checks required | Manual | EXC-003 | `dev` ruleset |
 | Code owners named (review not required) | Live | none | `.github/CODEOWNERS` |
 | Dependabot weekly for pip, Docker and Actions | Live | none | `.github/dependabot.yml` |
 | No secrets in Git: ignore rules, Trivy secret scan, gitleaks over full history | Live | SEC-000, SEC-012 | `.gitignore`, `security/trivy/trivy.yaml`, `.gitleaks.toml`; `evidence/security/trivy/` |
@@ -126,5 +126,5 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 
 1. **Apply role is cluster admin (EXC-006).** Anyone who gets an `infra` job approved acts as cluster admin. Planned fix, not scheduled: namespace-scoped policies plus a narrow role for the add-ons root.
 2. **Argo CD server NetworkPolicy allows ingress from anywhere.** The chart default. Known gap.
-3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed in this PR. The IAM roles remain until deleted by hand.
+3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed 2026-10-18 (#151, applied). The IAM roles remain until deleted by hand.
 4. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the live cluster, and whether patient fields are ever logged.
