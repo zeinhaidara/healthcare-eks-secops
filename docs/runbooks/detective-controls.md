@@ -48,4 +48,4 @@ Estimates, not measured. GuardDuty and Security Hub have a 30-day free trial. Af
 
 - Single-region trail: IAM and STS events from us-east-1 are not captured (EXC-010).
 - The SNS topic has no subscriber, so nothing is alerted.
-- `force_destroy` on both log buckets: the session destroy deletes the audit logs (EXC-013).
+- `force_destroy` on both log buckets: a destroy deletes the audit logs with the stack (EXC-013).

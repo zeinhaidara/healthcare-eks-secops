@@ -2,6 +2,8 @@
 
 Every suppression (`checkov:skip`, `.trivyignore`, Prowler mutelist) needs an inline reason, owner and expiry in the code, plus a row here. Never skip a whole check ID without a reason.
 
+Review note (2026-10-18): EXC-005, EXC-012 and EXC-013 cite the session destroy as a compensating control. `terraform-destroy.yml` has never run, so that control is not in effect. The rows are unchanged until the owner reviews them.
+
 | ID | Tool and rule | Resource | Reason | Owner | Expiry | Link |
 |---|---|---|---|---|---|---|
 | EXC-001 | Checkov 3.3.26 `CKV_AWS_109`, `CKV_AWS_111`, `CKV_AWS_356` | `module.kms` key policy (`terraform/modules/kms/main.tf`) | Account-root `kms:*` statement is required in every KMS key policy or the key becomes unmanageable; `*` as resource in a key policy means this key only. Checkov cannot tell it from an over-permissive IAM policy. | Moulaye | 2027-04-08 | SEC-005 |
