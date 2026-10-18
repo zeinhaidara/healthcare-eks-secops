@@ -6,7 +6,7 @@ Status at 2026-10-18. Every number is labelled **measured** (read from Cost Expl
 
 - Running all day, the stack costs about $11 a day, or about $335 a month (estimated).
 - Destroyed, it costs about $0.03 a day for the KMS key (estimated).
-- The $75 monthly budget is below the always-on run rate. Only destroying between uses keeps spend under it.
+- The $75 monthly budget is below the always-on run rate. Only destroying between uses keeps spend under it, and the destroy workflow has never run (checked 2026-10-18).
 - Budget alert delivery is unverified.
 
 ## What runs: 18 pods on Fargate
@@ -67,7 +67,7 @@ Rates used: $0.000011244 per vCPU-second and $0.000001235 per GB-second (Linux/x
 | Always on: tagged spend (about $5.50) plus Fargate (about $5.60) | about $11 | about $335 |
 | Destroyed between uses | about $0.03 (KMS key) | about $1 |
 
-When destroyed, the two secrets created by hand and the state bucket also remain. Their cost is small and unverified.
+When destroyed, the two hand-made secrets and the state bucket remain. Their cost is small (unverified).
 
 ## Levers (estimated, none done yet)
 
@@ -86,6 +86,7 @@ Together the five running levers save about $1.70 a day, or about $52 a month. T
 
 - `terraform/modules/budget`: $75 a month, alerts at 50%, 80% and 100% of actual spend, and at 100% of forecast.
 - It counts only spend tagged `Project=cloudbatch818` (`modules/budget/variables.tf:25-34`). The tag comes from `default_tags` (`terraform/providers.tf:19-23`) and the `PROJECT_NAME` variable.
+- The budget's `cost_tag_value` and `PROJECT_NAME` are set separately. Changing one alone breaks the filter.
 - **The run rate exceeds the limit.** Tagged spend alone runs about $5.50 a day when up, which crosses $75 in about two weeks. Month to date ($46.12) is already past the 50% alert.
 - **Alert delivery is unverified.** No alert email has been recorded.
 - The budget cannot see Fargate compute, so it understates the real cost.
@@ -96,5 +97,5 @@ The filter works only while `Project` is an active cost allocation tag in Billin
 
 ## Rules
 
-- Destroy after every working session (`terraform-destroy.yml`, `infra-destroy` approval).
+- Destroy between uses with `terraform-destroy.yml` (`infra-destroy` approval). It has not been run yet.
 - Recheck this page after a lever lands or a service is added.

@@ -17,7 +17,8 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 
 ## GitHub, set by hand
 
-- Environments `infra`, `infra-destroy`, `dev` and `prod`. Each has one required reviewer (the maintainer), self-review allowed, admin bypass on. `infra`, `infra-destroy` and `prod` deploy from `main` only; `dev` from protected branches. `infra` and `infra-destroy` hold `AWS_ROLE_ARN` (the apply role). No job uses `dev` or `prod` since 2026-10-15; their `AWS_ROLE_ARN` variables remain until removed by hand.
+- Environments `infra` and `infra-destroy`: one required reviewer (the maintainer), self-review allowed, admin bypass on, `main` only. Both hold `AWS_ROLE_ARN` (the apply role).
+- Environments `dev` and `prod` still exist but no job uses them since 2026-10-15. Their `AWS_ROLE_ARN` variables remain until removed by hand.
 - `main` ruleset: PR required with 0 approvals (EXC-003), no force push, no deletion, merge commits only, a `code_scanning` rule for CodeQL, and 10 required checks: `app-build`, `app-checkov`, `app-image-scan`, `app-test-lint`, `app-trivy`, `tf-checkov`, `tf-validate`, `sonar`, `codeql`, `CodeQL`.
 - `dev` ruleset: no force push and no deletion only. No PR or checks are required, so `cd.yml` can push the image bump straight to `dev`.
 - SonarCloud: secret `SONAR_TOKEN`, variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION`. Without them `sonar` fails on purpose. The free plan enforces the gate on PRs only.
@@ -32,6 +33,6 @@ Terraform creates the API key secret empty, so the key never enters state. Set i
 2. In the console (us-east-2), open the secret, Retrieve secret value, Edit, Plaintext tab, paste and save.
 3. Keep a copy for testing `/patients`.
 
-Until it is set, pods stay not-ready (`/ready` returns 503). The destroy deletes the secret at once (recovery window 0), so set it again after every apply. Rotation is in [rotation.md](runbooks/rotation.md).
+Until it is set, pods stay not-ready (`/ready` returns 503). A destroy deletes the secret at once (recovery window 0), so set it again after any rebuild. Rotation is in [rotation.md](runbooks/rotation.md).
 
 Then check the cluster with [cluster-access.md](runbooks/cluster-access.md) and Argo CD with [argocd.md](runbooks/argocd.md).

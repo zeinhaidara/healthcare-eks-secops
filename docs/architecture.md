@@ -1,162 +1,142 @@
 # Architecture
 
-Three views: the AWS architecture, the CI/CD flow and the access model. Mermaid, rendered by GitHub. Region us-east-2.
+Three views: the AWS stack, the delivery flow and the access model. Region us-east-2. Diagrams are Mermaid and render on GitHub.
 
-## 1. AWS architecture
+## 1. AWS stack
 
 ```mermaid
 flowchart TB
     users["Users (HTTPS)"]
-    dns["Route 53 records and ACM certificate"]
+    git["GitHub repo"]
 
-    subgraph vpc["VPC, us-east-2"]
+    subgraph vpc["VPC, 2 AZs"]
         subgraph pub["Public subnets"]
-            alb["ALB per environment, internet-facing, HTTPS"]
-            argoalb["ALB for the Argo CD UI at argocd.<domain>, internet-facing, HTTPS, GitHub sign-in"]
+            albapp["ALB per app environment (dev, prod): HTTPS, ACM"]
+            albargo["ALB for the Argo CD UI: HTTPS, GitHub sign-in"]
             nat["NAT gateway (one)"]
         end
         subgraph priv["Private subnets"]
-            subgraph eks["EKS cluster on Fargate"]
-                lbc["kube-system: AWS Load Balancer Controller"]
-                appdev["dev namespace: healthcare-api pods"]
-                appprod["prod namespace: healthcare-api pods"]
-                argocdns["argocd namespace: Argo CD"]
+            subgraph eks["EKS on Fargate (no nodes)"]
+                lbc["AWS Load Balancer Controller"]
+                api["healthcare-api pods: dev and prod namespaces"]
+                argo["Argo CD"]
+                eso["External Secrets"]
             end
             rot["Rotation Lambda"]
         end
-        flow["VPC flow logs"]
     end
 
-    ecr["ECR repository (immutable tags, scan on push)"]
-    ddb["DynamoDB patients table (synthetic data)"]
-    sm["Secrets Manager: API key"]
-    kms["KMS project key"]
-    cwl["CloudWatch Logs"]
+    ecr["ECR: immutable tags, scan on push"]
+    ddb["DynamoDB: synthetic patients, read-only app"]
+    sm["Secrets Manager: API key, GitHub App key, SSO secret"]
+    kms["KMS: one project key"]
 
-    subgraph det["Detective controls"]
+    subgraph det["Logging and detection"]
+        flow["VPC flow logs, 365 days"]
         trail["CloudTrail, single region"]
-        trailbucket["S3 trail bucket and access-log bucket"]
+        gd["GuardDuty"]
+        sh["Security Hub (FSBP)"]
         sns["SNS topic (no subscriber yet)"]
-        gd["GuardDuty: S3 data events, EKS audit logs"]
-        sh["Security Hub: FSBP standard"]
     end
 
-    users --> dns --> alb
-    alb --> appdev
-    alb --> appprod
-    lbc -. "manages" .-> alb
-    dns --> argoalb --> argocdns
-    lbc -. "manages" .-> argoalb
-    appdev -- "IRSA, read only, via NAT" --> ddb
-    appprod -- "IRSA, read only, via NAT" --> ddb
-    appdev -- "IRSA, read secret, via NAT" --> sm
-    appprod -- "IRSA, read secret, via NAT" --> sm
-    ecr -- "image pinned by digest" --> appdev
-    ecr -- "image pinned by digest" --> appprod
-    rot -- "rotates every 30 days" --> sm
+    users --> albapp --> api
+    users --> albargo --> argo
+    lbc -. "creates" .-> albapp
+    lbc -. "creates" .-> albargo
+    argo -- "pulls desired state" --> git
+    argo -- "syncs" --> api
+    api -- "IRSA, read only" --> ddb
+    api -- "IRSA, read the API key" --> sm
+    eso -- "IRSA, two secrets" --> sm
+    ecr -- "image by digest" --> api
+    rot -- "every 30 days" --> sm
     priv -- "outbound" --> nat
-    flow --> cwl
-    trail --> trailbucket
-    trail --> cwl
     trail --> sns
     gd --> sh
     kms -. "encrypts" .-> ddb
     kms -. "encrypts" .-> sm
     kms -. "encrypts" .-> ecr
-    kms -. "encrypts" .-> cwl
-    kms -. "encrypts" .-> trailbucket
+    kms -. "encrypts" .-> det
 ```
 
-Network path: pods reach DynamoDB and Secrets Manager through the single NAT gateway, because no VPC endpoints are built. The per-namespace pod security groups are created in `terraform/modules/eks/main.tf`; only the `SecurityGroupPolicy` that attaches them is owned by `terraform/cluster-addons` (SEC-032). The EKS API endpoint stays public (EXC-005).
+- Pods reach AWS APIs through the one NAT gateway. No VPC endpoints are built.
+- Each app namespace has its own pod security group, attached by a `SecurityGroupPolicy` (SEC-032). Kubernetes NetworkPolicy is not enforced on Fargate (SEC-021).
+- The EKS API endpoint is public and private, with access entries only (EXC-005).
+- AWS Config, WAF and Inspector are not built.
 
-References: SEC-001, SEC-002 (network and flow logs), SEC-021, SEC-030, SEC-032 (pod isolation and Pod Security), SEC-003, SEC-027, SEC-034 (rotation), SEC-022, SEC-023 (read-only seeded table), SEC-035 to SEC-037 (detective controls). The access-log bucket uses SSE-S3, not the project key (EXC-014). AWS Config, WAF and Inspector are not part of the stack (deferred, see the README).
+### Single NAT gateway
 
-### Availability: single NAT gateway
+One NAT in `us-east-2a` serves both private subnets (`terraform/modules/network/main.tf`). If that AZ fails, pods in both AZs lose outbound calls to DynamoDB, Secrets Manager, KMS and ECR. Accepted for cost as EXC-015. The fix, not built: a NAT and route table per AZ, plus VPC endpoints.
 
-One NAT gateway in `us-east-2a` serves both private subnets, which share one private route table (`terraform/modules/network/main.tf`). It is one gateway for cost. If that AZ fails, outbound calls to DynamoDB, Secrets Manager, KMS and ECR fail for pods in both AZs. The table and the secret themselves stay available, because both are regional services. The risk is accepted as EXC-015.
-
-Planned fixes, not built (no Terraform exists for any of them): a second NAT gateway with its own private route table per AZ, a DynamoDB gateway endpoint, and interface endpoints for Secrets Manager, KMS, STS, ECR and CloudWatch Logs.
-
-## 2. CI/CD flow
+## 2. Delivery flow
 
 ```mermaid
 flowchart LR
-    feat["feature branch"]
-    prdev["PR into dev"]
-    devbr["dev branch"]
-    prmain["PR dev into main"]
-    mainbr["main branch"]
-    ci["ci.yml: tests, lint, Trivy, Checkov, CodeQL, Sonar, gitleaks, image build and scan, report-only scans (no AWS access)"]
-
-    feat --> prdev --> devbr --> prmain --> mainbr
+    feat["Feature branch"] --> prdev["PR into dev"] --> devbr["dev branch"] --> prmain["Release PR: dev into main"] --> mainbr["main branch"]
+    ci["ci.yml: tests, scanners, image build and scan. No AWS access"]
     prdev -. "runs" .-> ci
-    prmain -. "runs" .-> ci
+    prmain -. "runs, 10 checks required" .-> ci
 
-    subgraph cd["cd.yml (push to dev changing app, or a manual run)"]
-        build["build and Trivy image scan, no credentials"]
-        push["push to ECR by commit SHA, ECR push role"]
-        bump["bump-image: commits the image tag and digest to dev"]
-        build --> push --> bump
+    subgraph cd["cd.yml (push to dev that changes app/)"]
+        build["Build and Trivy scan"] --> push["Push to ECR"] --> bump["Commit tag and digest to dev"]
     end
     devbr --> build
     bump --> devbr
 
-    subgraph argo["Argo CD in the cluster, no AWS role"]
-        adev["healthcare-api-dev: tracks dev, automatic sync"]
-        aprod["healthcare-api-prod: tracks main, sync approved by hand"]
+    subgraph argocd["Argo CD (in the cluster)"]
+        adev["dev: automatic sync"]
+        aprod["prod: admin approves the sync"]
     end
-    devbr -. "deploys from Git" .-> adev
-    mainbr -. "deploys from Git" .-> aprod
+    devbr -. "tracks" .-> adev
+    mainbr -. "tracks" .-> aprod
 
-    subgraph tf["terraform-apply.yml (manual, no inputs)"]
-        plan["tf-plan: plan role, read only"]
-        guard{"destructive plan guard"}
-        gate{"infra approval"}
-        apply["tf-apply: apply role, applies the reviewed plan"]
-        addons["addons-plan and addons-apply: infra approval"]
-        plan --> guard
-        guard -- "pass" --> gate
-        guard -- "delete or replace of bucket, key or table" --> blocked["job fails, no plan artifact"]
-        gate --> apply --> addons
+    dast["dast.yml: weekly ZAP scans of dev"] -. "scans" .-> adev
+
+    subgraph tf["terraform-apply.yml (manual)"]
+        plan["Plan: read-only role"] --> guard{"Destructive plan guard"}
+        guard -- "pass" --> gate{"infra approval"} --> apply["Apply the planned changes"] --> addons["Add-ons plan and apply"]
+        guard -- "bucket, key or table deleted" --> blocked["Job fails"]
     end
-    operator["Operator"] -- "workflow_dispatch" --> plan
+    destroy["terraform-destroy.yml (manual, infra-destroy approval). Never run as of 2026-10-18"]
 ```
 
-`terraform-destroy.yml` is separate: manual, no inputs, behind its own `infra-destroy` approval. Environment approvals are configured by hand in GitHub (documented in [security/controls.md](security/controls.md)). Deploys come from Git through Argo CD; no workflow runs Helm or kubectl against the cluster ([runbooks/gitops-deploy.md](runbooks/gitops-deploy.md)). References: SEC-011 (ci and cd split), SEC-031 (deploy by digest), SEC-037 (destructive plan guard), EXC-003 (0 required approvals on `main`).
+- No workflow runs Helm or kubectl against the cluster. Argo CD deploys from Git ([gitops-deploy.md](runbooks/gitops-deploy.md)).
+- Merges are gated by automated checks; `main` requires 0 approvals (EXC-003).
 
 ## 3. Access model
 
 ```mermaid
 flowchart LR
-    subgraph gha["GitHub Actions, OIDC, no stored AWS keys"]
+    subgraph gha["GitHub Actions: OIDC, no stored AWS keys"]
         jplan["tf-plan"]
-        japply["tf-apply, tf-destroy, addons jobs"]
+        japply["tf-apply, add-ons, destroy"]
         jpush["cd push"]
     end
 
-    planrole["Plan role: read only, no cluster access"]
+    planrole["Plan role: read only"]
     applyrole["Apply role: project-scoped write"]
     pushrole["ECR push role"]
-    operator["Operator IAM user: read only"]
-    argo["Argo CD: in-cluster RBAC, no AWS role"]
-    people["People: GitHub sign-in, RBAC by username"]
+    operator["Operator IAM user"]
+    people["People: GitHub sign-in"]
 
-    jplan --> planrole
+    jplan --> planrole --> awsread["AWS read APIs"]
     japply -- "infra or infra-destroy approval" --> applyrole
-    jpush --> pushrole
+    jpush --> pushrole --> ecr["ECR"]
 
-    subgraph eksapi["EKS API endpoint: public 0.0.0.0/0 and private (EXC-005)"]
-        authn["Authentication mode API, access entries only, no creator admin"]
-        admin["AmazonEKSClusterAdminPolicy, cluster scope"]
-        view["AmazonEKSViewPolicy, cluster scope"]
+    subgraph eksapi["EKS access entries (no creator admin)"]
+        admin["Cluster admin (EXC-006)"]
+        view["Cluster-wide view"]
     end
+    applyrole --> admin
+    operator --> view
 
-    applyrole -- "EXC-006" --> admin
-    operator -- "SEC-029" --> view
-    pushrole --> ecr["ECR repository"]
-    planrole --> awsread["AWS read APIs"]
+    subgraph cluster["In the cluster"]
+        argo["Argo CD RBAC: named users, default none"]
+        irsa["Pod roles (IRSA): app read only, External Secrets two secrets"]
+    end
     people --> argo
-    argo -- "AppProject: dev and prod namespaces only" --> apps["App namespaces"]
 ```
 
-References: EXC-004 (plan role trust for pull requests), EXC-005 and SEC-018 (public endpoint), EXC-006 and SEC-019 (apply role is cluster admin), SEC-029 (operator access entry). The operator IAM user has a long-lived access key and no MFA (Prowler triage N2). The old deploy-dev and deploy-prod roles are unused since 2026-10-15; EKS access removed 2026-10-18 (#151, applied).
+- The plan role trusts pull requests (EXC-004). The apply role is cluster admin (EXC-006).
+- The operator has a long-lived access key and no MFA (Prowler triage N2).
+- Removed: the operator's break-glass read on `argocd` (#146), and EKS access for the deploy-dev and deploy-prod roles, removed 2026-10-18 (#151, applied). The two IAM roles remain until deleted by hand.
