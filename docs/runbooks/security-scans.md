@@ -18,6 +18,7 @@ Gating scans (gitleaks, Trivy, Checkov, CodeQL, SonarCloud) are in [controls.md]
 - `dast.yml` has one concurrency group. With `all`, the three jobs run one after another, so two scans never hit dev at once.
 - The API and full jobs refuse a `DEV_BASE_URL` that names prod. Every job fails at once if it is empty or not an `http(s)://` URL.
 - Scheduled and manual `dast.yml` runs use the file on `main`, so a change starts after the release that carries it.
+- No scheduled ZAP run has happened yet (checked 2026-10-18). The two runs so far were baselines started by hand on 2026-10-17.
 - ZAP artifacts follow the repository's default retention. Download what you want to keep.
 - To update ZAP, read the new version's digest from `ghcr.io/zaproxy/zaproxy` and change `docker_name` in all three jobs.
 - The Argo CD render uses `values/argocd.yaml` only. The ingress, Dex and RBAC values from `cluster-addons/main.tf` are not in it.

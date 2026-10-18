@@ -1,6 +1,6 @@
 # Runbook: cluster access checks
 
-Run with the apply role (cluster admin, EXC-006) unless a step says otherwise. Region us-east-2.
+Region us-east-2. The operator's cluster-wide view covers pods, deployments, services, DaemonSets and namespaces. The AWS commands work with the operator's read-only AWS access. Nodes (section 2) and the `AppProject` (section 5) need wider cluster read. The apply role is assumable only from GitHub Actions, so use a temporary, reviewed access entry for those steps.
 
 ## 1. Cluster is ACTIVE
 

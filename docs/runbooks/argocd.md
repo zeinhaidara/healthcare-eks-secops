@@ -43,7 +43,7 @@ Every 90 days, or at once after a suspected leak. The App ID and installation ID
 
 1. In GitHub, generate a **second** private key for the App. Keep the old one until step 5.
 2. In Secrets Manager, replace `githubAppPrivateKey` with the new key. Keep the other two keys. Never paste the key into a terminal, chat, ticket or this repo.
-3. Force a sync: `kubectl -n argocd annotate externalsecret healthcare-repo force-sync=$(date +%s) --overwrite`. Wait for SecretSynced.
+3. Wait for the hourly refresh, or force a sync: `kubectl -n argocd annotate externalsecret healthcare-repo force-sync=$(date +%s) --overwrite`. Forcing needs cluster write, which no person has today; see the note below.
 4. In the UI, Settings, Repositories shows Successful, and an Application refresh works.
 5. Delete the old key in GitHub and the local key file.
 
@@ -55,13 +55,17 @@ The OAuth App's client ID and secret live only in the Secrets Manager secret `cl
 
 1. In GitHub, open the OAuth App and generate a new client secret.
 2. In Secrets Manager, replace `OAuth-Client-Secret` only.
-3. Force a sync: `kubectl -n argocd annotate externalsecret argocd-github-sso force-sync=$(date +%s) --overwrite`. Wait for SecretSynced.
-4. Dex does not reload by itself: `kubectl -n argocd rollout restart deployment argocd-dex-server`. Sign in to confirm.
+3. Wait for the hourly refresh, or force a sync: `kubectl -n argocd annotate externalsecret argocd-github-sso force-sync=$(date +%s) --overwrite` (needs cluster write).
+4. Dex does not reload by itself: `kubectl -n argocd rollout restart deployment argocd-dex-server` (needs cluster write). Sign in to confirm.
 5. Delete the old client secret in GitHub.
 
 ## Operator access
 
 Once the break-glass removal is applied, the operator's access list shows `AmazonEKSViewPolicy` at cluster scope only.
+
+## Who can run these commands
+
+The operator has cluster-wide view only, which cannot read Argo CD or External Secrets objects or change anything. The apply role is assumable only from GitHub Actions. So no person has cluster write today. Steps marked "needs cluster write" require a temporary, reviewed access entry, added and removed through Terraform.
 
 ## Fargate notes
 

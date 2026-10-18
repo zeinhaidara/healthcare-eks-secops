@@ -107,8 +107,8 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 | Trail and access-log buckets: private, versioned, TLS only, `force_destroy` | Live | SEC-036, EXC-012 to EXC-014 | `terraform/modules/detective` |
 | GuardDuty with S3 data events and EKS audit logs | Live | SEC-035, EXC-011 | SEC-037 findings |
 | Security Hub with FSBP | Live | SEC-035 | Needs AWS Config for control findings |
-| ZAP baseline of dev, weekly | Live | none | Result 2026-10-17 in [security-scans.md](../runbooks/security-scans.md) |
-| ZAP API and full scans of dev, weekly | Live | none | Scheduled in `dast.yml`; no result recorded yet |
+| ZAP baseline of dev, scheduled weekly | Live | none | Run by hand 2026-10-17; result in [security-scans.md](../runbooks/security-scans.md). No scheduled run yet |
+| ZAP API and full scans of dev, scheduled weekly | Not run yet | none | Scheduled in `dast.yml`; never run (checked 2026-10-18) |
 | Prowler, one manual run 2026-10-10 | Manual | none | [prowler-triage.md](prowler-triage.md) |
 | Alert delivery (SNS subscriber), alarms, dashboards | Planned | none | Not in Terraform |
 | AWS Config, Inspector, WAF | Planned | none | Not in Terraform |
