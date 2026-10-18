@@ -87,5 +87,4 @@ networkPolicy:
   vpcCidr: "" # required, an Argo CD Application parameter from Terraform (the VPC CIDR)
 
 # Security groups for pods (Fargate): the SecurityGroupPolicy is owned by terraform/cluster-addons (created by
-# the apply role), not by this chart. The deploy roles use AmazonEKSEditPolicy, which has no rule for the
-# vpcresources.k8s.aws API group (SEC-032), so this chart has no template for it.
+# the apply role), not by this chart (SEC-032).

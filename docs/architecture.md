@@ -159,4 +159,4 @@ flowchart LR
     argo -- "AppProject: dev and prod namespaces only" --> apps["App namespaces"]
 ```
 
-References: EXC-004 (plan role trust for pull requests), EXC-005 and SEC-018 (public endpoint), EXC-006 and SEC-019 (apply role is cluster admin), SEC-029 (operator access entry). The operator IAM user has a long-lived access key and no MFA (Prowler triage N2). The old deploy-dev and deploy-prod roles are unused.
+References: EXC-004 (plan role trust for pull requests), EXC-005 and SEC-018 (public endpoint), EXC-006 and SEC-019 (apply role is cluster admin), SEC-029 (operator access entry). The operator IAM user has a long-lived access key and no MFA (Prowler triage N2). The old deploy-dev and deploy-prod roles are unused since 2026-10-15; EKS access removed in this PR.

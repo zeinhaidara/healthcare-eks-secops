@@ -89,23 +89,14 @@ module "eks" {
   app_namespaces     = var.app_namespaces
   coredns_version    = var.coredns_version
 
-  access_entries = merge(
-    {
-      for env, ns in local.deploy_namespaces : "deploy-${env}" => {
-        principal_arn = "${local.ci_role_arn}-deploy-${env}"
-        policy        = "AmazonEKSEditPolicy"
-        namespaces    = [ns]
-      }
-    },
-    {
-      # D2a: the apply role is cluster admin, used only behind the infra approval (EXC row).
-      apply = {
-        principal_arn = "${local.ci_role_arn}-apply"
-        policy        = "AmazonEKSClusterAdminPolicy"
-        namespaces    = []
-      }
-    },
-  )
+  access_entries = {
+    # The apply role is cluster admin, used only behind the infra approval (EXC-006).
+    apply = {
+      principal_arn = "${local.ci_role_arn}-apply"
+      policy        = "AmazonEKSClusterAdminPolicy"
+      namespaces    = []
+    }
+  }
 }
 
 module "acm" {
