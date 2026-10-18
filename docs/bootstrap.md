@@ -13,7 +13,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 | plan | `tf-plan` | Read-only; state lock file only |
 | apply | `tf-apply`, add-ons jobs (`infra`), `terraform-destroy.yml` (`infra-destroy`) | Write, scoped to project resources; EKS cluster admin (EXC-006) |
 | ecr-push | `cd.yml` job `push` | Push to the project ECR repo; trusts `main` and `dev` only |
-| deploy-dev, deploy-prod | Nothing since the move to Argo CD | Namespace-scoped EKS edit; their access entries are still in `terraform/main.tf` |
+| deploy-dev, deploy-prod | Nothing: unused since 2026-10-15; EKS access removed in this PR | None. The roles stay until deleted by hand |
 
 ## GitHub, set by hand
 

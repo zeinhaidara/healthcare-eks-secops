@@ -126,5 +126,5 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 
 1. **Apply role is cluster admin (EXC-006).** Anyone who gets an `infra` job approved acts as cluster admin. Planned fix, not scheduled: namespace-scoped policies plus a narrow role for the add-ons root.
 2. **Argo CD server NetworkPolicy allows ingress from anywhere.** The chart default. Known gap.
-3. **Unused deploy roles.** deploy-dev and deploy-prod and their access entries remain.
+3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed in this PR. The IAM roles remain until deleted by hand.
 4. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the live cluster, and whether patient fields are ever logged.

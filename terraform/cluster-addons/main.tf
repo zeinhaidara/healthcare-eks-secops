@@ -57,9 +57,7 @@ resource "helm_release" "lb_controller" {
 }
 
 # Security groups for pods on Fargate (closes EXC-007 once the smoke test proves attachment).
-# Owned here, not by the chart: the deploy roles use AmazonEKSEditPolicy, which has no rule for the
-# vpcresources.k8s.aws API group. The apply role (cluster admin, behind the infra approval) creates
-# these. The groups are found by name in the project VPC and from the cluster, never by ID.
+# Owned here, not by the chart. The apply role (cluster admin, behind the infra approval) creates these. The groups are found by name in the project VPC and from the cluster, never by ID.
 data "aws_security_group" "pods" {
   for_each = toset(var.app_namespaces)
 
