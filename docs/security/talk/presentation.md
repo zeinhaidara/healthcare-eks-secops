@@ -14,14 +14,14 @@ Speaker rules:
 - **Hook A:** "A health app is one leaked key away from a headline."
 - **Hook B (chosen):** "Shipping a healthcare app takes a weekend. Shipping it safely, every time, takes a platform." It frames the achievement and promises nothing we can't prove.
 
-**Headline:** A small patient-records app, delivered through a platform where every change is scanned and every production release is gated
+**Headline:** A small patient-records app: every change is scanned, and every production release needs an approved deployment
 
 - A read-only patient lookup API with a browser front end
 - All patient data is synthetic: no real people, no PHI
 - Writing the app is quick; shipping every change safely is the hard part
 - This talk is about the platform
 
-**Notes (50 s):** This is a small healthcare app. A clinician looks up a patient record. It only reads data, and every record is made up. Writing an app like this is quick. Running it safely is not. Any change could leak a secret, ship a vulnerable library or open the network. So the real work is the platform behind the app. Every change is scanned. Every production release is gated. Every accepted risk has an owner and an expiry date.
+**Notes (50 s):** This is a small healthcare app. A clinician looks up a patient record. It only reads data, and every record is made up. Writing an app like this is quick. Running it safely is not. Any change could leak a secret, ship a vulnerable library or open the network. So the real work is the platform behind the app. Every change is scanned. Every production release needs an approved deployment. Every accepted risk has an owner and an expiry date.
 
 **Proof:** read-only API, SEC-022 (`docs/security/improvement-log.md:242`); synthetic data, SEC-026 (`improvement-log.md:282`).
 **Visual:** a small "App" block on a large "Platform" block (scans, gates, GitOps, audit).
@@ -82,12 +82,12 @@ Speaker rules:
 
 **Headline:** We attack and audit the live system too, and we write down what we find
 
-- OWASP ZAP baseline on dev: Medium findings went from 1 to 0, High stayed at 0
+- OWASP ZAP is scheduled weekly; baseline run by hand so far: Medium 1 to 0, High stayed at 0
 - Prowler (2026-10-10): 43 of 2,019 failures were ours, all triaged
 - GuardDuty and Security Hub watch the account and cluster
 - SEC-037: detected, diagnosed, repaired, guarded
 
-**Notes (60 s):** We also test what is running. ZAP is an attack tool. We ran its baseline scan on dev, and it is scheduled weekly. After we fixed our security headers, the Medium finding went away. Prowler audited the whole shared account on October tenth. Forty-three failures were on our resources, and each is triaged. And we had a real incident. A Terraform apply stripped the security settings from our audit log buckets. The failed apply exposed it, and GuardDuty recorded it. Nothing was made public. We found the cause, repaired it the same day, and added a guard that now blocks that kind of plan. No alert fired, because alert delivery is not built yet.
+**Notes (60 s):** We also test what is running. ZAP is an attack tool. It is scheduled weekly; so far we have run its baseline by hand. After we fixed our security headers, the Medium finding went away. Prowler audited the whole shared account on October tenth. Forty-three failures were on our resources, and each is triaged. And we had a real incident. A Terraform apply stripped the security settings from our audit log buckets. The failed apply exposed it, and GuardDuty recorded it. Nothing was made public. We found the cause, repaired it the same day, and added a guard that now blocks that kind of plan. No alert fired, because alert delivery is not built yet.
 
 **Proof:** ZAP (`docs/runbooks/security-scans.md:29-40`); Prowler (`docs/security/prowler-triage.md:15,25-31`); SEC-037 (`improvement-log.md:434-477`, GuardDuty at `:467-472`).
 **Visual:** ZAP before and after chart; Prowler callout; a four-step SEC-037 timeline.
@@ -95,14 +95,14 @@ Speaker rules:
 
 ## 6. Infrastructure as code
 
-**Headline:** Defined entirely as code. Teardown and rebuild are one workflow each, plus a short list of documented manual steps
+**Headline:** Defined entirely as code. Build and teardown are each one workflow. The first full rebuild drill is planned
 
 - Two Terraform roots, built from reusable modules
 - A read-only plan, then a person approves the apply
 - A guard fails any plan that deletes a bucket, key or table
 - Manual steps: two secrets, the API key value, the dev and prod DNS aliases
 
-**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.
+**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One workflow builds everything and one tears it down. The first full rebuild drill is planned. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.
 
 **Proof:** `.github/workflows/terraform-apply.yml:32,93,131,172`; guard (`:67-71`); `terraform-destroy.yml:32`, no runs (checked 2026-10-18); manual steps (`docs/bootstrap.md`, Manual steps around a rebuild).
 **Visual:** plan, guard, approval, apply, add-ons; a side loop "destroy, then rebuild".
@@ -125,14 +125,14 @@ Speaker rules:
 
 ## 8. Identity and access
 
-**Headline:** CI holds no stored cloud keys. Each job gets only the access it needs, and we remove access we stop using
+**Headline:** CI holds no stored cloud keys. Each job gets its own short-lived role. The apply role is broad by design and listed as EXC-006
 
 - GitHub OIDC: short-lived roles per job
 - Plan is read-only; apply needs an approval
 - Argo CD sign-in is GitHub SSO only
 - Removed: the break-glass read and the deploy roles' cluster access
 
-**Notes (55 s):** The pipeline stores no cloud keys. Each job gets a short-lived token, and AWS trusts it for one role. The planning role can only read. The apply role can write, but only behind an approval. People reach Argo through GitHub sign-in. We also prune access. We removed a break-glass read that could see secrets. We removed cluster access for two old deploy roles once GitOps made them unused. One gap remains: the operator's own user still has a long-lived key and no MFA.
+**Notes (55 s):** The pipeline stores no cloud keys. Each job gets a short-lived token, and AWS trusts it for one role. The planning role can only read. The apply role is broad by design: project-wide write and cluster admin, behind an approval. It is listed as EXC-006. People reach Argo through GitHub sign-in. We also prune access. We removed a break-glass read that could see secrets. We removed cluster access for two old deploy roles once GitOps made them unused. One gap remains: the operator's own user still has a long-lived key and no MFA.
 
 **Proof:** SEC-011 (`improvement-log.md:132`); EXC-006; #146; #151, applied 2026-10-18; Prowler N2.
 **Visual:** access-by-context cards; removed paths crossed out.
@@ -143,9 +143,9 @@ Speaker rules:
 **Headline:** Always on, this costs about $11 a day. Destroyed between uses, it costs cents (estimate)
 
 - Tagged spend this month: $46.12 (measured)
-- Fargate adds about $5.60 a day (estimated)
+- Fargate adds about $5.60 a day (estimate)
 - Biggest lever: destroy between uses. Smaller ones exist; none are done
-- The $75 budget is below the run rate; alert delivery is unverified
+- The $75 budget is below the estimated run rate; alert delivery is unverified
 
 **Notes (55 s):** Cost Explorer shows forty-six dollars of tagged spend so far this month. Most of it is the EKS control plane and the NAT gateway. Fargate, which runs the pods, is not in that number; it adds about five sixty a day, estimated. Always on, that is about eleven dollars a day, around three hundred thirty-five a month. Our budget is seventy-five. So always-on does not fit. Destroying between uses would, but we have not run the destroy yet. We also have not confirmed that budget alerts arrive.
 
@@ -157,12 +157,12 @@ Speaker rules:
 
 **Headline:** The platform works. These gaps are known, owned and dated
 
-- Run rate above the $75 budget; alert delivery unverified
-- Apply role is cluster admin; operator user has no MFA
-- Prowler N1 to N8 are proposals, not yet registered
+- Owned by the maintainer: operator IAM user with a long-lived key and no MFA; one maintainer, 0 approvals, can self-approve infra; apply role is cluster admin
+- Also owned: gitleaks, lambda-test and securitycontext-check are not required checks; the destroy workflow has never run
+- Estimated run rate above the $75 budget; alert delivery unverified
 - Ask: choose the cost model; add a second reviewer
 
-**Notes (55 s):** Here is what is not done. The always-on run rate is above our budget, and we have not confirmed that alerts reach anyone. The role that applies Terraform is a full cluster admin. That is accepted, with an owner and an expiry. The operator's user has a long-lived key and no MFA. Prowler raised eight new items we have not registered yet. Next, we wire up alerts, run a destroy and rebuild drill, close the Prowler items and narrow the apply role. Two asks. Decide the cost model: destroy between uses, or fund the always-on cost. And give us a second reviewer, so merges are reviewed by a person, not only gated by checks.
+**Notes (55 s):** Here is what is not done, and each item has an owner. The operator's IAM user has a long-lived key and no MFA. One maintainer with zero required approvals can self-approve the infra environment, and the apply role is a full cluster admin. Three checks fail the job but are not required for a merge: gitleaks, lambda-test and securitycontext-check. The destroy workflow has never run. The estimated run rate is above our budget, and we have not confirmed that alerts reach anyone. Next, we wire up alerts, run the first rebuild drill, close the Prowler items and narrow the apply role. Two asks. Decide the cost model: destroy between uses, or fund the always-on cost. And give us a second reviewer, so merges are reviewed by a person, not only gated by checks.
 
 **Proof:** `docs/security/controls.md` (open items); `prowler-triage.md:163-174`; `exceptions-register.md`.
 **Visual:** three columns: known gaps, next, the ask.
@@ -172,7 +172,7 @@ Speaker rules:
 
 ## Appendix
 
-**A. Tool matrix:** the table on slide 3, plus ZAP (scheduled weekly, so far run by hand, report only), Prowler (manual, 2026-10-10), GuardDuty and Security Hub (runtime).
+**A. Tool matrix:** the table on slide 3, plus ZAP (scheduled weekly; baseline run by hand so far; report only), Prowler (manual, 2026-10-10), GuardDuty and Security Hub (runtime).
 
 **B. Risk register:** 16 accepted risks (EXC-001 to EXC-016), EXC-007 closed, all owned by the single maintainer, expiring April 2027. EXC-005, EXC-012 and EXC-013 cite a destroy that has not run.
 
@@ -180,16 +180,17 @@ Speaker rules:
 
 **D. Likely questions**
 
-1. **What does it cost?** About $11 a day always on, about $335 a month (estimated). Tagged spend this month is $46.12 (measured).
-2. **Why is the budget below the run rate?** The $75 budget assumed the stack is destroyed between uses. That has not happened yet. Always-on needs a higher budget or the levers.
-3. **Is it production ready?** Not for real data. The delivery platform works end to end, but it needs alert delivery, a second reviewer and the Prowler items closed first.
+1. **What does it cost?** About $11 a day always on, about $335 a month (estimate). Tagged spend this month is $46.12 (measured).
+2. **Why is the budget below the run rate?** The $75 budget fits a stack that is destroyed between uses. The teardown has not been run yet. Always-on needs a higher budget or the levers.
+3. **Is it production ready?** Not for real data. The platform works end to end, but alert delivery, a second reviewer and the Prowler items come first.
 4. **Is it HIPAA compliant?** We make no compliance claim. The data is synthetic and no audit has been done.
-5. **What is the biggest risk?** The apply role is a full cluster admin behind one approval. It is accepted with an expiry (EXC-006), and narrowing it is planned.
-6. **What if something fails?** Prod changes only when an admin approves a sync. A plan that would delete storage, keys or the database is blocked. SEC-037 shows the repair path works.
-7. **Would we know if we were attacked?** GuardDuty and CloudTrail record it. Nobody is paged yet, because alert delivery is not built. That is the first next step.
-8. **Who can change production?** App changes need 10 passing checks and an admin-approved sync. Infrastructure changes need an approved Terraform run. Admins can bypass those approvals (EXC-003).
-9. **How many people does this need?** One maintainer runs it today. A second reviewer is our ask, so changes get human review.
-10. **Does it scale?** Pods run on Fargate, so there are no servers to add or patch. Scaling has not been load-tested.
-11. **What was the DNS mix-up?** The prod hostname first pointed at the dev load balancer (SEC-033). An HTTPS check caught it, and it was repointed. Nothing checks it automatically yet.
-12. **What happened to the Prowler highs?** Of the 15 high results on our resources (2026-10-10), 3 are covered by existing register entries and 2 are deferred to planned work. The other 10 are new items, N1 to N8, proposed but not yet in the register.
-13. **Was any data exposed in the bucket incident?** No. All three GuardDuty findings showed NOT_PUBLIC, and the settings were restored the same day (SEC-037).
+5. **What is the biggest risk?** The operator IAM user has a long-lived key and no MFA. Next, the apply role is a full cluster admin behind one approval the maintainer can self-approve (EXC-006).
+6. **What if something fails?** App changes reach prod only after an admin approves a sync. A plan that deletes buckets, keys or tables is blocked. SEC-037 was repaired the same day.
+7. **Can we rebuild from scratch?** Build and teardown are each one workflow, plus documented manual steps. The first full rebuild drill is planned; the teardown has not been run.
+8. **Would we know if we were attacked?** GuardDuty and CloudTrail are enabled in Terraform; their live state was not checked for this deck. Nobody is paged, because alert delivery is not built.
+9. **Who can change production?** App changes need 10 passing checks and an admin-approved sync. Infrastructure changes need an approved Terraform run. Admins can bypass approvals (EXC-003).
+10. **How many people does this need?** One maintainer runs it today. A second reviewer is our ask, so changes get human review.
+11. **Does it scale?** Pods run on Fargate, so there are no servers to add or patch. Autoscaling is off; each environment runs 2 replicas. No load test has been done.
+12. **What was the DNS mix-up?** The prod hostname first pointed at the dev load balancer (SEC-033). An HTTPS check caught it and it was repointed. Nothing checks it automatically yet.
+13. **What happened to the Prowler highs?** Of the 15 high results on our resources (2026-10-10), 3 are covered by register entries and 2 are deferred to planned work. The other 10 are new items, N1 to N8, not yet in the register.
+14. **Was any data exposed in SEC-037?** No public exposure was found. All three GuardDuty findings showed NOT_PUBLIC (operator-checked), and the settings were restored the same day.

@@ -85,11 +85,11 @@ const CHART_TEXT = {
 // ---------- 1. Hook and problem ----------
 pres.addSection({ title: S.main });
 let s = slide("DARK", S.main,
-  "A small patient-records app, delivered through a platform where every change is scanned and every production release is gated",
+  "A small patient-records app: every change is scanned, and every production release needs an approved deployment",
   "Hook: Shipping a healthcare app takes a weekend. Shipping it safely, every time, takes a platform.\n\n" +
   "This is a small healthcare app. A clinician looks up a patient record. It only reads data, and every record is made up. " +
   "Writing an app like this is quick. Running it safely is not. Any change could leak a secret, ship a vulnerable library or open the network. " +
-  "So the real work is the platform behind the app. Every change is scanned. Every production release is gated. " +
+  "So the real work is the platform behind the app. Every change is scanned. Every production release needs an approved deployment. " +
   "Every accepted risk has an owner and an expiry date.");
 bullets(s, ["A read-only patient lookup API with a browser front end",
   "All patient data is synthetic: no real people, no PHI",
@@ -201,7 +201,7 @@ txt(s, "GitOps since 2026-10-15. CI never runs Helm or kubectl.", { x: 0.6, y: 5
 // ---------- 5. Testing the running system ----------
 s = slide("CONTENT", S.main,
   "We attack and audit the live system too, and we write down what we find",
-  "We also test what is running. ZAP is an attack tool that scans dev every week. After we fixed our security headers, the Medium finding went away and four Low ones closed. High stayed at zero. " +
+  "We also test what is running. ZAP is an attack tool. It is scheduled weekly; so far we have run its baseline by hand. After we fixed our security headers, the Medium finding went away and four Low ones closed. High stayed at zero. " +
   "Prowler audited the whole shared account on October tenth. Forty-three failures were on our resources, and each is triaged. " +
   "And we had a real incident. A Terraform apply stripped the security settings from our audit log buckets. The failed apply exposed it, and GuardDuty recorded it. " +
   "Nothing was made public. We found the cause, repaired it the same day, and added a guard that now blocks that kind of plan. " +
@@ -209,7 +209,7 @@ s = slide("CONTENT", S.main,
 s.addChart(pres.charts.BAR, [{ name: "Before fixes", labels: ["High", "Medium", "Low", "Info"], values: [0, 1, 5, 4] },
   { name: "After fixes", labels: ["High", "Medium", "Low", "Info"], values: [0, 0, 1, 4] }],
 { x: 0.6, y: 1.7, w: 4.4, h: 2.85, barDir: "col", barGrouping: "clustered", chartColors: [GREY_BAR, TEAL],
-  showTitle: true, title: "ZAP baseline findings on dev", showValue: true, dataLabelPosition: "outEnd",
+  showTitle: true, title: "ZAP baseline on dev: run by hand; scheduled weekly", showValue: true, dataLabelPosition: "outEnd",
   showLegend: true, legendPos: "b", valAxisHidden: true, valGridLine: { style: "none" }, catGridLine: { style: "none" },
   valAxisMaxVal: 6, ...CHART_TEXT });
 box(s, 5.3, 1.75, 3.6, 2.75, CARD);
@@ -239,11 +239,11 @@ tl.forEach(([h, b, f, c], i) => {
 
 // ---------- 6. IaC ----------
 s = slide("CONTENT", S.main,
-  "Defined entirely as code. Teardown and rebuild are one workflow each, plus a short list of documented manual steps",
+  "Defined entirely as code. Build and teardown are each one workflow. The first full rebuild drill is planned",
   "Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. " +
   "Each run starts with a plan made by a role that can only read. A person approves the apply. " +
   "A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. " +
-  "One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.");
+  "One workflow builds everything and one tears it down. The first full rebuild drill is planned. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.");
 const fl = [["Plan", "Read-only role", CARD, SLATE], ["Guard", "Blocks deleting a bucket, key or table", AMBER_T, AMBER],
   ["Approve", "A person approves the run", CARD, SLATE], ["Apply", "Applies the planned changes", TEAL_T, TEAL],
   ["Add-ons", "The second Terraform root", TEAL_T, TEAL]];
@@ -257,19 +257,19 @@ bullets(s, ["Two Terraform roots, built from reusable modules", "A read-only pla
   "A guard fails any plan that deletes a bucket, key or table", "Manual steps: two secrets, the API key value, two DNS aliases"],
 0.6, 3.7, 7.3, 2.75);
 box(s, 8.3, 3.7, 4.43, 2.45, AMBER_T);
-txt(s, "Teardown and rebuild", { x: 8.45, y: 3.75, w: 4.1, h: 0.45, bold: true, fontSize: 16, color: AMBER });
+txt(s, "Build and teardown", { x: 8.45, y: 3.75, w: 4.1, h: 0.45, bold: true, fontSize: 16, color: AMBER });
 box(s, 8.55, 4.35, 1.7, 0.75, "FFFFFF", LINE);
-txt(s, "Destroy", { x: 8.55, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: "middle", fontSize: 15, bold: true });
+txt(s, "Build", { x: 8.55, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: "middle", fontSize: 15, bold: true });
 box(s, 10.75, 4.35, 1.7, 0.75, "FFFFFF", LINE);
-txt(s, "Rebuild", { x: 10.75, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: "middle", fontSize: 15, bold: true });
+txt(s, "Teardown", { x: 10.75, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: "middle", fontSize: 15, bold: true });
 arrow(s, 10.3, 4.73, 0.4);
-txt(s, [{ text: "One workflow each, behind approvals.", options: {} }],
+txt(s, [{ text: "One workflow each, behind approvals. The first full rebuild drill is planned.", options: {} }],
 { x: 8.45, y: 5.25, w: 4.15, h: 0.85, fontSize: 15 });
 
 // ---------- 7. Layout ----------
 s = slide("CONTENT", S.main, "Private by default, encrypted at rest, logged everywhere",
   "One network across two zones. The app runs on Fargate in private subnets, so there are no servers to patch. " +
-  "Traffic comes in through load balancers that only speak HTTPS. Outbound traffic leaves through one NAT gateway, a cost choice. " +
+  "Traffic comes in through load balancers that serve HTTPS and redirect plain HTTP. Outbound traffic leaves through one NAT gateway, a cost choice. " +
   "One encryption key protects the database, the secrets, the images and the logs. " +
   "The API key lives in Secrets Manager, and a small function replaces it every thirty days. Flow logs and CloudTrail record what happens.");
 box(s, 0.6, 1.75, 8.1, 5.05, "F8FAFC", SLATE);
@@ -297,9 +297,9 @@ tiles.forEach(([h, b], i) => card(s, 9.0, 1.75 + i * 1.03, 3.73, 0.92, i === 0 ?
 
 // ---------- 8. Identity and access ----------
 s = slide("CONTENT", S.main,
-  "CI holds no stored cloud keys. Each job gets only the access it needs, and we remove access we stop using",
+  "CI holds no stored cloud keys. Each job gets its own short-lived role. The apply role is broad by design and listed as EXC-006",
   "The pipeline stores no cloud keys. Each job gets a short-lived token, and AWS trusts it for one role. " +
-  "The planning role can only read. The apply role can write, but only behind an approval. People reach Argo through GitHub sign-in. " +
+  "The planning role can only read. The apply role is broad by design: project-wide write and cluster admin, behind an approval. It is listed as EXC-006. People reach Argo through GitHub sign-in. " +
   "We also prune access. We removed a break-glass read that could see secrets. We removed cluster access for two old deploy roles once GitOps made them unused. " +
   "One gap remains: the operator's own user still has a long-lived key and no MFA.");
 txt(s, "Access by context", { x: 0.6, y: 1.75, w: 6, h: 0.4, bold: true, fontSize: 16, color: SLATE, margin: 0 });
@@ -334,35 +334,42 @@ const stat = (y, big, small, col, fill) => {
     { text: small, options: { fontSize: 14, color: TXT } }], { x: 8.1, y: y + 0.02, w: 4.55, h: 1.1, margin: 0.08 });
 };
 stat(1.75, "$46.12", "Tagged spend this month (measured)", TEAL, TEAL_T);
-stat(3.05, "~$5.60 a day", "Fargate, not in the tagged figure (estimated)", AMBER, AMBER_T);
-stat(4.35, "~$11 a day", "Always on, about $335 a month (estimated)", AMBER, AMBER_T);
+stat(3.05, "~$5.60 a day", "Fargate, not in the tagged figure (estimate)", AMBER, AMBER_T);
+stat(4.35, "~$11 a day", "Always on, about $335 a month (estimate)", AMBER, AMBER_T);
 box(s, 8.0, 5.65, 4.73, 1.1, INK);
 txt(s, [{ text: "Biggest lever: destroy between uses.", options: { bold: true, color: MINT, breakLine: true } },
-  { text: "The $75 budget is below the run rate. Alert delivery is unverified.", options: { color: "FFFFFF" } }],
+  { text: "The $75 budget is below the estimated run rate. Alert delivery is unverified.", options: { color: "FFFFFF" } }],
 { x: 8.1, y: 5.68, w: 4.55, h: 1.05, fontSize: 14, margin: 0.08 });
 
 // ---------- 10. Gaps and the ask ----------
 s = slide("DARK", S.main, "The platform works. These gaps are known, owned and dated",
-  "Here is what is not done. The always-on run rate is above our budget, and we have not confirmed that alerts reach anyone. " +
-  "The role that applies Terraform is a full cluster admin. That is accepted, with an owner and an expiry. " +
-  "The operator's user has a long-lived key and no MFA. Prowler raised eight new items we have not registered yet. " +
-  "Next, we wire up alerts, run a destroy and rebuild drill, close the Prowler items and narrow the apply role. Two asks. " +
+  "Here is what is not done, and each item has an owner. The operator's IAM user has a long-lived key and no MFA. " +
+  "One maintainer with zero required approvals can self-approve the infra environment, and the apply role is a full cluster admin. " +
+  "Three checks fail the job but are not required for a merge: gitleaks, lambda-test and securitycontext-check. " +
+  "The destroy workflow has never run. The estimated run rate is above our budget, and we have not confirmed that alerts reach anyone. " +
+  "Next, we wire up alerts, run the first rebuild drill, close the Prowler items and narrow the apply role. Two asks. " +
   "Decide the cost model: destroy between uses, or fund the always-on cost. " +
   "And give us a second reviewer, so merges are reviewed by a person, not only gated by checks.");
-const cols = [["Known gaps", GOLD, ["Run rate is above the $75 budget", "Budget alert delivery is unverified",
-  "Apply role is cluster admin (EXC-006)", "Operator user: long-lived key, no MFA"]],
-["Next", MINT, ["Wire up alert delivery", "Run a destroy and rebuild drill", "Register and close Prowler items N1 to N8",
-  "Narrow the apply role; add a DNS alias check (SEC-033)"]],
-["The ask", "FFFFFF", ["Choose the cost model: destroy between uses, or fund always-on",
-  "Add a second reviewer, so merges are reviewed by a person"]]];
-const CW = 3.85, CG = (12.13 - 3 * CW) / 2;
-cols.forEach(([h, c, items], i) => {
-  const x = 0.6 + i * (CW + CG);
-  box(s, x, 1.9, CW, 3.75, i === 2 ? TEAL : DEEP);
-  txt(s, h, { x: x + 0.15, y: 2.0, w: CW - 0.3, h: 0.5, bold: true, fontSize: 20, color: c });
-  bullets(s, items, x + 0.15, 2.6, CW - 0.3, 2.95, "FFFFFF", 16);
-});
-txt(s, "AWS Config, WAF and Inspector are not built yet.", { x: 0.6, y: 5.95, w: 12.13, h: 0.35, fontSize: 16,
+const GH = (t) => ({ text: t, options: { bold: true, color: "FFFFFF", fill: { color: TEAL } } });
+const gaps = [["Operator IAM user: long-lived key, no MFA (Prowler N2)", "Maintainer"],
+  ["One maintainer, 0 approvals, can self-approve infra (EXC-003)", "Maintainer"],
+  ["Apply role is cluster admin (EXC-006)", "Maintainer"],
+  ["gitleaks, lambda-test and securitycontext-check are not required checks", "Maintainer"],
+  ["Destroy workflow never run", "Maintainer"],
+  ["Estimated run rate above the $75 budget", "Maintainer"],
+  ["Budget alert delivery unverified", "Maintainer"]];
+s.addTable([[GH("Known gap"), GH("Owner")], ...gaps.map(r => [r[0], r[1]])],
+  { x: 0.6, y: 1.75, w: 7.7, colW: [6.2, 1.5], fontFace: "Calibri", fontSize: 14, color: "FFFFFF", fill: { color: DEEP },
+    border: { type: "solid", pt: 0.75, color: "2B4A5C" }, valign: "middle", margin: [0.03, 0.1, 0.03, 0.1], rowH: 0.5 });
+box(s, 8.6, 1.75, 4.13, 2.45, DEEP);
+txt(s, "Next", { x: 8.75, y: 1.8, w: 3.9, h: 0.45, bold: true, fontSize: 18, color: MINT });
+bullets(s, ["Wire up alert delivery", "Run the first full rebuild drill", "Register and close Prowler N1 to N8",
+  "Narrow the apply role; MFA for the operator"], 8.75, 2.25, 3.9, 1.9, "FFFFFF", 14);
+box(s, 8.6, 4.4, 4.13, 1.95, TEAL);
+txt(s, "The ask", { x: 8.75, y: 4.45, w: 3.9, h: 0.45, bold: true, fontSize: 18, color: "FFFFFF" });
+bullets(s, ["Choose the cost model: destroy between uses, or fund always-on",
+  "Add a second reviewer, so merges are reviewed by a person"], 8.75, 4.9, 3.9, 1.4, "FFFFFF", 14);
+txt(s, "AWS Config, WAF and Inspector are not built yet.", { x: 0.6, y: 6.5, w: 12.13, h: 0.35, fontSize: 14,
   color: "9FB3C1", margin: 0 });
 
 // ---------- Appendix ----------
@@ -380,7 +387,7 @@ const rowsA = [
   ["Kubescape", "Kubernetes", "ci.yml", "Report only", "NSA 1 and 5, CIS 1 and 12 (app and Argo CD)"],
   ["tflint", "IaC lint", "ci.yml", "Report only", "0 issues"],
   ["pip-audit", "Python deps", "ci.yml", "Report only", "No known vulnerabilities"],
-  ["OWASP ZAP", "DAST", "dast.yml, weekly", "Report only", "Medium 1 to 0, Low 5 to 1"],
+  ["OWASP ZAP", "DAST", "dast.yml", "Report only", "Scheduled weekly; baseline by hand: Medium 1 to 0"],
   ["Prowler", "Posture", "Manual", "Not a gate", "2026-10-10: 43 FAIL on our resources"],
   ["GuardDuty, Security Hub", "Runtime", "AWS", "Not a gate", "3 Low findings in SEC-037, NOT_PUBLIC"],
 ];
@@ -423,19 +430,20 @@ s.addTable([[A("Layer"), A("What is there")], ...rowsC.map(r => [{ text: r[0], o
     border: { type: "solid", pt: 0.75, color: LINE }, valign: "middle", margin: [0.04, 0.1, 0.04, 0.1], rowH: 0.45 });
 
 const QA = [
-  ["What does it cost?", "About $11 a day always on, about $335 a month (estimated). Tagged spend this month is $46.12 (measured)."],
-  ["Why is the budget below the run rate?", "The $75 budget assumed the stack is destroyed between uses. That has not happened yet. Always-on needs a higher budget or the levers."],
+  ["What does it cost?", "About $11 a day always on, about $335 a month (estimate). Tagged spend this month is $46.12 (measured)."],
+  ["Why is the budget below the run rate?", "The $75 budget fits a stack that is destroyed between uses. The teardown has not been run yet. Always-on needs a higher budget or the levers."],
   ["Is it production ready?", "Not for real data. The platform works end to end, but alert delivery, a second reviewer and the Prowler items come first."],
   ["Is it HIPAA compliant?", "We make no compliance claim. The data is synthetic and no audit has been done."],
-  ["What is the biggest risk?", "The apply role is a full cluster admin behind one approval. It is accepted with an expiry (EXC-006), and narrowing it is planned."],
-  ["What if something fails?", "Prod changes only after an admin approves a sync. A plan that deletes storage, keys or the database is blocked. SEC-037 shows the repair path works."],
-  ["Would we know if we were attacked?", "GuardDuty and CloudTrail record it. Nobody is paged yet, because alert delivery is not built. That is the first next step."],
+  ["What is the biggest risk?", "The operator IAM user has a long-lived key and no MFA. Next, the apply role is a full cluster admin behind one approval the maintainer can self-approve (EXC-006)."],
+  ["What if something fails?", "App changes reach prod only after an admin approves a sync. A plan that deletes buckets, keys or tables is blocked. SEC-037 was repaired the same day."],
+  ["Can we rebuild from scratch?", "Build and teardown are each one workflow, plus documented manual steps. The first full rebuild drill is planned; the teardown has not been run."],
+  ["Would we know if we were attacked?", "GuardDuty and CloudTrail are enabled in Terraform; their live state was not checked for this deck. Nobody is paged, because alert delivery is not built."],
   ["Who can change production?", "App changes need 10 passing checks and an admin-approved sync. Infrastructure changes need an approved Terraform run. Admins can bypass approvals (EXC-003)."],
   ["How many people does this need?", "One maintainer runs it today. A second reviewer is our ask, so changes get human review."],
-  ["Does it scale?", "Pods run on Fargate, so there are no servers to add or patch. Scaling has not been load-tested."],
+  ["Does it scale?", "Pods run on Fargate, so there are no servers to add or patch. Autoscaling is off; each environment runs 2 replicas. No load test has been done."],
   ["What was the DNS mix-up?", "The prod hostname first pointed at the dev load balancer (SEC-033). An HTTPS check caught it and it was repointed. Nothing checks it automatically yet."],
   ["What happened to the Prowler highs?", "Of the 15 high results on our resources (2026-10-10), 3 are covered by register entries and 2 are deferred to planned work. The other 10 are new items, N1 to N8, not yet in the register."],
-  ["Was any data exposed in SEC-037?", "No. All three GuardDuty findings showed NOT_PUBLIC, and the settings were restored the same day."],
+  ["Was any data exposed in SEC-037?", "No public exposure was found. All three GuardDuty findings showed NOT_PUBLIC (operator-checked), and the settings were restored the same day."],
 ];
 [0, 1].forEach(p => {
   s = slide("CONTENT", S.app, p === 0 ? "Appendix D: likely questions, with honest answers (1 of 2)" : "Appendix D: likely questions, with honest answers (2 of 2)",
