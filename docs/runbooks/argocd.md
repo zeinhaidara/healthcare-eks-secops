@@ -65,6 +65,6 @@ Once the break-glass removal is applied, the operator's access list shows `Amazo
 
 ## Fargate notes
 
-- Each component is its own Fargate pod, sized from its requests. The session destroy removes them.
+- Each component is its own Fargate pod, sized from its requests ([budget.md](../cost/budget.md) has the inventory).
 - metrics-server listens on 10251 and the External Secrets webhook on 10260, because Fargate reserves 10250.
 - Fargate rejects `runAsGroup` without `runAsUser`. The `securitycontext-check` job catches it; see [failed-terraform-run.md](failed-terraform-run.md).

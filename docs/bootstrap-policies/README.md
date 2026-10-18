@@ -6,7 +6,7 @@ IAM policies for the CI roles. They are applied by hand. Terraform and the workf
 |---|---|---|
 | `plan-policy.json` | plan | Read-only. Includes `LogBucketHead` (`s3:ListBucket` on the log buckets, SEC-037), `budgets:ListTagsForResource` (SEC-020) and `RefreshSeededPatientItems` (`dynamodb:GetItem` on the patients table only) |
 | `apply-policy.json` | apply | Project-scoped write. Includes `SecretsGithubAppRead` (metadata of the Argo CD GitHub App secret, not its value) |
-| `deploy-dev-policy.json`, `deploy-prod-policy.json` | deploy-dev, deploy-prod | Unused since 2026-10-15; EKS access removed in this PR. `eks:DescribeCluster`, `ecr:DescribeImages`, `acm:ListCertificates`, and `secretsmanager:DescribeSecret` on the API key secret |
+| `deploy-dev-policy.json`, `deploy-prod-policy.json` | deploy-dev, deploy-prod | Unused since 2026-10-15; EKS access removed 2026-10-18 (#151, applied). `eks:DescribeCluster`, `ecr:DescribeImages`, `acm:ListCertificates`, and `secretsmanager:DescribeSecret` on the API key secret |
 
 The ECR push role trusts only `refs/heads/main` and `refs/heads/dev` with audience `sts.amazonaws.com`. Its policy is not tracked here.
 

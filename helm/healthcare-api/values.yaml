@@ -1,5 +1,5 @@
 # Base values. Environment files (values-dev.yaml, values-prod.yaml) override host, sizing and the
-# image tag and digest, which cd.yml updates by pull request after each build.
+# image tag and digest, which cd.yml (bump-image) commits straight to dev after each build.
 # Values that depend on the AWS account are NOT set in Git: Argo CD receives them as Application
 # parameters from terraform/cluster-addons (image.repository, ingress.certificateArn,
 # networkPolicy.vpcCidr, ingress.projectTag, env.apiKeySecretName). Argo CD deploys; CI does not.
@@ -8,8 +8,8 @@ replicaCount: 2
 
 image:
   repository: "" # required, an Argo CD Application parameter from Terraform
-  tag: "" # required, the commit SHA, set by the cd.yml pull request
-  digest: "" # set by the cd.yml pull request (sha256:...); when set the image is pulled by digest, the tag stays as a label
+  tag: "" # required, the commit SHA, set by cd.yml bump-image
+  digest: "" # set by cd.yml bump-image (sha256:...); when set the image is pulled by digest, the tag stays as a label
   pullPolicy: Always
 
 containerPort: 8080

@@ -23,8 +23,9 @@ Everything under `docs/`, one line each. The project overview is in the [top-lev
 - [improvement-log.md](security/improvement-log.md): one entry per security change (SEC IDs), with before and after evidence.
 - [triage-process.md](security/triage-process.md): how a finding is fixed, accepted or deferred.
 - [prowler-triage.md](security/prowler-triage.md): the 2026-10-10 Prowler scan, triaged.
+- [talk/presentation.md](security/talk/presentation.md): the 10-slide executive presentation, with speaker notes and sources.
 - [talk/presentation-facts.md](security/talk/presentation-facts.md): the facts behind the presentation, each with its source.
 - Raw scan output: [`evidence/security/`](../evidence/security/).
 
 ## Cost
-- [budget.md](cost/budget.md): the $75 budget, its tag scope, observed spend and estimates.
+- [budget.md](cost/budget.md): pod inventory, measured spend, the run-rate estimate, cost levers and the $75 budget.

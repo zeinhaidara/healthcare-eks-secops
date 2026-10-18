@@ -1,10 +1,10 @@
 # Security controls
 
-What protects the system, and how we know. Controls are HIPAA-aligned, not HIPAA-compliant. Data is synthetic only.
+What protects the system, and how we know. Data is synthetic only. No compliance claim is made.
 
 - **Status:** **Live** (in the repo, with evidence), **Manual** (set by hand in GitHub or AWS, see [bootstrap.md](../bootstrap.md)), **Planned** (not built) or **Not enforced**.
 - **ID:** SEC entries are logged changes ([improvement-log.md](improvement-log.md)). EXC entries are accepted risks ([exceptions-register.md](exceptions-register.md)).
-- **Evidence:** a saved scan under `evidence/security/`, a result in a SEC entry, or a check that runs on every PR. Code that passes a scan does not prove a resource is running today; the stack is destroyed after each session.
+- **Evidence:** a saved scan under `evidence/security/`, a result in a SEC entry, or a check that runs on every PR. Code that passes a scan does not prove a resource is running today.
 
 ## 1. Repo
 
@@ -12,7 +12,7 @@ What protects the system, and how we know. Controls are HIPAA-aligned, not HIPAA
 |---|---|---|---|
 | Branch flow `feature/*` to `dev` to `main`, merge commits only | Manual | SEC-009, EXC-003 | `main` and `dev` rulesets |
 | `main`: PR with 0 approvals, no force push, no deletion, 10 required checks, CodeQL rule | Manual | SEC-009, SEC-010, EXC-003 | `main` ruleset; list in [bootstrap.md](../bootstrap.md) |
-| `dev`: PR with 0 approvals, no force push, no deletion | Manual | EXC-003 | `dev` ruleset |
+| `dev`: no force push, no deletion; no PR or checks required | Manual | EXC-003 | `dev` ruleset |
 | Code owners named (review not required) | Live | none | `.github/CODEOWNERS` |
 | Dependabot weekly for pip, Docker and Actions | Live | none | `.github/dependabot.yml` |
 | No secrets in Git: ignore rules, Trivy secret scan, gitleaks over full history | Live | SEC-000, SEC-012 | `.gitignore`, `security/trivy/trivy.yaml`, `.gitleaks.toml`; `evidence/security/trivy/` |
@@ -118,13 +118,15 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 
 | Control | Status | ID | Evidence and source |
 |---|---|---|---|
-| $75 monthly budget, 4 alerts, filtered to `Project=cloudbatch818` | Live | SEC-038, SEC-041 | [budget.md](../cost/budget.md) |
+| $75 monthly budget, 4 alerts, filtered to `Project=cloudbatch818` | Live | SEC-038, SEC-041 | [budget.md](../cost/budget.md); the always-on run rate is above it (estimated) |
 | Alert recipient receives alerts | Not verified | SEC-038 | No alert recorded |
-| Destroy the stack after every session | Manual | EXC-013 | `terraform-destroy.yml` |
+| Destroy the stack between uses | Not done | EXC-013 | `terraform-destroy.yml` has never run (checked 2026-10-18) |
 
 ## Open items
 
 1. **Apply role is cluster admin (EXC-006).** Anyone who gets an `infra` job approved acts as cluster admin. Planned fix, not scheduled: namespace-scoped policies plus a narrow role for the add-ons root.
 2. **Argo CD server NetworkPolicy allows ingress from anywhere.** The chart default. Known gap.
-3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed in this PR. The IAM roles remain until deleted by hand.
-4. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the live cluster, and whether patient fields are ever logged.
+3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed 2026-10-18 (#151, applied). The IAM roles remain until deleted by hand.
+4. **The stack has never been destroyed.** EXC-005, EXC-012 and EXC-013 cite the session destroy as a compensating control, but `terraform-destroy.yml` has no runs. The owner should review those three rows.
+5. **Operator user:** a long-lived access key and no MFA (Prowler N2).
+6. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the live cluster, and whether patient fields are ever logged.
