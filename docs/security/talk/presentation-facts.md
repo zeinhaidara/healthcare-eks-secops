@@ -55,7 +55,7 @@ One fact per line, with its source. **GAP** marks anything not confirmed. No acc
 - **tflint:** 0 issues. **pip-audit:** no known vulnerabilities (both report only).
 - **securitycontext-check** blocks `runAsGroup` without `runAsUser`, the setting that hung an Argo CD apply on Fargate (`scripts/check_run_as_user.py`).
 - **Tests:** app pytest 126 passed, Lambda 13 passed (run 39098252945).
-- **OWASP ZAP** (report only, weekly on dev): baseline High 0 to 0, Medium 1 to 0, Low 5 to 1 and Informational 4 to 4 after the header fixes (`docs/runbooks/security-scans.md:29-40`).
+- **OWASP ZAP** (report only, scheduled weekly on dev; so far run by hand, baseline only, 2026-10-17): baseline High 0 to 0, Medium 1 to 0, Low 5 to 1 and Informational 4 to 4 after the header fixes (`docs/runbooks/security-scans.md:29-40`).
 
 ## Bucket incident (SEC-037, 2026-10-10)
 

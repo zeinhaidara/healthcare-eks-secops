@@ -82,12 +82,12 @@ Speaker rules:
 
 **Headline:** We attack and audit the live system too, and we write down what we find
 
-- OWASP ZAP scans dev weekly: Medium findings went from 1 to 0, High stayed at 0
+- OWASP ZAP baseline on dev: Medium findings went from 1 to 0, High stayed at 0
 - Prowler (2026-10-10): 43 of 2,019 failures were ours, all triaged
 - GuardDuty and Security Hub watch the account and cluster
 - SEC-037: detected, diagnosed, repaired, guarded
 
-**Notes (60 s):** We also test what is running. ZAP is an attack tool that scans dev every week. After we fixed our security headers, the Medium finding went away. Prowler audited the whole shared account on October tenth. Forty-three failures were on our resources, and each is triaged. And we had a real incident. A Terraform apply stripped the security settings from our audit log buckets. The failed apply exposed it, and GuardDuty recorded it. Nothing was made public. We found the cause, repaired it the same day, and added a guard that now blocks that kind of plan. No alert fired, because alert delivery is not built yet.
+**Notes (60 s):** We also test what is running. ZAP is an attack tool. We ran its baseline scan on dev, and it is scheduled weekly. After we fixed our security headers, the Medium finding went away. Prowler audited the whole shared account on October tenth. Forty-three failures were on our resources, and each is triaged. And we had a real incident. A Terraform apply stripped the security settings from our audit log buckets. The failed apply exposed it, and GuardDuty recorded it. Nothing was made public. We found the cause, repaired it the same day, and added a guard that now blocks that kind of plan. No alert fired, because alert delivery is not built yet.
 
 **Proof:** ZAP (`docs/runbooks/security-scans.md:29-40`); Prowler (`docs/security/prowler-triage.md:15,25-31`); SEC-037 (`improvement-log.md:434-477`, GuardDuty at `:467-472`).
 **Visual:** ZAP before and after chart; Prowler callout; a four-step SEC-037 timeline.
@@ -117,7 +117,7 @@ Speaker rules:
 - One KMS key encrypts data, secrets, images and logs
 - The API key rotates every 30 days; flow logs are kept 365 days
 
-**Notes (55 s):** One network across two zones. The app runs on Fargate in private subnets, so there are no servers to patch. Traffic comes in through load balancers that only speak HTTPS. Outbound traffic leaves through one NAT gateway, a cost choice. One encryption key protects the database, the secrets, the images and the logs. The API key lives in Secrets Manager, and a small function replaces it every thirty days. Flow logs and CloudTrail record what happens.
+**Notes (55 s):** One network across two zones. The app runs on Fargate in private subnets, so there are no servers to patch. Traffic comes in through load balancers that serve HTTPS and redirect plain HTTP. Outbound traffic leaves through one NAT gateway, a cost choice. One encryption key protects the database, the secrets, the images and the logs. The API key lives in Secrets Manager, and a small function replaces it every thirty days. Flow logs and CloudTrail record what happens.
 
 **Proof:** `terraform/modules/network/main.tf:29-70,109-152`; `terraform/modules/eks/main.tf:38-62`; `terraform/modules/kms/main.tf:100-103`; `terraform/modules/secrets/variables.tf:20-22`; `terraform/modules/detective/main.tf:186-193`.
 **Visual:** the AWS diagram from `docs/architecture.md`.
@@ -172,7 +172,7 @@ Speaker rules:
 
 ## Appendix
 
-**A. Tool matrix:** the table on slide 3, plus ZAP (weekly, report only), Prowler (manual, 2026-10-10), GuardDuty and Security Hub (runtime).
+**A. Tool matrix:** the table on slide 3, plus ZAP (scheduled weekly, so far run by hand, report only), Prowler (manual, 2026-10-10), GuardDuty and Security Hub (runtime).
 
 **B. Risk register:** 16 accepted risks (EXC-001 to EXC-016), EXC-007 closed, all owned by the single maintainer, expiring April 2027. EXC-005, EXC-012 and EXC-013 cite a destroy that has not run.
 

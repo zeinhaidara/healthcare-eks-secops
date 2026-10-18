@@ -12,11 +12,7 @@ Rotation Lambda: `cloudbatch818-zein-hcsecops-rotate-api-key`, every 30 days. It
 ## After a rotation
 
 1. Read the new value: Secrets Manager console, the secret, Retrieve secret value.
-2. Restart the pods in each namespace:
-   ```sh
-   kubectl rollout restart deployment/healthcare-api -n cloudbatch818-healthcare-dev
-   kubectl rollout restart deployment/healthcare-api -n cloudbatch818-healthcare-prod
-   ```
+2. Restart the pods in each namespace. As an Argo CD admin: open `healthcare-api-dev`, then the Deployment, then Actions, Restart; repeat for prod (unverified on this cluster). The operator's view access cannot run `kubectl rollout restart`, and the apply role is assumable only from GitHub Actions.
 3. Check `/ready` returns 200 and `/patients` works with the new key.
 
 ## If a rotation fails
