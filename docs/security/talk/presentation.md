@@ -70,11 +70,11 @@ Speaker rules:
 - GitOps since 2026-10-15: Argo CD pulls from Git
 - Dev syncs automatically; prod syncs only after an admin approves
 - Sign-in is GitHub SSO only; the local admin login is off
-- Three named users; everyone else sees nothing
+- Three named users: one admin, two read-only. Everyone else sees nothing
 
-**Notes (50 s):** We moved to GitOps on October fifteenth. Argo CD runs inside the cluster. It watches Git and makes the cluster match. The pipeline never touches the cluster. Dev updates itself. Prod never changes by itself: an admin reviews the difference and clicks sync. Signing in uses GitHub. There is no shared admin password. Roles come from GitHub usernames, and anyone not named sees nothing.
+**Notes (50 s):** We moved to GitOps on October fifteenth. Argo CD runs inside the cluster. It watches Git and makes the cluster match. The pipeline never touches the cluster. Dev updates itself. Prod never changes by itself: an admin reviews the difference and clicks sync. Signing in uses GitHub. There is no shared admin password. Roles come from GitHub usernames: one admin and two read-only users. Anyone not named sees nothing.
 
-**Proof:** commit `2873e2c`; `applications.yaml:30-35`; admin off and default role none (`terraform/cluster-addons/main.tf:170,188`).
+**Proof:** commit `2873e2c`; `applications.yaml:30-35`; admin off and default role none (`terraform/cluster-addons/main.tf:170,188`); users (`variables.tf:98-106`).
 **Visual:** Git, then Argo CD in the cluster, then dev (auto) and prod (admin gate); a side card for SSO and RBAC.
 **If longer:** the prod OutOfSync diff in the Argo UI.
 
@@ -82,7 +82,7 @@ Speaker rules:
 
 **Headline:** We attack and audit the live system too, and we write down what we find
 
-- OWASP ZAP scans dev weekly: Medium findings went from 1 to 0
+- OWASP ZAP scans dev weekly: Medium findings went from 1 to 0, High stayed at 0
 - Prowler (2026-10-10): 43 of 2,019 failures were ours, all triaged
 - GuardDuty and Security Hub watch the account and cluster
 - SEC-037: detected, diagnosed, repaired, guarded
@@ -95,16 +95,16 @@ Speaker rules:
 
 ## 6. Infrastructure as code
 
-**Headline:** The whole environment is code, and it can be torn down and rebuilt with one manual workflow
+**Headline:** Defined entirely as code. Teardown and rebuild are one workflow each, plus a short list of documented manual steps
 
 - Two Terraform roots, built from reusable modules
 - A read-only plan, then a person approves the apply
 - A guard fails any plan that deletes a bucket, key or table
-- The destroy workflow exists; it has not been run yet
+- Manual steps: two secrets, the API key value, the dev and prod DNS aliases
 
-**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One manual workflow can tear everything down. We have not run it yet, so a full rebuild is still to be proven.
+**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases. We have not run the teardown yet, so a full drill is still to come.
 
-**Proof:** `.github/workflows/terraform-apply.yml:32,93,131,172`; guard (`:67-71`); `terraform-destroy.yml:32`, no runs (checked 2026-10-18).
+**Proof:** `.github/workflows/terraform-apply.yml:32,93,131,172`; guard (`:67-71`); `terraform-destroy.yml:32`, no runs (checked 2026-10-18); manual steps (`docs/bootstrap.md`, Manual steps around a rebuild).
 **Visual:** plan, guard, approval, apply, add-ons; a side loop "destroy, then rebuild".
 **If longer:** a plan summary and the guard's failure message.
 
@@ -162,7 +162,7 @@ Speaker rules:
 - Prowler N1 to N8 are proposals, not yet registered
 - Ask: choose the cost model; add a second reviewer
 
-**Notes (55 s):** Here is what is not done. The always-on run rate is above our budget, and we have not confirmed that alerts reach anyone. The role that applies Terraform is a full cluster admin. That is accepted, with an owner and an expiry. The operator's user has a long-lived key and no MFA. Prowler raised eight new items we have not registered yet. Next, we wire up alerts, close the Prowler items and narrow the apply role. Two asks. Decide the cost model: destroy between uses, or fund the always-on cost. And give us a second reviewer, so merges are reviewed by a person, not only gated by checks.
+**Notes (55 s):** Here is what is not done. The always-on run rate is above our budget, and we have not confirmed that alerts reach anyone. The role that applies Terraform is a full cluster admin. That is accepted, with an owner and an expiry. The operator's user has a long-lived key and no MFA. Prowler raised eight new items we have not registered yet. Next, we wire up alerts, run a destroy and rebuild drill, close the Prowler items and narrow the apply role. Two asks. Decide the cost model: destroy between uses, or fund the always-on cost. And give us a second reviewer, so merges are reviewed by a person, not only gated by checks.
 
 **Proof:** `docs/security/controls.md` (open items); `prowler-triage.md:163-174`; `exceptions-register.md`.
 **Visual:** three columns: known gaps, next, the ask.
@@ -191,4 +191,5 @@ Speaker rules:
 9. **How many people does this need?** One maintainer runs it today. A second reviewer is our ask, so changes get human review.
 10. **Does it scale?** Pods run on Fargate, so there are no servers to add or patch. Scaling has not been load-tested.
 11. **What was the DNS mix-up?** The prod hostname first pointed at the dev load balancer (SEC-033). An HTTPS check caught it, and it was repointed. Nothing checks it automatically yet.
-12. **Was any data exposed in the bucket incident?** No. All three GuardDuty findings showed NOT_PUBLIC, and the settings were restored the same day (SEC-037).
+12. **What happened to the Prowler highs?** Of the 15 high results on our resources (2026-10-10), 3 are covered by existing register entries and 2 are deferred to planned work. The other 10 are new items, N1 to N8, proposed but not yet in the register.
+13. **Was any data exposed in the bucket incident?** No. All three GuardDuty findings showed NOT_PUBLIC, and the settings were restored the same day (SEC-037).

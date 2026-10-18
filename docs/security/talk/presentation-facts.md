@@ -29,14 +29,15 @@ One fact per line, with its source. **GAP** marks anything not confirmed. No acc
 - There is no independent reviewer. The single maintainer is the only required reviewer, self-review is allowed and admins can bypass (EXC-003).
 - Terraform runs only by manual dispatch with no inputs; `tf-apply` applies the plan that `tf-plan` produced (SEC-004, SEC-016).
 - The destructive plan guard fails `tf-plan` on a delete or replace of an S3 bucket, KMS key or DynamoDB table, and fails closed (SEC-037).
-- `terraform-destroy.yml` can tear the stack down with one manual workflow. It has never been run (checked 2026-10-18).
+- Teardown is one manual workflow (`terraform-destroy.yml`) and rebuild is one (`terraform-apply.yml`). The destroy has never been run (checked 2026-10-18).
+- Manual steps around a rebuild: the GitHub App key secret and the Argo CD SSO secret, the API key value, and the dev and prod DNS alias records (`docs/bootstrap.md`, Manual steps around a rebuild).
 
 ## Access
 
 - CI uses GitHub OIDC; no long-lived AWS keys are stored in GitHub (SEC-011).
 - The plan role is read-only with no cluster access (SEC-019, SEC-037).
 - The apply role has project-scoped write and is EKS cluster admin, behind a self-review gate on `infra` and `infra-destroy` (EXC-006).
-- Argo CD sign-in is GitHub SSO only: admin login off, default role none, three named users (`terraform/cluster-addons/main.tf:170,188`).
+- Argo CD sign-in is GitHub SSO only: admin login off, default role none, three named users: one admin, two read-only (`terraform/cluster-addons/main.tf:170,188`, `variables.tf:98-106`).
 - The operator's break-glass read of `argocd` (Secrets included) was removed (#146). The operator keeps cluster-wide view only (SEC-029).
 - The deploy roles are unused since 2026-10-15; their EKS access was removed 2026-10-18 (#151, applied). The IAM roles remain until deleted by hand.
 - **GAP:** the operator IAM user has a long-lived access key and no MFA (SEC-029, Prowler N2).
@@ -54,7 +55,7 @@ One fact per line, with its source. **GAP** marks anything not confirmed. No acc
 - **tflint:** 0 issues. **pip-audit:** no known vulnerabilities (both report only).
 - **securitycontext-check** blocks `runAsGroup` without `runAsUser`, the setting that hung an Argo CD apply on Fargate (`scripts/check_run_as_user.py`).
 - **Tests:** app pytest 126 passed, Lambda 13 passed (run 39098252945).
-- **OWASP ZAP** (report only, weekly on dev): baseline Medium 1 to 0 and Low 5 to 1 after the header fixes (`docs/runbooks/security-scans.md:29-40`).
+- **OWASP ZAP** (report only, weekly on dev): baseline High 0 to 0, Medium 1 to 0, Low 5 to 1 and Informational 4 to 4 after the header fixes (`docs/runbooks/security-scans.md:29-40`).
 
 ## Bucket incident (SEC-037, 2026-10-10)
 
@@ -68,6 +69,8 @@ One fact per line, with its source. **GAP** marks anything not confirmed. No acc
 
 - 2,019 FAIL results across the shared account; 43 on this project: 0 critical, 15 high, 17 medium, 11 low (`docs/security/prowler-triage.md`).
 - Every critical finding is on another team's resource or an account-level setting.
+- Dispositions of the 58 critical and high checks: 3 covered by the register, 3 expected and deferred, 10 new, 32 out of scope (other workload), 10 out of scope (account owner) (`prowler-triage.md:160`).
+- The 15 high results on this project: 3 covered by existing register entries, 2 expected and deferred to planned work, 10 new (N1 to N8) (`prowler-triage.md:100-159`).
 - Eight new items, N1 to N8, are proposed and not yet in the register. They include operator MFA (N2) and EKS deletion protection (N5).
 - The scan covered us-east-2 and global checks only, as the read-only operator.
 
@@ -90,7 +93,7 @@ One fact per line, with its source. **GAP** marks anything not confirmed. No acc
 ## Built, next, planned
 
 - **Built:** VPC with flow logs, EKS on Fargate, ECR, DynamoDB, Secrets Manager with rotation, KMS, CloudTrail, GuardDuty, Security Hub, OIDC CI/CD with scan gates, GitOps with Argo CD, the destructive plan guard, a tagged budget (SEC-001 to SEC-041).
-- **Next:** Prowler items N1 to N8, alert delivery, a DNS alias check (SEC-033), the `sns_topic_name` drift fix (SEC-037).
+- **Next:** Prowler items N1 to N8, alert delivery, a destroy and rebuild drill, a DNS alias check (SEC-033), the `sns_topic_name` drift fix (SEC-037).
 - **Planned:** AWS Config, WAF, Inspector, alarms and an incident simulation.
 
 ## Honest answers

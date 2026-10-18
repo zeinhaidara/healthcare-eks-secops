@@ -36,3 +36,11 @@ Terraform creates the API key secret empty, so the key never enters state. Set i
 Until it is set, pods stay not-ready (`/ready` returns 503). A destroy deletes the secret at once (recovery window 0), so set it again after any rebuild. Rotation is in [rotation.md](runbooks/rotation.md).
 
 Then check the cluster with [cluster-access.md](runbooks/cluster-access.md) and Argo CD with [argocd.md](runbooks/argocd.md).
+
+## Manual steps around a rebuild
+
+Terraform does not do these. Do them in order around `terraform-apply`:
+
+1. Before the add-ons apply: the GitHub App key secret and the Argo CD SSO secret exist in Secrets Manager ([argocd.md](runbooks/argocd.md)).
+2. After the apply: set the API key value (above).
+3. After the ALBs exist: point the `dev` and `prod` DNS alias records at each environment's own ALB. Check each hostname reaches the right ALB (SEC-033).
