@@ -28,7 +28,7 @@ One fact per line, each with its source: a SEC or EXC ID, or a file or setting w
 - CI uses GitHub OIDC; no long-lived AWS keys are stored in GitHub (SEC-011, `docs/bootstrap.md`).
 - The plan role is read-only and has no cluster access (SEC-019, SEC-037, `docs/bootstrap-policies/plan-policy.json`).
 - The apply role has project-scoped write and is EKS cluster admin, behind a self-review gate on the `infra` and `infra-destroy` environments (EXC-006, SEC-019).
-- The two deploy roles (namespace-scoped `AmazonEKSEditPolicy`) are unused since the move to Argo CD and still to be removed (SEC-019).
+- The two deploy roles are unused since 2026-10-15; EKS access removed in this PR. The IAM roles are still to be deleted by hand (SEC-019).
 - The operator has `AmazonEKSViewPolicy` at cluster scope and read-only AWS access (SEC-029).
 - The operator IAM user has a long-lived access key (SEC-029 residual risk) and no MFA (Prowler triage N2; no SEC ID yet).
 - The EKS API endpoint is public (0.0.0.0/0) and private, because GitHub-hosted runners need it; authentication is by access entries only, with no creator admin (EXC-005, SEC-018).

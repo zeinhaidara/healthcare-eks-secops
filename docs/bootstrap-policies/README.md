@@ -6,7 +6,7 @@ IAM policies for the CI roles. They are applied by hand. Terraform and the workf
 |---|---|---|
 | `plan-policy.json` | plan | Read-only. Includes `LogBucketHead` (`s3:ListBucket` on the log buckets, SEC-037), `budgets:ListTagsForResource` (SEC-020) and `RefreshSeededPatientItems` (`dynamodb:GetItem` on the patients table only) |
 | `apply-policy.json` | apply | Project-scoped write. Includes `SecretsGithubAppRead` (metadata of the Argo CD GitHub App secret, not its value) |
-| `deploy-dev-policy.json`, `deploy-prod-policy.json` | deploy-dev, deploy-prod | Unused since the move to Argo CD. `eks:DescribeCluster`, `ecr:DescribeImages`, `acm:ListCertificates`, and `secretsmanager:DescribeSecret` on the API key secret |
+| `deploy-dev-policy.json`, `deploy-prod-policy.json` | deploy-dev, deploy-prod | Unused since 2026-10-15; EKS access removed in this PR. `eks:DescribeCluster`, `ecr:DescribeImages`, `acm:ListCertificates`, and `secretsmanager:DescribeSecret` on the API key secret |
 
 The ECR push role trusts only `refs/heads/main` and `refs/heads/dev` with audience `sts.amazonaws.com`. Its policy is not tracked here.
 
@@ -41,7 +41,7 @@ Action wildcards on `Resource: "*"`, limited to us-east-2 by condition. Owner: M
 | RegionalServices | `guardduty:*`, `inspector2:*`, `securityhub:*`, `config:*`, `cloudtrail:*`, `wafv2:*` | Security services, mostly account-level | Enable and configure actions only |
 | IamRead, Route53Read | `iam:Get*`, `iam:List*`, Route 53 list and get | Provider reads | Keep, read-only |
 | ServiceLinkedRoles | `iam:CreateServiceLinkedRole` | Conditioned on a fixed service list | Prune unused services |
-| deploy roles | `acm:ListCertificates` | Cannot be resource-scoped | Remove with the unused roles |
+| deploy roles | `acm:ListCertificates` | Cannot be resource-scoped | Remove with the roles, which are unused since 2026-10-15 |
 
 ## Load Balancer Controller policy
 
