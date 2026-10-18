@@ -1,3 +1,4 @@
+// The .pptx is the master copy; rebuilding without the pptx skill folder in SKILL_DIR loses the theme colors.
 // Builds the executive deck from docs/security/talk/presentation-facts.md figures. Usage: NODE_PATH=<pptxgenjs install> node scripts/build_exec_deck.js presentation/healthcare-eks-secops-exec.pptx
 const path = require("path");
 const pptxgen = require("pptxgenjs");
@@ -242,8 +243,7 @@ s = slide("CONTENT", S.main,
   "Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. " +
   "Each run starts with a plan made by a role that can only read. A person approves the apply. " +
   "A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. " +
-  "One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases. " +
-  "We have not run the teardown yet, so a full drill is still to come.");
+  "One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.");
 const fl = [["Plan", "Read-only role", CARD, SLATE], ["Guard", "Blocks deleting a bucket, key or table", AMBER_T, AMBER],
   ["Approve", "A person approves the run", CARD, SLATE], ["Apply", "Applies the planned changes", TEAL_T, TEAL],
   ["Add-ons", "The second Terraform root", TEAL_T, TEAL]];
@@ -263,8 +263,7 @@ txt(s, "Destroy", { x: 8.55, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: 
 box(s, 10.75, 4.35, 1.7, 0.75, "FFFFFF", LINE);
 txt(s, "Rebuild", { x: 10.75, y: 4.35, w: 1.7, h: 0.75, align: "center", valign: "middle", fontSize: 15, bold: true });
 arrow(s, 10.3, 4.73, 0.4);
-txt(s, [{ text: "One workflow each, behind approvals.", options: { breakLine: true } },
-  { text: "Teardown never run yet (checked 2026-10-18).", options: { bold: true, color: AMBER } }],
+txt(s, [{ text: "One workflow each, behind approvals.", options: {} }],
 { x: 8.45, y: 5.25, w: 4.15, h: 0.85, fontSize: 15 });
 
 // ---------- 7. Layout ----------

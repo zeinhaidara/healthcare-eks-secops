@@ -102,7 +102,7 @@ Speaker rules:
 - A guard fails any plan that deletes a bucket, key or table
 - Manual steps: two secrets, the API key value, the dev and prod DNS aliases
 
-**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases. We have not run the teardown yet, so a full drill is still to come.
+**Notes (50 s):** Nothing is built by clicking. It is all Terraform, in two parts: the base cloud resources and the cluster add-ons. Each run starts with a plan made by a role that can only read. A person approves the apply. A guard stops any plan that would delete storage, an encryption key or the database. That guard came from the incident. One workflow tears everything down and one builds it back. A few steps stay manual, and they are written down: the GitHub App key secret, the Argo CD sign-in secret, the API key value, and the dev and prod DNS aliases.
 
 **Proof:** `.github/workflows/terraform-apply.yml:32,93,131,172`; guard (`:67-71`); `terraform-destroy.yml:32`, no runs (checked 2026-10-18); manual steps (`docs/bootstrap.md`, Manual steps around a rebuild).
 **Visual:** plan, guard, approval, apply, add-ons; a side loop "destroy, then rebuild".
