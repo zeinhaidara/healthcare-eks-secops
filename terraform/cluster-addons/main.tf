@@ -424,6 +424,12 @@ resource "helm_release" "argocd_apps" {
     }
   })]
 
+  # The chart ignores this value. It changes with any chart file, so template edits trigger an upgrade.
+  set = [{
+    name  = "chartHash"
+    value = sha256(join("", [for f in sort(fileset("${path.module}/charts/argocd-apps", "**")) : "${f}:${filesha256("${path.module}/charts/argocd-apps/${f}")}"]))
+  }]
+
   depends_on = [
     helm_release.argocd,
     kubernetes_namespace_v1.app,
