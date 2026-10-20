@@ -1,0 +1,107 @@
+name: terraform-force-unlock
+
+# Manual only. Releases a lock left behind by a cancelled run. Approval on infra-destroy.
+on:
+  workflow_dispatch: # checkov:skip=CKV_GHA_7:EXC-017 the inputs only select a state and name its lock; they feed no build output. owner Moulaye, expires 2027-04-08.
+    inputs:
+      lock_id:
+        description: Lock ID printed in the error of the failed run
+        type: string
+        required: true
+      state:
+        description: Which state is locked
+        type: choice
+        required: true
+        options: [cluster-addons, root]
+
+permissions:
+  contents: read
+
+# Not the "terraform" group, so it can run while a stuck run holds that group.
+concurrency:
+  group: terraform-unlock
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: 1.16.5
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  unlock:
+    name: unlock
+    runs-on: ubuntu-latest
+    environment: infra-destroy
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+    env:
+      LOCK_ID: ${{ inputs.lock_id }}
+      STATE: ${{ inputs.state }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: 1 no terraform run is active
+        run: |
+          [[ "$LOCK_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::lock_id is not a UUID"; exit 1; }
+          active=""
+          for wf in terraform-apply.yml terraform-destroy.yml teardown-unblock.yml; do
+            for status in in_progress queued; do
+              runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/runs?status=$status" \
+                --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) started \(.run_started_at)"')
+              if [ -n "$runs" ]; then active="$active$runs"$'\n'; fi
+            done
+          done
+          if [ -n "$active" ]; then
+            echo "::error::These runs are still active. Cancel or wait for them first:"; echo "$active"; exit 1
+          fi
+          echo "No active terraform-apply, terraform-destroy or teardown-unblock runs"
+
+      - name: 2 check the lock
+        run: |
+          case "$STATE" in
+            cluster-addons) key=cluster-addons/terraform.tfstate ;;
+            root) key=main/terraform.tfstate ;;
+            *) echo "::error::Unknown state '$STATE'"; exit 1 ;;
+          esac
+          echo "key=$key" >> "$GITHUB_ENV"
+          echo "State object:"
+          aws s3api head-object --bucket "$TF_STATE_BUCKET" --key "$key" --query '{LastModified:LastModified,Size:ContentLength}' --output json
+          echo "Lock object:"
+          aws s3api head-object --bucket "$TF_STATE_BUCKET" --key "$key.tflock" --query '{LastModified:LastModified,Size:ContentLength}' --output json
+          # head-object does not return the body, which holds the lock ID.
+          aws s3api get-object --bucket "$TF_STATE_BUCKET" --key "$key.tflock" "$RUNNER_TEMP/lock.json" >/dev/null
+          found=$(jq -r '.ID' "$RUNNER_TEMP/lock.json")
+          echo "Lock ID: $found"
+          jq -r '"Created: \(.Created)  Who: \(.Who)  Operation: \(.Operation)"' "$RUNNER_TEMP/lock.json"
+          [ "$found" = "$LOCK_ID" ] || { echo "::error::Lock ID '$found' does not match the input '$LOCK_ID'"; exit 1; }
+
+      - name: 3 force-unlock
+        run: |
+          case "$STATE" in
+            cluster-addons) dir=terraform/cluster-addons ;;
+            root) dir=terraform ;;
+          esac
+          echo "dir=$dir" >> "$GITHUB_ENV"
+          terraform -chdir="$dir" init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}"
+          terraform -chdir="$dir" force-unlock -force "$LOCK_ID"
+
+      - name: 4 state list
+        run: terraform -chdir="$dir" state list
