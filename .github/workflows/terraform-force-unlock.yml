@@ -60,7 +60,7 @@ jobs:
         run: |
           [[ "$LOCK_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::lock_id is not a UUID"; exit 1; }
           active=""
-          for wf in terraform-apply.yml terraform-destroy.yml teardown-unblock.yml; do
+          for wf in terraform-apply.yml terraform-destroy.yml; do
             for status in in_progress queued; do
               runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/runs?status=$status" \
                 --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) started \(.run_started_at)"')
@@ -70,7 +70,7 @@ jobs:
           if [ -n "$active" ]; then
             echo "::error::These runs are still active. Cancel or wait for them first:"; echo "$active"; exit 1
           fi
-          echo "No active terraform-apply, terraform-destroy or teardown-unblock runs"
+          echo "No active terraform-apply or terraform-destroy runs"
 
       - name: 2 check the lock
         run: |

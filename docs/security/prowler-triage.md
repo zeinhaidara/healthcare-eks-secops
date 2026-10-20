@@ -2,6 +2,8 @@
 
 Triage of the first Prowler scan against the exceptions register and the improvement log. Plain facts for the findings report; no resource names, identities or account IDs.
 
+Status 2026-10-20: the stack was torn down, so the project resources behind N1 and N3 to N8 no longer exist and those items were not worked. N2 (the operator user's missing MFA) is not a Terraform resource and stays open until the user is removed.
+
 ## Scan
 
 | Item | Value |

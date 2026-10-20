@@ -1,12 +1,12 @@
 # Cost and budget
 
-Status at 2026-10-18. Every number is labelled **measured** (read from Cost Explorer by the owner), **estimated** (worked out here from sizes and list prices), or **unverified** (not confirmed).
+The stack was torn down on 2026-10-20 and the budget went with it. The figures below are the record from 2026-10-18, while it ran. Every number is labelled **measured** (read from Cost Explorer by the owner), **estimated** (worked out here from sizes and list prices), or **unverified** (not confirmed).
 
 ## Summary
 
 - Running all day, the stack costs about $11 a day, or about $335 a month (estimated).
 - Destroyed, it costs about $0.03 a day for the KMS key (estimated).
-- The $75 monthly budget is below the always-on run rate. Only destroying between uses keeps spend under it, and the destroy workflow has never run (checked 2026-10-18).
+- The $75 monthly budget was below the always-on run rate. Only destroying between uses keeps spend under it. The destroy first ran on 2026-10-20.
 - Budget alert delivery is unverified.
 
 ## What runs: 18 pods on Fargate
@@ -97,5 +97,5 @@ The filter works only while `Project` is an active cost allocation tag in Billin
 
 ## Rules
 
-- Destroy between uses with `terraform-destroy.yml` (`infra-destroy` approval). It has not been run yet.
+- Destroy between uses with `terraform-destroy.yml` (two `infra-destroy` approvals). It ran on 2026-10-20; see [teardown.md](../runbooks/teardown.md).
 - Recheck this page after a lever lands or a service is added.
