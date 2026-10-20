@@ -7,9 +7,11 @@ These jobs report. They never fail the build on a finding. Each has `contents: r
 | `ci.yml` / `tflint` | Both Terraform roots and every module, terraform and AWS rulesets | Every PR; pushes to `dev` and `main` | Job summary; artifact `tflint-report`, 14 days |
 | `ci.yml` / `kubescape` | Rendered `healthcare-api` (dev values) and Argo CD charts, NSA and `cis-v1.12.0`, files only | Same | Job summary; artifact `kubescape-reports`, 14 days |
 | `ci.yml` / `pip-audit` | Known vulnerabilities in `app/requirements.txt` | Same | Job summary |
-| `dast.yml` / `zap-baseline` | Passive scan of dev's public pages, no login, no attack traffic | Mondays 05:17 UTC; by hand (`baseline` or `all`) | Artifact `zap_scan` |
-| `dast.yml` / `zap-api` | Active scan of the endpoints in dev's `/openapi.json`; no API key, so keyed endpoints answer 403 | Wednesdays 05:17 UTC; by hand (`api` or `all`) | Artifact `zap_api_scan` |
-| `dast.yml` / `zap-full` | Spider plus active attack traffic against dev, 60-minute timeout | Sundays 02:37 UTC; by hand (`full` or `all`) | Artifact `zap_full_scan` |
+| `dast.yml` / `zap-baseline` | Passive scan of dev's public pages, no login, no attack traffic | By hand (`baseline` or `all`) | Artifact `zap_scan` |
+| `dast.yml` / `zap-api` | Active scan of the endpoints in dev's `/openapi.json`; no API key, so keyed endpoints answer 403 | By hand (`api` or `all`) | Artifact `zap_api_scan` |
+| `dast.yml` / `zap-full` | Spider plus active attack traffic against dev, 60-minute timeout | By hand (`full` or `all`) | Artifact `zap_full_scan` |
+
+The weekly schedule was removed on 2026-10-20, when the stack was torn down: dev no longer exists, so a scheduled scan would only fail.
 
 Gating scans (gitleaks, Trivy, Checkov, CodeQL, SonarCloud) are in [controls.md](../security/controls.md). Prowler stays manual; see [prowler-triage.md](../security/prowler-triage.md). There is no npm audit, because there is no frontend package file.
 
@@ -17,8 +19,8 @@ Gating scans (gitleaks, Trivy, Checkov, CodeQL, SonarCloud) are in [controls.md]
 
 - `dast.yml` has one concurrency group. With `all`, the three jobs run one after another, so two scans never hit dev at once.
 - The API and full jobs refuse a `DEV_BASE_URL` that names prod. Every job fails at once if it is empty or not an `http(s)://` URL.
-- Scheduled and manual `dast.yml` runs use the file on `main`, so a change starts after the release that carries it.
-- No scheduled ZAP run has happened yet (checked 2026-10-18). The two runs so far were baselines started by hand on 2026-10-17.
+- A manual run uses the file on the branch you pick.
+- Before the teardown, ZAP ran four times: two baselines by hand on 2026-10-17, a full scan by schedule on 2026-10-18 and a baseline by schedule on 2026-10-19. The API scan never ran. The results above are from the 2026-10-17 baselines; the scheduled runs' reports were not reviewed here.
 - ZAP artifacts follow the repository's default retention. Download what you want to keep.
 - To update ZAP, read the new version's digest from `ghcr.io/zaproxy/zaproxy` and change `docker_name` in all three jobs.
 - The Argo CD render uses `values/argocd.yaml` only. The ingress, Dex and RBAC values from `cluster-addons/main.tf` are not in it.

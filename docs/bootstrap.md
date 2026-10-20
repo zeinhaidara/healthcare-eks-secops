@@ -1,5 +1,7 @@
 # Bootstrap
 
+The stack was torn down on 2026-10-20. The CI roles and the state bucket described here were deleted the same day; [teardown.md](runbooks/teardown.md) lists what remains.
+
 One-time setup done by hand, outside Terraform. Terraform and the workflows only reference these through variables. Role ARNs, the account ID and the bucket name are never hardcoded.
 
 ## AWS, created by hand
@@ -18,7 +20,7 @@ One-time setup done by hand, outside Terraform. Terraform and the workflows only
 ## GitHub, set by hand
 
 - Environments `infra` and `infra-destroy`: one required reviewer (the maintainer), self-review allowed, admin bypass on, `main` only. Both hold `AWS_ROLE_ARN` (the apply role).
-- Environments `dev` and `prod` still exist but no job uses them since 2026-10-15. Their `AWS_ROLE_ARN` variables remain until removed by hand.
+- Environments `dev` and `prod` still exist but no job uses them since 2026-10-15. They hold only `ENVIRONMENT` and `K8S_NAMESPACE`; their `AWS_ROLE_ARN` variables were gone when checked on 2026-10-20.
 - `main` ruleset: PR required with 0 approvals (EXC-003), no force push, no deletion, merge commits only, a `code_scanning` rule for CodeQL, and 10 required checks: `app-build`, `app-checkov`, `app-image-scan`, `app-test-lint`, `app-trivy`, `tf-checkov`, `tf-validate`, `sonar`, `codeql`, `CodeQL`.
 - `dev` ruleset: no force push and no deletion only. No PR or checks are required, so `cd.yml` can push the image bump straight to `dev`.
 - SonarCloud: secret `SONAR_TOKEN`, variables `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION`. Without them `sonar` fails on purpose. The free plan enforces the gate on PRs only.

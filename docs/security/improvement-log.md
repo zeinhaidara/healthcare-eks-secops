@@ -547,3 +547,14 @@ Controls are described as HIPAA-aligned, never HIPAA compliant.
   - Raw CLI output: held outside the repo; not committed.
 - Outcome: open (close when the tag lookup evidence is added and the scoped spend is checked against Cost Explorer)
 - Control area: cost control, monitoring
+
+### SEC-042: Teardown turned off GuardDuty and Security Hub for the shared account
+- Date / PR: 2026-10-20 / `terraform-destroy.yml` run 39430619481
+- Source: post-teardown residue check (AWS API, read-only, 2026-10-20)
+- Risk: the detective module owned the account's only GuardDuty detector in us-east-2 (imported, not created by this project) and the Security Hub subscription. Destroying the stack removed both, so threat detection and posture findings are off for every workload in that region of the shared account, not only this project.
+- Before: one GuardDuty detector in us-east-2; Security Hub subscribed with FSBP (SEC-035).
+- Fix: none. Both are left off by decision: the project no longer runs, and turning them back on is the account owner's call.
+- After: `ListDetectors` returns no detectors in us-east-2; `DescribeHub` returns "not subscribed" (checked 2026-10-20).
+- Lesson: a project stack should not own an account-wide service in a shared account. Reference the detector, or keep it out of the project's state, so a destroy cannot remove it.
+- Outcome: accepted (left off by decision)
+- Control area: threat detection, audit logging

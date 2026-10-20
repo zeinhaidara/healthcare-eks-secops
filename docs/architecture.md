@@ -1,5 +1,7 @@
 # Architecture
 
+> Torn down on 2026-10-20. Hosted zone and domain retained by decision; see docs/runbooks/teardown.md.
+
 Five diagrams: traffic and workloads, data and logging, app delivery, infrastructure delivery, and access. Region us-east-2. Diagrams are Mermaid and render on GitHub. Status at 2026-10-18.
 
 ## 1. AWS stack
@@ -125,7 +127,7 @@ flowchart LR
     devbr -. "deploys from Git" .-> adev
     mainbr -. "deploys from Git" .-> aprod
 
-    dast["dast.yml: ZAP baseline, API and full; weekly or manual; dev only; report only"] -. "scans" .-> adev
+    dast["dast.yml: ZAP baseline, API and full; manual; dev only; report only"] -. "scans" .-> adev
 ```
 
 ### 2b. Infrastructure delivery
