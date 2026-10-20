@@ -61,7 +61,7 @@ jobs:
           kubectl get ingress -A -o json | jq -r '.items[] | select((.metadata.namespace=="cloudbatch818-healthcare-dev" or .metadata.namespace=="cloudbatch818-healthcare-prod") and .metadata.name=="healthcare-api" or (.metadata.namespace=="argocd" and .metadata.name=="argocd-server")) | "ingress \(.metadata.namespace)/\(.metadata.name) finalizers=\(.metadata.finalizers)"'
           for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod argocd; do
             kubectl get targetgroupbindings.elbv2.k8s.aws -n "$ns" -o json | jq -r '.items[] | "targetgroupbinding \(.metadata.namespace)/\(.metadata.name) finalizers=\(.metadata.finalizers)"'
-            kubectl get ns "$ns" -o jsonpath='namespace {.metadata.name} phase={.status.phase}{"\n"}'
+            echo "namespace $ns phase=$(kubectl get ns -o jsonpath="{.items[?(@.metadata.name=='$ns')].status.phase}")"
           done
 
       - name: 3 finalizers
@@ -133,8 +133,6 @@ jobs:
           while read -r arn name; do
             if [ "$(cluster_tag "$arn")" = "$EXPECTED_CLUSTER" ]; then echo "$arn $name" >> "$RUNNER_TEMP/albs"; fi
           done <<<"$all_albs"
-          found=$(awk '{print $2}' "$RUNNER_TEMP/albs" | sort | tr '\n' ' ')
-          want=$(tr ' ' '\n' <<<"$EXPECTED_ALBS" | sort | tr '\n' ' ')
           all_tgs=$(aws elbv2 describe-target-groups --query 'TargetGroups[].[TargetGroupArn,TargetGroupName,join(`,`,LoadBalancerArns)]' --output text)
           while read -r arn name lbs; do
             if [ "$(cluster_tag "$arn")" = "$EXPECTED_CLUSTER" ]; then echo "$arn $name $lbs" >> "$RUNNER_TEMP/tgs"; fi
@@ -144,9 +142,12 @@ jobs:
             --query 'SecurityGroups[].[GroupId,GroupName]' --output text > "$RUNNER_TEMP/sgs"
           echo "ALBs:"; cat "$RUNNER_TEMP/albs"; echo "Target groups:"; cat "$RUNNER_TEMP/tgs"; echo "Security groups:"; cat "$RUNNER_TEMP/sgs"
           bad=0
-          [ "$found" = "$want" ] || { echo "::error::ALB match differs. Found: $found Expected: $want"; bad=1; }
-          [ "$(wc -l < "$RUNNER_TEMP/tgs")" -eq 3 ] || { echo "::error::Expected 3 target groups"; bad=1; }
-          [ "$(wc -l < "$RUNNER_TEMP/sgs")" -eq 3 ] || { echo "::error::Expected 3 managed LB security groups"; bad=1; }
+          # A re-run after a partial failure finds fewer resources, never more or different ones.
+          while read -r _ name; do
+            grep -qw -- "$name" <<<"$EXPECTED_ALBS" || { echo "::error::ALB outside the expected list: $name"; bad=1; }
+          done < "$RUNNER_TEMP/albs"
+          [ "$(wc -l < "$RUNNER_TEMP/tgs")" -le 3 ] || { echo "::error::More than 3 target groups match"; bad=1; }
+          [ "$(wc -l < "$RUNNER_TEMP/sgs")" -le 3 ] || { echo "::error::More than 3 managed LB security groups match"; bad=1; }
           while read -r _ tgname lbs; do
             for lb in ${lbs//,/ }; do
               grep -q "^$lb " "$RUNNER_TEMP/albs" || { echo "::error::Target group $tgname is attached to a load balancer outside the list: $lb"; bad=1; }
@@ -162,6 +163,11 @@ jobs:
             echo "deleted ALB $name"
           done < "$RUNNER_TEMP/albs"
           while read -r arn name _; do
+            # Listener rules detach a moment after the load balancer is gone.
+            for _ in $(seq 36); do
+              if [ "$(aws elbv2 describe-target-groups --target-group-arns "$arn" --query 'length(TargetGroups[0].LoadBalancerArns)' --output text)" = "0" ]; then break; fi
+              sleep 5
+            done
             aws elbv2 delete-target-group --target-group-arn "$arn"
             echo "deleted target group $name"
           done < "$RUNNER_TEMP/tgs"
