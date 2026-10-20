@@ -2,7 +2,7 @@
 
 What protects the system, and how we know. Data is synthetic only. No compliance claim is made.
 
-- **Status:** **Live** (in the repo, with evidence), **Manual** (set by hand in GitHub or AWS, see [bootstrap.md](../bootstrap.md)), **Planned** (not built) or **Not enforced**.
+- **Status:** **Live** (in the repo, with evidence), **Torn down** (ran in AWS or the cluster until the stack was destroyed on 2026-10-20), **Manual** (set by hand in GitHub or AWS, see [bootstrap.md](../bootstrap.md)), **Planned** (not built) or **Not enforced**.
 - **ID:** SEC entries are logged changes ([improvement-log.md](improvement-log.md)). EXC entries are accepted risks ([exceptions-register.md](exceptions-register.md)).
 - **Evidence:** a saved scan under `evidence/security/`, a result in a SEC entry, or a check that runs on every PR. Code that passes a scan does not prove a resource is running today.
 
@@ -57,58 +57,58 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 | Providers constrained, lock files committed | Live | none | `.terraform.lock.hcl` in both roots |
 | Base image pinned by digest; runs as user 10001 | Live | SEC-030 | `app/Dockerfile` |
 | The scanned image is the one pushed | Live | SEC-012, SEC-031 | `cd.yml` jobs `build` and `push` |
-| ECR: immutable tags, scan on push, KMS, lifecycle | Live | none | `terraform/modules/ecr` |
+| ECR: immutable tags, scan on push, KMS, lifecycle | Torn down | none | `terraform/modules/ecr` |
 | Deploys pin the digest, not the tag | Live | SEC-031 | `cd.yml` `bump-image`; chart `deployment.yaml` |
 
 ## 5. Cluster and application
 
 | Control | Status | ID | Evidence and source |
 |---|---|---|---|
-| Argo CD: dev auto-sync with prune and self-heal; prod sync by hand; `AppProject` limits repo, namespaces and kinds, no cluster-scoped objects | Live | none | `terraform/cluster-addons/charts/argocd-apps/` |
-| Argo CD UI: GitHub sign-in only, RBAC by username, default `role:none`, admin login off | Live | none | `terraform/cluster-addons` (`argocd_rbac`, `helm_release.argocd`) |
-| Argo CD reads Git as a GitHub App; key synced by External Secrets from one secret | Live | none | `charts/argocd-repo-secret/`; [argocd.md](../runbooks/argocd.md) |
-| Pod hardening: non-root, read-only root FS, no escalation, no capabilities, seccomp, no token | Live | SEC-030 | Chart `deployment.yaml` |
-| Pod Security `restricted` enforced on both app namespaces | Live | SEC-030, SEC-032 | `terraform/cluster-addons/main.tf` |
+| Argo CD: dev auto-sync with prune and self-heal; prod sync by hand; `AppProject` limits repo, namespaces and kinds, no cluster-scoped objects | Torn down | none | `terraform/cluster-addons/charts/argocd-apps/` |
+| Argo CD UI: GitHub sign-in only, RBAC by username, default `role:none`, admin login off | Torn down | none | `terraform/cluster-addons` (`argocd_rbac`, `helm_release.argocd`) |
+| Argo CD reads Git as a GitHub App; key synced by External Secrets from one secret | Torn down | none | `charts/argocd-repo-secret/`; [argocd.md](../runbooks/argocd.md) |
+| Pod hardening: non-root, read-only root FS, no escalation, no capabilities, seccomp, no token | Torn down | SEC-030 | Chart `deployment.yaml` |
+| Pod Security `restricted` enforced on both app namespaces | Torn down | SEC-030, SEC-032 | `terraform/cluster-addons/main.tf` |
 | Pod Security rejection test saved as evidence | Planned | none | `evidence/security/podsecurity/` does not exist |
-| Per-namespace pod security groups via `SecurityGroupPolicy` | Live | SEC-021, SEC-032 | EXC-007 closure evidence |
+| Per-namespace pod security groups via `SecurityGroupPolicy` | Torn down | SEC-021, SEC-032 | EXC-007 closure evidence |
 | Kubernetes NetworkPolicy | Not enforced | SEC-021 | In the chart for intent; Fargate has no policy agent |
-| Pod disruption budget, min 1 | Live | none | Chart `poddisruptionbudget.yaml` |
+| Pod disruption budget, min 1 | Torn down | none | Chart `poddisruptionbudget.yaml` |
 | Horizontal autoscaling | Planned | none | Off in `values.yaml`; metrics-server is installed |
-| HTTPS only: ALB per environment, 80 redirects to 443, ACM | Live | SEC-033 | SEC-033 entry |
-| EKS API public and private, access entries only | Live | SEC-018, EXC-005 | `terraform/modules/eks` |
-| Read-only API, `x-api-key` compared in constant time, 403 without it | Live | SEC-022 | `app/tests/test_main.py` |
-| CSP (no inline scripts, `form-action 'self'`), nosniff, no-store, HSTS, Permissions-Policy, COOP, CORP | Live | none | `app/tests/test_page_security.py` |
+| HTTPS only: ALB per environment, 80 redirects to 443, ACM | Torn down | SEC-033 | SEC-033 entry |
+| EKS API public and private, access entries only | Torn down | SEC-018, EXC-005 | `terraform/modules/eks` |
+| Read-only API, `x-api-key` compared in constant time, 403 without it | Torn down | SEC-022 | `app/tests/test_main.py` |
+| CSP (no inline scripts, `form-action 'self'`), nosniff, no-store, HSTS, Permissions-Policy, COOP, CORP | Torn down | none | `app/tests/test_page_security.py` |
 | Cross-Origin-Embedder-Policy | Planned | none | [security-scans.md](../runbooks/security-scans.md) |
-| Logs hold request metadata only, never patient fields | Live | none | `app/src/main.py`; no test asserts it |
-| Synthetic data only; table tagged `DataClassification = synthetic` | Live | SEC-026, EXC-008 | `terraform/modules/dynamodb` |
+| Logs hold request metadata only, never patient fields | Torn down | none | `app/src/main.py`; no test asserts it |
+| Synthetic data only; table tagged `DataClassification = synthetic` | Torn down | SEC-026, EXC-008 | `terraform/modules/dynamodb` |
 
 ## 6. Infrastructure
 
 | Control | Status | ID | Evidence and source |
 |---|---|---|---|
-| One KMS key with rotation for table, secret, ECR, logs and trail | Live | SEC-005, EXC-001 | Checkov full scan; Prowler 2026-10-10 |
-| DynamoDB: KMS, point-in-time recovery; the app only reads | Live | SEC-022, SEC-023 | `terraform/modules/dynamodb` |
-| Seeded values hidden in plan output (`sensitive()`) | Live | SEC-025 | SEC-025 entry |
-| API key in Secrets Manager, set by hand, rotated every 30 days by a VPC Lambda with a DLQ | Live | SEC-003, SEC-027, EXC-002, EXC-009 | `terraform/modules/secrets`, `secret-rotation` |
-| Pods read only the table, the secret and the key, through IRSA | Live | none | `terraform/main.tf` |
-| VPC: pinned AZs, private pod subnets, one NAT, no public IP on launch | Live | SEC-001, EXC-015 | `terraform/modules/network` |
-| VPC flow logs, KMS, 365 days | Live | SEC-002 | `terraform/modules/network` |
-| EKS: Fargate only, secrets encryption, all control-plane logs, no creator admin | Live | SEC-018, SEC-019 | `terraform/modules/eks`; secrets encryption not checked on the live cluster |
-| Apply role is cluster admin | Live | EXC-006 | `terraform/main.tf` |
-| Operator: cluster-wide view only | Live | SEC-029 | [eks-operator-import.md](../runbooks/eks-operator-import.md); the user has a long-lived key and no MFA (Prowler N2) |
+| One KMS key with rotation for table, secret, ECR, logs and trail | Torn down | SEC-005, EXC-001 | Checkov full scan; Prowler 2026-10-10 |
+| DynamoDB: KMS, point-in-time recovery; the app only reads | Torn down | SEC-022, SEC-023 | `terraform/modules/dynamodb` |
+| Seeded values hidden in plan output (`sensitive()`) | Torn down | SEC-025 | SEC-025 entry |
+| API key in Secrets Manager, set by hand, rotated every 30 days by a VPC Lambda with a DLQ | Torn down | SEC-003, SEC-027, EXC-002, EXC-009 | `terraform/modules/secrets`, `secret-rotation` |
+| Pods read only the table, the secret and the key, through IRSA | Torn down | none | `terraform/main.tf` |
+| VPC: pinned AZs, private pod subnets, one NAT, no public IP on launch | Torn down | SEC-001, EXC-015 | `terraform/modules/network` |
+| VPC flow logs, KMS, 365 days | Torn down | SEC-002 | `terraform/modules/network` |
+| EKS: Fargate only, secrets encryption, all control-plane logs, no creator admin | Torn down | SEC-018, SEC-019 | `terraform/modules/eks`; secrets encryption not checked on the live cluster |
+| Apply role is cluster admin | Torn down | EXC-006 | `terraform/main.tf` |
+| Operator: cluster-wide view only | Torn down | SEC-029 | [eks-operator-import.md](../runbooks/eks-operator-import.md); the user has a long-lived key and no MFA (Prowler N2) |
 | Terraform state AES256, not KMS | Manual | EXC-008 | Bucket made by hand |
-| No `Action: *` in CI policies; wildcards listed with owner | Live | EXC-001, EXC-009 | [bootstrap-policies](../bootstrap-policies/README.md) |
+| No `Action: *` in CI policies; wildcards listed with owner | Torn down | EXC-001, EXC-009 | [bootstrap-policies](../bootstrap-policies/README.md) |
 
 ## 7. Detection
 
 | Control | Status | ID | Evidence and source |
 |---|---|---|---|
-| CloudTrail, single region, validation, KMS, to S3, CloudWatch Logs and SNS | Live | SEC-035, SEC-036, EXC-010 | Delivery confirmed 2026-10-10 (SEC-037) |
-| Trail and access-log buckets: private, versioned, TLS only, `force_destroy` | Live | SEC-036, EXC-012 to EXC-014 | `terraform/modules/detective` |
-| GuardDuty with S3 data events and EKS audit logs | Live | SEC-035, EXC-011 | SEC-037 findings |
-| Security Hub with FSBP | Live | SEC-035 | Needs AWS Config for control findings |
-| ZAP baseline of dev, scheduled weekly | Live | none | Run by hand 2026-10-17; result in [security-scans.md](../runbooks/security-scans.md). No scheduled run yet |
-| ZAP API and full scans of dev, scheduled weekly | Not run yet | none | Scheduled in `dast.yml`; never run (checked 2026-10-18) |
+| CloudTrail, single region, validation, KMS, to S3, CloudWatch Logs and SNS | Torn down | SEC-035, SEC-036, EXC-010 | Delivery confirmed 2026-10-10 (SEC-037) |
+| Trail and access-log buckets: private, versioned, TLS only, `force_destroy` | Torn down | SEC-036, EXC-012 to EXC-014 | `terraform/modules/detective` |
+| GuardDuty with S3 data events and EKS audit logs | Torn down | SEC-035, EXC-011 | SEC-037 findings |
+| Security Hub with FSBP | Torn down | SEC-035 | Needs AWS Config for control findings |
+| ZAP baseline and full scans of dev | Torn down | none | Baseline by hand 2026-10-17 and by schedule 2026-10-19; full by schedule 2026-10-18; see [security-scans.md](../runbooks/security-scans.md). Schedule removed 2026-10-20 |
+| ZAP API scan of dev | Never run | none | Never run before the teardown; schedule removed 2026-10-20 |
 | Prowler, one manual run 2026-10-10 | Manual | none | [prowler-triage.md](prowler-triage.md) |
 | Alert delivery (SNS subscriber), alarms, dashboards | Planned | none | Not in Terraform |
 | AWS Config, Inspector, WAF | Planned | none | Not in Terraform |
@@ -118,15 +118,15 @@ Runs on PRs to `main` and `dev` and pushes to both, with no path filter. The tok
 
 | Control | Status | ID | Evidence and source |
 |---|---|---|---|
-| $75 monthly budget, 4 alerts, filtered to `Project=cloudbatch818` | Live | SEC-038, SEC-041 | [budget.md](../cost/budget.md); the always-on run rate is above it (estimated) |
+| $75 monthly budget, 4 alerts, filtered to `Project=cloudbatch818` | Torn down | SEC-038, SEC-041 | [budget.md](../cost/budget.md); the always-on run rate is above it (estimated) |
 | Alert recipient receives alerts | Not verified | SEC-038 | No alert recorded |
-| Destroy the stack between uses | Not done | EXC-013 | `terraform-destroy.yml` has never run (checked 2026-10-18) |
+| Destroy the stack | Done 2026-10-20 | EXC-013 | `terraform-destroy.yml` run 39430619481; [teardown.md](../runbooks/teardown.md) |
 
 ## Open items
 
 1. **Apply role is cluster admin (EXC-006).** Anyone who gets an `infra` job approved acts as cluster admin. Planned fix, not scheduled: namespace-scoped policies plus a narrow role for the add-ons root.
 2. **Argo CD server NetworkPolicy allows ingress from anywhere.** The chart default. Known gap.
 3. **Unused deploy roles.** deploy-dev and deploy-prod are unused since 2026-10-15; EKS access removed 2026-10-18 (#151, applied). The IAM roles remain until deleted by hand.
-4. **The stack has never been destroyed.** EXC-005, EXC-012 and EXC-013 cite the session destroy as a compensating control, but `terraform-destroy.yml` has no runs. The owner should review those three rows.
+4. **Teardown side effect.** The destroy on 2026-10-20 also turned off GuardDuty and Security Hub in us-east-2 for the whole shared account. Both are left off by decision (SEC-042).
 5. **Operator user:** a long-lived access key and no MFA (Prowler N2).
-6. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the live cluster, and whether patient fields are ever logged.
+6. **Not verified:** role trust policies, the ecr-push policy, the state bucket settings, EKS secrets encryption on the cluster before the teardown, and whether patient fields are ever logged.

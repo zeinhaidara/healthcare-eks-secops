@@ -9,10 +9,6 @@ on:
         type: choice
         options: [baseline, api, full, all]
         default: baseline
-  schedule:
-    - cron: "17 5 * * 1" # baseline: Mondays, 05:17 UTC
-    - cron: "17 5 * * 3" # api: Wednesdays, 05:17 UTC
-    - cron: "37 2 * * 0" # full: Sundays, 02:37 UTC (off-hours)
 
 permissions:
   contents: read
@@ -26,9 +22,7 @@ jobs:
     name: zap-baseline
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: >-
-      (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 1') ||
-      (github.event_name == 'workflow_dispatch' && (inputs.scan == 'baseline' || inputs.scan == 'all'))
+    if: inputs.scan == 'baseline' || inputs.scan == 'all'
     steps:
       - name: Require the target URL
         env:
@@ -60,9 +54,7 @@ jobs:
     name: zap-api
     needs: zap-baseline
     if: >-
-      !cancelled() && (
-      (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 3') ||
-      (github.event_name == 'workflow_dispatch' && (inputs.scan == 'api' || inputs.scan == 'all')))
+      !cancelled() && (inputs.scan == 'api' || inputs.scan == 'all')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -99,9 +91,7 @@ jobs:
     name: zap-full
     needs: [zap-baseline, zap-api]
     if: >-
-      !cancelled() && (
-      (github.event_name == 'schedule' && github.event.schedule == '37 2 * * 0') ||
-      (github.event_name == 'workflow_dispatch' && (inputs.scan == 'full' || inputs.scan == 'all')))
+      !cancelled() && (inputs.scan == 'full' || inputs.scan == 'all')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
