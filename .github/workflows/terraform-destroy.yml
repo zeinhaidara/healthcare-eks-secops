@@ -46,6 +46,31 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
+      # Read-only. Shows what the add-ons destroy below removes; it does not gate it.
+      - name: plan add-ons destroy
+        working-directory: terraform/cluster-addons
+        run: |
+          if aws eks describe-cluster --name "$TF_VAR_cluster_name" >/dev/null 2>&1; then
+            terraform init \
+              -backend-config="bucket=${TF_STATE_BUCKET}" \
+              -backend-config="region=${AWS_REGION}"
+            terraform plan -destroy -out=addons.tfplan
+            terraform show -no-color addons.tfplan > addons-plan.txt
+            {
+              echo "Add-ons destroy plan, resources by action:"
+              terraform show -json addons.tfplan | jq -r '[.resource_changes[].change.actions | join("/")] | group_by(.) | map("\(.[0]): \(length)") | .[]'
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Cluster not found; no add-ons plan"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: addons-destroy-plan
+          path: |
+            terraform/cluster-addons/addons.tfplan
+            terraform/cluster-addons/addons-plan.txt
+          if-no-files-found: ignore
+          retention-days: 7
       # Remove namespaces and the Load Balancer Controller before the cluster. Skipped when the
       # cluster is already gone (nothing in it to remove).
       - name: destroy cluster add-ons first

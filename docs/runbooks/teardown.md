@@ -23,6 +23,18 @@ What `teardown-unblock.yml` does:
 
 It never touches NAT gateways, VPCs or subnets. IAM does not limit EC2 or ELB actions to project tags, so the tag match in step 5 (`elbv2.k8s.aws/cluster`) is the only safeguard. If the match differs from the expected list, the job fails and prints it. Re-check the list before changing it.
 
+## Unlock a stuck Terraform state
+
+A cancelled Terraform run leaves its lock behind. The next run fails with `Error acquiring the state lock` and a lock ID. Cancel a run only when you accept the unlock that follows.
+
+Use `terraform-force-unlock.yml` with that lock ID and the state (`cluster-addons` or `root`), and approve `infra-destroy`.
+
+- It fails if a `terraform-apply`, `terraform-destroy` or `teardown-unblock` run is queued or in progress.
+- It reads the lock object (`<state key>.tflock`) and fails if its ID differs from the input.
+- It then force-unlocks and lists the state without changing it.
+
+`terraform-destroy.yml` also prints a read-only plan of the add-ons destroy before it destroys them. The plan runs under the same approval and does not pause the run.
+
 ## Manual cleanup after the destroy
 
 Terraform does not own these. Remove them by hand, in this order:
