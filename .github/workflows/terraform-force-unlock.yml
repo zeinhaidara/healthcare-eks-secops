@@ -2,7 +2,7 @@ name: terraform-force-unlock
 
 # Manual only. Releases a lock left behind by a cancelled run. Approval on infra-destroy.
 on:
-  workflow_dispatch: # checkov:skip=CKV_GHA_7:EXC-017 the inputs only select a state and name its lock; they feed no build output. owner Moulaye, expires 2027-04-20.
+  workflow_dispatch: # checkov:skip=CKV_GHA_7:EXC-017 the inputs only select a state and name its lock; they feed no build output. owner Moulaye, expires 2027-04-08.
     inputs:
       lock_id:
         description: Lock ID printed in the error of the failed run
