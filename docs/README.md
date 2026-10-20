@@ -16,6 +16,7 @@ Everything under `docs/`, one line each. The project overview is in the [top-lev
 - [detective-controls.md](runbooks/detective-controls.md): CloudTrail, GuardDuty, Security Hub and the destructive plan guard.
 - [security-scans.md](runbooks/security-scans.md): report-only scans (tflint, Kubescape, pip-audit, ZAP) and their latest results.
 - [eks-operator-import.md](runbooks/eks-operator-import.md): the operator's read-only EKS access entry.
+- [teardown.md](runbooks/teardown.md): unblock a stuck destroy, then the manual cleanup list.
 
 ## Security records
 - [controls.md](security/controls.md): every control by layer, with status and evidence.
