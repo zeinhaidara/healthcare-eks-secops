@@ -47,13 +47,16 @@ The destroy also removed the GuardDuty detector and the Security Hub subscriptio
 
 ## Manual cleanup after the destroy
 
-Terraform does not own these. Remove them by hand, in this order. Status checked on 2026-10-20.
+Terraform does not own these. They are removed by hand. Status checked on 2026-10-20.
 
-1. GitHub App key secret (Secrets Manager): present.
+1. GitHub App key secret `healthcare/argocd/github-app` (Secrets Manager): present, pending decision.
 2. Argo CD SSO secret (Secrets Manager): pending deletion (requested 2026-10-20).
 3. API key secret (Secrets Manager): done (checked 2026-10-20). The destroy deleted it.
-4. The `dev` and `prod` Route 53 aliases: present. They point at ALBs that no longer exist.
-5. The `deploy-dev` and `deploy-prod` IAM roles: present.
-6. The `AWS_ROLE_ARN` variables on the `dev` and `prod` GitHub environments: done (checked 2026-10-20). Both environments still exist with `ENVIRONMENT` and `K8S_NAMESPACE` only.
-7. The `plan`, `apply` and `ecr-push` IAM roles, the `infra` and `infra-destroy` environments, and the repo variables that hold role ARNs, the account ID and the zone ID: present. Remove them only if no rebuild is planned.
-8. The Terraform state bucket, last: present.
+4. The `dev` and `prod` Route 53 A records: done (verified gone 2026-10-20). The zone holds only its NS and SOA records.
+5. Hosted zone `cloudbatch818.click` (`Z0900957ARJDK4SXKDV0`): kept by decision, 2026-10-20. The domain registration is still active, with auto-renew off, and expires on 2027-09-25. Deleting the zone while the domain is registered would leave the domain pointing at name servers that answer nothing. Other teams' domains in the same account are out of scope.
+6. IAM roles `gha-deploy-dev`, `gha-deploy-prod`, `gha-ecr-push`, `gha-plan` and `gha-apply`: done (verified 2026-10-20, `NoSuchEntity`).
+7. Terraform state bucket `cloudbatch818-zein-hcsecops-tfstate-866934333672`: done (verified gone 2026-10-20).
+8. The `AWS_ROLE_ARN` variables on the `dev` and `prod` GitHub environments: done (checked 2026-10-20). Both environments still exist with `ENVIRONMENT` and `K8S_NAMESPACE` only.
+9. Repo variables `AWS_ECR_PUSH_ROLE_ARN` and `AWS_PLAN_ROLE_ARN`: pending, to be removed by hand. They point at deleted roles. `ROUTE53_ZONE_ID` and `AWS_ACCOUNT_ID` stay, because the zone stays.
+10. Operator user access key: present, Active. Pending, to be done last by the operator, outside this session. It is the identity used for this cleanup.
+11. `cloudbatch818-zein-dev-*` resources and the role `cloudbatch818-zein-github-actions-terraform`: pending, manual, later.
