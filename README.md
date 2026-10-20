@@ -1,6 +1,6 @@
 # healthcare-eks-secops
 
-> Torn down on 2026-10-20. The diagrams and commands describe the platform as it was built; the teardown and rebuild path is in docs/runbooks/teardown.md.
+> Torn down on 2026-10-20. Hosted zone and domain retained by decision; see docs/runbooks/teardown.md.
 
 A read-only patient lookup API (FastAPI) on Amazon EKS with Fargate in us-east-2, delivered through a secured platform: scan gates in CI, GitOps deploys with Argo CD, Terraform for everything, least-privilege IAM, detective controls, and a logged record of every change and accepted risk. All data is synthetic. No compliance claim is made.
 

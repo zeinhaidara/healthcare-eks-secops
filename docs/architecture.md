@@ -1,6 +1,6 @@
 # Architecture
 
-> Torn down on 2026-10-20. The diagrams and commands describe the platform as it was built; the teardown and rebuild path is in docs/runbooks/teardown.md.
+> Torn down on 2026-10-20. Hosted zone and domain retained by decision; see docs/runbooks/teardown.md.
 
 Five diagrams: traffic and workloads, data and logging, app delivery, infrastructure delivery, and access. Region us-east-2. Diagrams are Mermaid and render on GitHub. Status at 2026-10-18.
 
