@@ -1,6 +1,6 @@
 # Bootstrap
 
-The stack was torn down on 2026-10-20. Most of what is set up by hand here still exists; [teardown.md](runbooks/teardown.md) lists what remains.
+The stack was torn down on 2026-10-20. The CI roles and the state bucket described here were deleted the same day; [teardown.md](runbooks/teardown.md) lists what remains.
 
 One-time setup done by hand, outside Terraform. Terraform and the workflows only reference these through variables. Role ARNs, the account ID and the bucket name are never hardcoded.
 

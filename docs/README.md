@@ -1,6 +1,6 @@
 # Docs index
 
-> Torn down on 2026-10-20. The diagrams and commands describe the platform as it was built; the teardown and rebuild path is in docs/runbooks/teardown.md.
+> Torn down on 2026-10-20. Hosted zone and domain retained by decision; see docs/runbooks/teardown.md.
 
 Everything under `docs/`, one line each. The project overview is in the [top-level README](../README.md).
 
