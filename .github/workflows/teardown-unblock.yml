@@ -1,0 +1,200 @@
+name: teardown-unblock
+
+# Manual only, no inputs. Run before terraform-destroy when its add-ons step is stuck on finalizers.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+  EXPECTED_CLUSTER: cloudbatch818-zein-hcsecops
+  EXPECTED_ALBS: "cloudbatch818-argocd k8s-cloudbat-healthca-b1509928df k8s-cloudbat-healthca-fc96e73886"
+  BACKEND_SG: sg-0a0db2d40caaf8d45
+
+jobs:
+  unblock:
+    name: unblock
+    runs-on: ubuntu-latest
+    environment: infra-destroy
+    timeout-minutes: 55
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: 1 permission check
+        run: |
+          date +%s > "$RUNNER_TEMP/start"
+          [ "$CLUSTER_NAME" = "$EXPECTED_CLUSTER" ] || { echo "::error::CLUSTER_NAME is '$CLUSTER_NAME', expected '$EXPECTED_CLUSTER'"; exit 1; }
+          aws sts get-caller-identity --query Arn --output text
+          aws eks describe-cluster --name "$EXPECTED_CLUSTER" --query cluster.status --output text
+          aws elbv2 describe-load-balancers --query 'length(LoadBalancers)' --output text
+          aws elbv2 describe-target-groups --query 'length(TargetGroups)' --output text
+          aws ec2 describe-security-groups --group-ids "$BACKEND_SG" --query 'SecurityGroups[0].GroupId' --output text
+          # EC2 supports dry runs. A DryRunOperation error means the call would have been allowed.
+          for call in "describe-network-interfaces" "delete-security-group --group-id $BACKEND_SG"; do
+            if out=$(aws ec2 $call --dry-run 2>&1); then
+              echo "::error::Dry run of $call did not return DryRunOperation"; exit 1
+            fi
+            grep -q DryRunOperation <<<"$out" || { echo "::error::Dry run of $call was denied: $out"; exit 1; }
+            echo "dry run ok: $call"
+          done
+          echo "ELB delete calls have no dry run; they are checked only when step 6 runs." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: 2 inventory
+        run: |
+          aws eks update-kubeconfig --name "$EXPECTED_CLUSTER"
+          kubectl get ingress -A -o json | jq -r '.items[] | select((.metadata.namespace=="cloudbatch818-healthcare-dev" or .metadata.namespace=="cloudbatch818-healthcare-prod") and .metadata.name=="healthcare-api" or (.metadata.namespace=="argocd" and .metadata.name=="argocd-server")) | "ingress \(.metadata.namespace)/\(.metadata.name) finalizers=\(.metadata.finalizers)"'
+          for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod argocd; do
+            kubectl get targetgroupbindings.elbv2.k8s.aws -n "$ns" -o json | jq -r '.items[] | "targetgroupbinding \(.metadata.namespace)/\(.metadata.name) finalizers=\(.metadata.finalizers)"'
+            kubectl get ns "$ns" -o jsonpath='namespace {.metadata.name} phase={.status.phase}{"\n"}'
+          done
+
+      - name: 3 finalizers
+        run: |
+          drop() { # kind ns name finalizer
+            local kind=$1 ns=$2 name=$3 fin=$4 rest
+            rest=$(kubectl get "$kind" "$name" -n "$ns" -o json | jq -c --arg f "$fin" '[.metadata.finalizers // [] | .[] | select(. != $f)]')
+            kubectl patch "$kind" "$name" -n "$ns" --type=merge -p "{\"metadata\":{\"finalizers\":$rest}}"
+            echo "removed $fin from $kind $ns/$name"
+          }
+          for pair in cloudbatch818-healthcare-dev:healthcare-api cloudbatch818-healthcare-prod:healthcare-api argocd:argocd-server; do
+            ns=${pair%%:*}; name=${pair##*:}
+            ingresses=$(kubectl get ingress -n "$ns" -o name)
+            if grep -qx "ingress.networking.k8s.io/$name" <<<"$ingresses"; then
+              drop ingress "$ns" "$name" ingress.k8s.aws/resources
+            fi
+          done
+          for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod argocd; do
+            for tgb in $(kubectl get targetgroupbindings.elbv2.k8s.aws -n "$ns" -o name); do
+              drop targetgroupbindings.elbv2.k8s.aws "$ns" "${tgb#*/}" elbv2.k8s.aws/resources
+            done
+          done
+          # Give the namespace controller two minutes to finish on its own before touching the namespace.
+          for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod argocd; do
+            for _ in $(seq 24); do
+              if [ "$(kubectl get ns "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || true)" != "Terminating" ]; then break; fi
+              sleep 5
+            done
+            phase=$(kubectl get ns "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || true)
+            if [ "$phase" = "Terminating" ]; then
+              kubectl get ns "$ns" -o json | jq '.spec.finalizers |= map(select(. != "kubernetes"))' \
+                | kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - >/dev/null
+              echo "removed the kubernetes finalizer from namespace $ns"
+            else
+              echo "namespace $ns is '${phase:-gone}', finalizer left alone"
+            fi
+          done
+
+      - name: 4 wait
+        run: |
+          deadline=$(( $(date +%s) + 600 ))
+          while :; do
+            left=""
+            namespaces=$(kubectl get ns -o name)
+            for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod; do
+              if grep -qx "namespace/$ns" <<<"$namespaces"; then left="$left namespace/$ns"; fi
+            done
+            # argocd is only deleted by terraform-destroy, so wait for its Ingress, and for the namespace if it is Terminating.
+            ingresses=$(kubectl get ingress -n argocd -o name)
+            if grep -qx "ingress.networking.k8s.io/argocd-server" <<<"$ingresses"; then left="$left ingress/argocd-server"; fi
+            if [ "$(kubectl get ns argocd -o jsonpath='{.status.phase}' 2>/dev/null || true)" = "Terminating" ]; then left="$left namespace/argocd"; fi
+            if [ -z "$left" ]; then break; fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Still present after 10 minutes:$left"
+              for ns in cloudbatch818-healthcare-dev cloudbatch818-healthcare-prod argocd; do
+                kubectl get ns "$ns" -o jsonpath='{range .status.conditions[*]}{.type}: {.message}{"\n"}{end}' || true
+              done
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "dev and prod namespaces are gone; argocd has no stuck Ingress"
+
+      - name: 5 find load balancer resources
+        run: |
+          cluster_tag() { aws elbv2 describe-tags --resource-arns "$1" --query "TagDescriptions[0].Tags[?Key=='elbv2.k8s.aws/cluster'].Value | [0]" --output text; }
+          : > "$RUNNER_TEMP/albs"; : > "$RUNNER_TEMP/tgs"; : > "$RUNNER_TEMP/sgs"
+          all_albs=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[].[LoadBalancerArn,LoadBalancerName]' --output text)
+          while read -r arn name; do
+            if [ "$(cluster_tag "$arn")" = "$EXPECTED_CLUSTER" ]; then echo "$arn $name" >> "$RUNNER_TEMP/albs"; fi
+          done <<<"$all_albs"
+          found=$(awk '{print $2}' "$RUNNER_TEMP/albs" | sort | tr '\n' ' ')
+          want=$(tr ' ' '\n' <<<"$EXPECTED_ALBS" | sort | tr '\n' ' ')
+          all_tgs=$(aws elbv2 describe-target-groups --query 'TargetGroups[].[TargetGroupArn,TargetGroupName,join(`,`,LoadBalancerArns)]' --output text)
+          while read -r arn name lbs; do
+            if [ "$(cluster_tag "$arn")" = "$EXPECTED_CLUSTER" ]; then echo "$arn $name $lbs" >> "$RUNNER_TEMP/tgs"; fi
+          done <<<"$all_tgs"
+          aws ec2 describe-security-groups \
+            --filters "Name=tag:elbv2.k8s.aws/cluster,Values=$EXPECTED_CLUSTER" "Name=tag:ingress.k8s.aws/resource,Values=ManagedLBSecurityGroup" \
+            --query 'SecurityGroups[].[GroupId,GroupName]' --output text > "$RUNNER_TEMP/sgs"
+          echo "ALBs:"; cat "$RUNNER_TEMP/albs"; echo "Target groups:"; cat "$RUNNER_TEMP/tgs"; echo "Security groups:"; cat "$RUNNER_TEMP/sgs"
+          bad=0
+          [ "$found" = "$want" ] || { echo "::error::ALB match differs. Found: $found Expected: $want"; bad=1; }
+          [ "$(wc -l < "$RUNNER_TEMP/tgs")" -eq 3 ] || { echo "::error::Expected 3 target groups"; bad=1; }
+          [ "$(wc -l < "$RUNNER_TEMP/sgs")" -eq 3 ] || { echo "::error::Expected 3 managed LB security groups"; bad=1; }
+          while read -r _ tgname lbs; do
+            for lb in ${lbs//,/ }; do
+              grep -q "^$lb " "$RUNNER_TEMP/albs" || { echo "::error::Target group $tgname is attached to a load balancer outside the list: $lb"; bad=1; }
+            done
+          done < "$RUNNER_TEMP/tgs"
+          [ "$bad" -eq 0 ]
+
+      - name: 6 delete load balancer resources
+        run: |
+          while read -r arn name; do
+            aws elbv2 delete-load-balancer --load-balancer-arn "$arn"
+            aws elbv2 wait load-balancers-deleted --load-balancer-arns "$arn"
+            echo "deleted ALB $name"
+          done < "$RUNNER_TEMP/albs"
+          while read -r arn name _; do
+            aws elbv2 delete-target-group --target-group-arn "$arn"
+            echo "deleted target group $name"
+          done < "$RUNNER_TEMP/tgs"
+          while read -r id name; do
+            for _ in $(seq 30); do
+              if [ "$(aws ec2 describe-network-interfaces --filters "Name=group-id,Values=$id" --query 'length(NetworkInterfaces)' --output text)" = "0" ]; then break; fi
+              sleep 10
+            done
+            aws ec2 delete-security-group --group-id "$id"
+            echo "deleted security group $id ($name)"
+          done < "$RUNNER_TEMP/sgs"
+
+      - name: 7 backend security group
+        run: |
+          tags=$(aws ec2 describe-security-groups --group-ids "$BACKEND_SG" --query 'SecurityGroups[0].Tags' --output json)
+          jq -e --arg c "$EXPECTED_CLUSTER" 'any(.[]; .Key=="elbv2.k8s.aws/cluster" and .Value==$c) and any(.[]; .Key=="elbv2.k8s.aws/resource" and .Value=="backend-sg")' <<<"$tags" >/dev/null \
+            || { echo "::error::$BACKEND_SG is not the backend security group of $EXPECTED_CLUSTER"; echo "$tags"; exit 1; }
+          for _ in $(seq 30); do
+            if [ "$(aws ec2 describe-network-interfaces --filters "Name=group-id,Values=$BACKEND_SG" --query 'length(NetworkInterfaces)' --output text)" = "0" ]; then break; fi
+            sleep 10
+          done
+          refs=$(aws ec2 describe-network-interfaces --filters "Name=group-id,Values=$BACKEND_SG" \
+            --query 'NetworkInterfaces[].[NetworkInterfaceId,Description,Status]' --output text)
+          if [ -n "$refs" ]; then
+            echo "::error::$BACKEND_SG is still used by these network interfaces:"; echo "$refs"; exit 1
+          fi
+          aws ec2 delete-security-group --group-id "$BACKEND_SG"
+          echo "deleted security group $BACKEND_SG"
+
+      - name: session time
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/start" ] || exit 0
+          mins=$(( ($(date +%s) - $(cat "$RUNNER_TEMP/start")) / 60 ))
+          echo "Run time: ${mins} min" >> "$GITHUB_STEP_SUMMARY"
+          [ "$mins" -lt 45 ] || echo "Close to the role's 1 hour session limit." >> "$GITHUB_STEP_SUMMARY"
