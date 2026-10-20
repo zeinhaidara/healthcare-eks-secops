@@ -33,7 +33,14 @@ Use `terraform-force-unlock.yml` with that lock ID and the state (`cluster-addon
 - It reads the lock object (`<state key>.tflock`) and fails if its ID differs from the input.
 - It then force-unlocks and lists the state without changing it.
 
-`terraform-destroy.yml` also prints a read-only plan of the add-ons destroy before it destroys them. The plan runs under the same approval and does not pause the run.
+## Destroy in two stages
+
+`terraform-destroy.yml` has two jobs, each behind its own `infra-destroy` approval.
+
+1. `tf-plan` plans the destroy of the add-ons and of the root and prints the counts per action in the run summary. The plans are the artifacts `addons-destroy-plan` and `root-destroy-plan`. The add-ons plan is skipped when the cluster is gone.
+2. `tf-destroy` runs only after the second approval.
+
+Read the plan artifacts before you approve the destroy. The destroy runs a fresh `terraform destroy`, so it can differ from the plan if something changed in between.
 
 ## Manual cleanup after the destroy
 
