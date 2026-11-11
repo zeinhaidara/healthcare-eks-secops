@@ -19,6 +19,26 @@ A read-only patient lookup API (FastAPI) on Amazon EKS with Fargate in us-east-2
 
 ## How it fits together
 
+```mermaid
+flowchart LR
+    user[HTTPS client] --> alb[Application Load Balancer]
+    alb --> api[FastAPI on EKS Fargate]
+    api --> ddb[DynamoDB synthetic patients]
+    api --> secrets[Secrets Manager via IRSA]
+    pr[Pull request] --> ci[Tests and security gates]
+    ci --> image[Scanned image in ECR]
+    image --> desired[Image digest in Git]
+    desired --> argo[Argo CD]
+    argo --> api
+    tf[Manual approved Terraform] --> eks[EKS and supporting AWS resources]
+```
+
+### Validation level and design decisions
+
+**Run on real cloud; torn down on 2026-10-20.** The teardown runbook and saved security evidence record the deployed environment. Current PR checks validate code and configuration without rebuilding AWS resources.
+
+Fargate avoids managing worker nodes; IRSA scopes each workload's AWS access. Git stores the image digest so Argo CD can reconcile an immutable release. Terraform changes require a manual approval. A single NAT gateway trades availability for demo cost; the public EKS endpoint is recorded in EXC-005. See the [architecture and trade-offs](docs/architecture.md) and [exceptions register](docs/security/exceptions-register.md).
+
 - **Deploy:** a merge to `dev` builds, scans and pushes one image, then commits its digest to `dev`. Argo CD syncs dev automatically. Prod tracks `main` and syncs when an admin approves ([gitops-deploy.md](docs/runbooks/gitops-deploy.md)).
 - **Gates:** every PR runs `ci.yml`. `main` requires 10 checks and 0 approvals: merges are gated by automated checks (EXC-003).
 - **Infra:** `terraform-apply.yml` runs by hand: read-only plan, destructive plan guard, then apply behind the `infra` approval. `terraform-destroy.yml` plans the destroy, then destroys behind a second approval. It tore the stack down on 2026-10-20 ([teardown.md](docs/runbooks/teardown.md)).
