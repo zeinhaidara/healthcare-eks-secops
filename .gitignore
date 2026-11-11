@@ -1,5 +1,6 @@
 # Local instructions and plans (never pushed)
 .instructions/
+memory/
 
 # Python
 __pycache__/
